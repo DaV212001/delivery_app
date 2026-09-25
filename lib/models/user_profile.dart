@@ -1,0 +1,98 @@
+import '../constants/app_assets.dart';
+
+class UserProfile {
+  final String id;
+  final String name;
+  final String email;
+  final String phone;
+  final String avatarUrl;
+  final String tagline;
+  final double rating;
+  final int totalOrders;
+  final String defaultAddress;
+  final double walletAmount;
+
+  const UserProfile({
+    required this.id,
+    required this.name,
+    required this.email,
+    this.phone = '',
+    required this.avatarUrl,
+    required this.tagline,
+    required this.rating,
+    required this.totalOrders,
+    required this.defaultAddress,
+    this.walletAmount = 0.0,
+  });
+
+  factory UserProfile.fromJson(Map<String, dynamic> rawJson) {
+    final json = (rawJson['user'] is Map<String, dynamic>)
+        ? rawJson['user'] as Map<String, dynamic>
+        : (rawJson['data'] is Map<String, dynamic>
+            ? rawJson['data'] as Map<String, dynamic>
+            : rawJson);
+
+    final firstName = json['f_name']?.toString() ?? rawJson['f_name']?.toString() ?? '';
+    final lastName = json['l_name']?.toString() ?? rawJson['l_name']?.toString() ?? '';
+    final fullName = (firstName.isNotEmpty || lastName.isNotEmpty)
+        ? '$firstName $lastName'.trim()
+        : (json['name']?.toString() ?? rawJson['name']?.toString() ?? 'User');
+
+    final photo = json['profile_picture']?.toString() ??
+        json['profile_image']?.toString() ??
+        json['avatarUrl']?.toString() ??
+        rawJson['profile_picture']?.toString() ??
+        rawJson['profile_image']?.toString() ??
+        '';
+
+    final wallet = double.tryParse(json['wallet_amount']?.toString() ??
+            rawJson['wallet_amount']?.toString() ??
+            '0') ??
+        0.0;
+
+    final id = json['id']?.toString() ??
+        rawJson['id']?.toString() ??
+        json['user_id']?.toString() ??
+        rawJson['user_id']?.toString() ??
+        '';
+
+    return UserProfile(
+      id: id,
+      name: fullName,
+      email: json['email']?.toString() ?? rawJson['email']?.toString() ?? '',
+      phone: json['phone']?.toString() ?? rawJson['phone']?.toString() ?? '',
+      avatarUrl: photo.isNotEmpty ? photo : AppAssets.userAvatar,
+      tagline: json['tagline']?.toString() ?? 'AMN Delivery Customer',
+      rating: double.tryParse(json['rating']?.toString() ?? '4.9') ?? 4.9,
+      totalOrders: int.tryParse(json['total_orders']?.toString() ?? '0') ?? 0,
+      defaultAddress: json['default_address']?.toString() ?? 'Addis Ababa, Ethiopia',
+      walletAmount: wallet,
+    );
+  }
+
+  UserProfile copyWith({
+    String? id,
+    String? name,
+    String? email,
+    String? phone,
+    String? avatarUrl,
+    String? tagline,
+    double? rating,
+    int? totalOrders,
+    String? defaultAddress,
+    double? walletAmount,
+  }) {
+    return UserProfile(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      tagline: tagline ?? this.tagline,
+      rating: rating ?? this.rating,
+      totalOrders: totalOrders ?? this.totalOrders,
+      defaultAddress: defaultAddress ?? this.defaultAddress,
+      walletAmount: walletAmount ?? this.walletAmount,
+    );
+  }
+}

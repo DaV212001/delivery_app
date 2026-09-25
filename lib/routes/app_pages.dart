@@ -1,0 +1,74 @@
+import 'package:get/get.dart';
+import '../config/storage_config.dart';
+import '../constants/pages.dart';
+import '../screens/auth/login_screen.dart';
+import '../screens/auth/otp_screen.dart';
+import '../screens/checkout/cart_screen.dart';
+import '../screens/home/home_screen.dart';
+import '../screens/main_navigation.dart';
+import '../screens/orders/order_history_screen.dart';
+import '../screens/profile/profile_screen.dart';
+import '../screens/search/search_screen.dart';
+import '../screens/splash/splash_screen.dart';
+import '../screens/tracking/order_tracking_screen.dart';
+import '../screens/wallet/wallet_screen.dart';
+
+class AppPages {
+  static String get initial {
+    try {
+      final token = ConfigPreference.getAccessToken();
+      final isExpired = ConfigPreference.isAccessTokenExpired();
+      if (token != null && !isExpired) {
+        return AppRoutes.mainNav;
+      }
+    } catch (_) {}
+    return AppRoutes.splash;
+  }
+
+  static final routes = [
+    GetPage(
+      name: AppRoutes.splash,
+      page: () => const SplashScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.login,
+      page: () => const LoginScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.mainNav,
+      page: () => const MainNavigationScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.home,
+      page: () => const HomeScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.search,
+      page: () => const SearchScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.cart,
+      page: () => const CartScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.tracking,
+      page: () => const OrderTrackingScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.orderHistory,
+      page: () => const OrderHistoryScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.profile,
+      page: () => const ProfileScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.wallet,
+      page: () => const WalletScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.otp,
+      page: () => const OtpScreen(),
+    ),
+  ];
+}

@@ -1,0 +1,222 @@
+{
+  "info": {
+    "_postman_id": "3bc2594f-fe25-4356-b05b-37b3e50cbf99",
+    "name": "Profile",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "12394693",
+    "_collection_link": "https://go.postman.co/collection/12394693-3bc2594f-fe25-4356-b05b-37b3e50cbf99?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Driver",
+      "item": []
+    },
+    {
+      "name": "Customer",
+      "item": [
+        {
+          "name": "My Wallet Amount",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://api.amnplc.com/api/my_wallet_amount/1",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "my_wallet_amount",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Profile Edit",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"f_name\":\"aman\",\n\"l_name\":\"til\",\n\"email\":\"tilahunamanuel0@gmail.com\",\n\"phone\":\"251911058179\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://api.amnplc.com/api/profile/1",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "profile",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "My Delivery Address",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://api.amnplc.com/api/my-delivery-adress/1",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "my-delivery-adress",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "My Wallet Transaction",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://api.amnplc.com/api/my_wallet_transaction/1",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "my_wallet_transaction",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Delivery Address",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"name\":\"office\",\n\"latitude\":\"4.5678\",\n\"longitude\":\"2.74573\",\n\"user_id\":1\n\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://api.amnplc.com/api/delivery-adress",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "delivery-adress"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Edit Delivery Address",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"name\":\"office\",\n\"latitude\":\"4.5678\",\n\"longitude\":\"2.74573\",\n\"user_id\":1\n\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://api.amnplc.com/api/delivery-adress/162",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "delivery-adress",
+                "162"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete delivery Address",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "https://api.amnplc.com/api/delivery-adress/162",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "delivery-adress",
+                "162"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "My Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://api.amnplc.com/api/profile/1",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "profile",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

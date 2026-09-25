@@ -1,0 +1,110 @@
+{
+  "info": {
+    "_postman_id": "41ced1f6-3c95-4754-81fb-e7673f70fd64",
+    "name": "Property",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "12394693",
+    "_collection_link": "https://go.postman.co/collection/12394693-41ced1f6-3c95-4754-81fb-e7673f70fd64?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Property List",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.amnplc.com/api/property",
+          "protocol": "https",
+          "host": [
+            "api",
+            "amnplc",
+            "com"
+          ],
+          "path": [
+            "api",
+            "property"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Property Detail",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.amnplc.com/api/property/1",
+          "protocol": "https",
+          "host": [
+            "api",
+            "amnplc",
+            "com"
+          ],
+          "path": [
+            "api",
+            "property",
+            "1"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Global Search",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.amnplc.com/api/search?keyword=checkebvsa",
+          "protocol": "https",
+          "host": [
+            "api",
+            "amnplc",
+            "com"
+          ],
+          "path": [
+            "api",
+            "search"
+          ],
+          "query": [
+            {
+              "key": "keyword",
+              "value": "checkebvsa"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Search on Property",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.amnplc.com/api/property/1/search?keyword=checkebvsa",
+          "protocol": "https",
+          "host": [
+            "api",
+            "amnplc",
+            "com"
+          ],
+          "path": [
+            "api",
+            "property",
+            "1",
+            "search"
+          ],
+          "query": [
+            {
+              "key": "keyword",
+              "value": "checkebvsa"
+            }
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

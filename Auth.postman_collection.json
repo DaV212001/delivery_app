@@ -1,0 +1,582 @@
+{
+  "info": {
+    "_postman_id": "43056752-5cc7-4f9c-b9fd-511e11f6e9cc",
+    "name": "Auth",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "12394693",
+    "_collection_link": "https://go.postman.co/collection/12394693-43056752-5cc7-4f9c-b9fd-511e11f6e9cc?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Driver",
+      "item": [
+        {
+          "name": "Driver Login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"phone\":\"251911058179\",\n\"password\":\"1224\"\n\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://api.amnplc.com/api/driver-login",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "driver-login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Driver Register",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"f_name\":\"Amanule\",\n\"l_name\":\"Tilahun\",\n\"phone\":\"251911058179\",\n\"password\":\"1234\"\n\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://api.amnplc.com/api/driver-register",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "driver-register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Forget Driver Password",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone\":\"251911058179\",\n    \"password\":\"1224\",\n     \"password_confirmation\":\"1224\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://api.amnplc.com/api/driver-forget-password",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "driver-forget-password"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Driver Send OTP",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone\":\"251911058179\",\n    \"otp\":\"1224\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://api.amnplc.com/api/driver-send-otp",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "driver-send-otp"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "ChangeDriver Password",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"user_id\":1,\n    \"password\":12345,\n     \"password_confirmation\":12345\n\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://api.amnplc.com/api/driver-change-password",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "driver-change-password"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Driver Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"user_id\":1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://api.amnplc.com/api/driver-logout",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "driver-logout"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Driver Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"user_id\":\"1\",\n    \"otp\":\"1224\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://api.amnplc.com/api/driver-verify-otp",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "driver-verify-otp"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Driver Change Profile Picture",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "user_id",
+                  "value": "1",
+                  "type": "text",
+                  "uuid": "349c93ca-2af5-4f03-9acb-8b0aa28b3998"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "uuid": "fa62a13f-ab8f-4c05-aa13-5f0c9de61682",
+                  "src": "postman-cloud:///1f14876a-f94a-4050-b76d-6d508c56f3fd"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://api.amnplc.com/api/driver-change-profile-image?user_id=1&image",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "driver-change-profile-image"
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "1"
+                },
+                {
+                  "key": "image",
+                  "value": null
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Customer",
+      "item": [
+        {
+          "name": "Customer Login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"phone\":\"251911058179\",\n\"password\":\"12345\"\n\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://api.amnplc.com/api/customer-login",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "customer-login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Customer Register",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\"f_name\":\"Amanule\",\n\"l_name\":\"Tilahun\",\n\"phone\":\"251911058179\",\n\"email\":\"tilahunamanuel0@gmail.com\",\n\"password\":\"1234\"\n\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://api.amnplc.com/api/customer-register",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "customer-register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Forget customer Password",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone\":\"251911058179\",\n    \"password\":\"1224\",\n     \"password_confirmation\":\"1224\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://api.amnplc.com/api/customer-forget-password",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "customer-forget-password"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Customer Send OTP",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone\":\"251911058179\",\n    \"otp\":\"1224\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://api.amnplc.com/api/customer-send-otp",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "customer-send-otp"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Customer Password",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"user_id\":1,\n    \"password\":12345,\n     \"password_confirmation\":12345\n\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://api.amnplc.com/api/customer-change-password",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "customer-change-password"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Customer logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"user_id\":1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://api.amnplc.com/api/customer-logout",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "customer-logout"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Customer Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"user_id\":\"1\",\n    \"otp\":\"1224\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://api.amnplc.com/api/customer-verify-otp",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "customer-verify-otp"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Customer Change Profile picture",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "user_id",
+                  "value": "1",
+                  "type": "text",
+                  "uuid": "377b9517-929d-46fa-9504-3c2b1e7ee1bd"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "uuid": "c7fb79a8-03ac-49ba-9b97-597f9d01c81f",
+                  "src": "/Users/m4/Downloads/774970090_122288439380185335_1553239821122923770_n.jpg"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://api.amnplc.com/api/customer-change-profile-image?user_id=1&image",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "api",
+                "customer-change-profile-image"
+              ],
+              "query": [
+                {
+                  "key": "user_id",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "value": null,
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "https://api.amnplc.com/public/storage/profileImage/1789731525.jpg",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "user_id",
+                  "value": "1",
+                  "type": "text",
+                  "uuid": "ce56b2c6-8aaa-44d3-a17c-9b64d9e3c8d0"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "uuid": "1ff90cf0-fcc5-4f4e-989c-7ba8eb93d096",
+                  "src": "/Users/m4/Downloads/774970090_122288439380185335_1553239821122923770_n.jpg"
+                }
+              ]
+            },
+            "url": {
+              "raw": "https://api.amnplc.com/public/storage/profileImage/1789731525.jpg",
+              "protocol": "https",
+              "host": [
+                "api",
+                "amnplc",
+                "com"
+              ],
+              "path": [
+                "public",
+                "storage",
+                "profileImage",
+                "1789731525.jpg"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

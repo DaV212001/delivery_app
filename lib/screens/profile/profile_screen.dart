@@ -1,0 +1,830 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import '../../controllers/auth_controller.dart';
+import '../../controllers/localization_controller.dart';
+import '../../controllers/profile_controller.dart';
+import '../../constants/pages.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/theme_controller.dart';
+import '../../widgets/common/app_widgets.dart';
+
+class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key});
+
+  void _showTopupDialog(BuildContext context, ProfileController profileController) {
+    final amountController = TextEditingController(text: '100');
+    Get.dialog(
+      AlertDialog(
+        title: Text('topup_wallet'.tr),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${'enter_amount'.tr} (Br):'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: amountController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                suffixText: 'Br',
+                hintText: '100',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: Text('cancel'.tr)),
+          Obx(() {
+            if (profileController.isSaving.value) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2.5),
+                ),
+              );
+            }
+            return ElevatedButton(
+              onPressed: () {
+                final val = double.tryParse(amountController.text.trim()) ?? 0;
+                if (val <= 0) {
+                  Get.snackbar('error'.tr, 'enter_amount'.tr);
+                  return;
+                }
+                profileController.topupWallet(val);
+              },
+              child: Text('topup'.tr),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  void _showAddressesSheet(BuildContext context, ProfileController profileController) {
+    Get.bottomSheet(
+      Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.75,
+          ),
+          child: Obx(
+            () => SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'saved_addresses'.tr,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
+                        onPressed: () => _showAddAddressDialog(context, profileController),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (profileController.addresses.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Center(child: Text('no_saved_addresses'.tr)),
+                    )
+                  else
+                    ...profileController.addresses.map(
+                      (addr) {
+                        final isSelected = profileController.selectedAddress.value?.id == addr.id ||
+                            profileController.selectedAddress.value?.name == addr.name;
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          onTap: () {
+                            profileController.selectAddress(addr);
+                            Get.back();
+                          },
+                          leading: Icon(
+                            isSelected ? Icons.check_circle_rounded : Icons.location_on_outlined,
+                            color: AppColors.primary,
+                          ),
+                          title: Text(
+                            addr.name,
+                            style: TextStyle(
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                              color: isSelected ? AppColors.primary : null,
+                            ),
+                          ),
+                          subtitle: Text('${addr.latitude.toStringAsFixed(4)}, ${addr.longitude.toStringAsFixed(4)}'),
+                          trailing: addr.id != null
+                              ? IconButton(
+                                  icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                                  onPressed: () => profileController.deleteAddress(addr.id!),
+                                )
+                              : null,
+                        );
+                      },
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAddAddressDialog(BuildContext context, ProfileController profileController) {
+    final nameCtrl = TextEditingController(text: '');
+    final latCtrl = TextEditingController(text: '9.0209');
+    final lngCtrl = TextEditingController(text: '38.7469');
+
+    Get.dialog(
+      AlertDialog(
+        title: Text('add_address'.tr),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nameCtrl, decoration: InputDecoration(labelText: 'address_name'.tr)),
+            const SizedBox(height: 8),
+            TextField(controller: latCtrl, decoration: InputDecoration(labelText: 'latitude'.tr)),
+            const SizedBox(height: 8),
+            TextField(controller: lngCtrl, decoration: InputDecoration(labelText: 'longitude'.tr)),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: Text('cancel'.tr)),
+          ElevatedButton(
+            onPressed: () {
+              final lat = double.tryParse(latCtrl.text) ?? 9.0209;
+              final lng = double.tryParse(lngCtrl.text) ?? 38.7469;
+              final label = nameCtrl.text.trim().isNotEmpty ? nameCtrl.text.trim() : 'Home';
+              profileController.addAddress(label, lat, lng);
+            },
+            child: Text('save'.tr),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFaqsDialog(BuildContext context, ProfileController profileController) {
+    Get.dialog(
+      AlertDialog(
+        title: Text('faqs'.tr),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: Obx(
+            () => profileController.faqs.isEmpty
+                ? Center(child: Text('loading'.tr))
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: profileController.faqs.length,
+                    itemBuilder: (ctx, i) {
+                      final f = profileController.faqs[i];
+                      return ExpansionTile(
+                        title: Text(f.questionText, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            child: Text(f.answerText, style: const TextStyle(fontSize: 13)),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: Text('done'.tr)),
+        ],
+      ),
+    );
+  }
+
+  void _showPrivacyDialog(BuildContext context, ProfileController profileController) {
+    Get.dialog(
+      AlertDialog(
+        title: Text('privacy_and_terms'.tr),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: SingleChildScrollView(
+            child: Obx(
+              () => Text(
+                profileController.privacyPolicy.value.isNotEmpty
+                    ? profileController.privacyPolicy.value
+                    : 'AMN Delivery is committed to protecting your privacy and security. By using our service, you agree to our standard terms and delivery policies.',
+                style: const TextStyle(fontSize: 13, height: 1.4),
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: Text('done'.tr)),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final authController = Get.isRegistered<AuthController>()
+        ? Get.find<AuthController>()
+        : Get.put(AuthController());
+    final profileController = Get.isRegistered<ProfileController>()
+        ? Get.find<ProfileController>()
+        : Get.put(ProfileController());
+    final themeController = Get.isRegistered<ThemeController>()
+        ? Get.find<ThemeController>()
+        : Get.put(ThemeController());
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: Text(
+          'profile'.tr,
+          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        centerTitle: false,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+          child: Obx(() {
+            final isLoggedIn = authController.isLoggedIn;
+
+            // GUEST MODE: Show guest header, sign in button, and support/preferences
+            if (!isLoggedIn) {
+              return Column(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.darkSurfaceContainerLowest : Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 72,
+                          height: 72,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.person_outline_rounded,
+                              size: 38,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'guest_mode'.tr,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'sign_in_profile_sub'.tr,
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              elevation: 0,
+                            ),
+                            icon: const Icon(Icons.login_rounded, size: 20),
+                            label: Text(
+                              'sign_in_register'.tr,
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                            ),
+                            onPressed: () => Get.toNamed(AppRoutes.login),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Preferences Section (Always accessible)
+                  _buildPreferencesGroup(context, theme, themeController, profileController),
+                  const SizedBox(height: 40),
+                ],
+              );
+            }
+
+            // AUTHENTICATED MODE: Full profile with bento card, wallet, and settings
+            final user = authController.user;
+            return Column(
+              children: [
+                // Bento Profile Card
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.darkSurfaceContainerLowest : Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 84,
+                        height: 84,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppColors.primary,
+                            width: 3,
+                          ),
+                        ),
+                        child: ClipOval(
+                          child: AppNetworkImage(
+                            imageUrl: user.avatarUrl,
+                            width: 84,
+                            height: 84,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        user.name.isNotEmpty ? user.name : 'AMN Customer',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        user.phone.isNotEmpty
+                            ? user.phone
+                            : (user.email.isNotEmpty ? user.email : 'AMN Customer'),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Stats Row
+                      Center(
+                        child: _StatChip(
+                          icon: Icons.shopping_bag_outlined,
+                          iconColor: AppColors.primary,
+                          label: '${user.totalOrders} ${'orders_count'.tr}',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Live Wallet Card
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: () => Get.toNamed(AppRoutes.wallet),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'wallet_balance'.tr,
+                                        style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Icon(
+                                        Icons.chevron_right_rounded,
+                                        size: 16,
+                                        color: Colors.white.withValues(alpha: 0.5),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Obx(
+                                    () => Text(
+                                      profileController.walletBalance.value.formattedBirr,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Material(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(12),
+                              child: InkWell(
+                                onTap: () => _showTopupDialog(context, profileController),
+                                borderRadius: BorderRadius.circular(12),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.add_rounded, size: 18, color: Colors.white),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'topup'.tr,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Account Options Section
+                _SettingsGroup(
+                  title: 'account_settings'.tr,
+                  children: [
+                    Obx(
+                      () => _SettingsTile(
+                        icon: Icons.location_on_outlined,
+                        title: 'saved_addresses'.tr,
+                        subtitle: '${profileController.addresses.length} ${'delivery_addresses'.tr.toLowerCase()}',
+                        onTap: () => _showAddressesSheet(context, profileController),
+                      ),
+                    ),
+                    Obx(
+                      () => _SettingsTile(
+                        icon: Icons.account_balance_wallet_outlined,
+                        title: 'wallet_and_payments'.tr,
+                        subtitle: '${'wallet_balance'.tr} (${profileController.walletBalance.value.formattedBirr})',
+                        onTap: () => Get.toNamed(AppRoutes.wallet),
+                      ),
+                    ),
+                    _SettingsTile(
+                      icon: Icons.favorite_border_rounded,
+                      title: 'favorite_spots'.tr,
+                      subtitle: 'saved_stores_sub'.tr,
+                      onTap: () {},
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 20),
+
+                // Preferences Section
+                _buildPreferencesGroup(context, theme, themeController, profileController),
+
+                const SizedBox(height: 24),
+
+                // Logout Button
+                AppButton(
+                  isSecondary: true,
+                  text: 'sign_out'.tr,
+                  icon: const Icon(Icons.logout_rounded, size: 18, color: AppColors.error),
+                  onPressed: () => authController.logout(),
+                ),
+
+                const SizedBox(height: 40),
+              ],
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPreferencesGroup(
+    BuildContext context,
+    ThemeData theme,
+    ThemeController themeController,
+    ProfileController profileController,
+  ) {
+    return _SettingsGroup(
+      title: 'preferences_support'.tr,
+      children: [
+        Obx(
+          () => ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                themeController.isDarkMode
+                    ? Icons.dark_mode_rounded
+                    : Icons.light_mode_rounded,
+                color: AppColors.primary,
+                size: 20,
+              ),
+            ),
+            title: Text(
+              'dark_mode'.tr,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            subtitle: Text(
+              themeController.isDarkMode ? 'Warm Dark Modernism' : 'Warm Cream Light',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            trailing: Switch(
+              value: themeController.isDarkMode,
+              activeTrackColor: AppColors.primary,
+              onChanged: (_) => themeController.toggleTheme(),
+            ),
+          ),
+        ),
+        Obx(
+          () => _SettingsTile(
+            icon: Icons.language_rounded,
+            title: 'language'.tr,
+            subtitle: LocalizationController.getLanguageName(),
+            onTap: () => _showLanguageSelectionSheet(context),
+          ),
+        ),
+        _SettingsTile(
+          icon: Icons.help_outline_rounded,
+          title: 'help_center'.tr,
+          subtitle: 'faqs_support_sub'.tr,
+          onTap: () => _showFaqsDialog(context, profileController),
+        ),
+        _SettingsTile(
+          icon: Icons.policy_outlined,
+          title: 'privacy_and_terms'.tr,
+          subtitle: 'terms_sub'.tr,
+          onTap: () => _showPrivacyDialog(context, profileController),
+        ),
+      ],
+    );
+  }
+
+  void _showLanguageSelectionSheet(BuildContext context) {
+    final theme = Theme.of(context);
+    Get.bottomSheet(
+      Container(
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        decoration: BoxDecoration(
+          color: theme.scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Text(
+                  'select_language'.tr,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...LocalizationController.supportedLanguages.map(
+                (opt) => Obx(() {
+                  final isSelected = LocalizationController.currentLanguageCode.value == opt.codeString;
+                  return ListTile(
+                    leading: Text(opt.flag, style: const TextStyle(fontSize: 24)),
+                    title: Text(
+                      opt.nativeName,
+                      style: TextStyle(
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                        color: isSelected ? AppColors.primary : null,
+                      ),
+                    ),
+                    subtitle: Text(opt.name),
+                    trailing: isSelected
+                        ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
+                        : null,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    tileColor: isSelected
+                        ? AppColors.primary.withValues(alpha: 0.08)
+                        : Colors.transparent,
+                    onTap: () async {
+                      Get.back();
+                      await LocalizationController.changeLanguage(opt.locale);
+                    },
+                  );
+                }),
+              ),
+            ],
+          ),
+        ),
+      ),
+      isScrollControlled: true,
+    );
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+
+  const _StatChip({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurfaceContainerLow : AppColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: iconColor),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingsGroup extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+
+  const _SettingsGroup({required this.title, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            title,
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Material(
+            color: isDark ? AppColors.darkSurfaceContainerLowest : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: children,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SettingsTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _SettingsTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: AppColors.primary, size: 20),
+      ),
+      title: Text(
+        title,
+        style: theme.textTheme.titleSmall?.copyWith(
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+      trailing: const Icon(Icons.chevron_right_rounded, size: 20),
+      onTap: onTap,
+    );
+  }
+}

@@ -1,0 +1,182 @@
+{
+  "info": {
+    "_postman_id": "4da72ef9-cd6f-4595-9eac-80f5ad573b42",
+    "name": "General",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "12394693",
+    "_collection_link": "https://go.postman.co/collection/12394693-4da72ef9-cd6f-4595-9eac-80f5ad573b42?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Category",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.amnplc.com/api/delivery-categroy",
+          "protocol": "https",
+          "host": [
+            "api",
+            "amnplc",
+            "com"
+          ],
+          "path": [
+            "api",
+            "delivery-categroy"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Order Type",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.amnplc.com/api/delivery-type",
+          "protocol": "https",
+          "host": [
+            "api",
+            "amnplc",
+            "com"
+          ],
+          "path": [
+            "api",
+            "delivery-type"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Special Offer menu",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.amnplc.com/api/special-offer",
+          "protocol": "https",
+          "host": [
+            "api",
+            "amnplc",
+            "com"
+          ],
+          "path": [
+            "api",
+            "special-offer"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Feature Store",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.amnplc.com/api/feature-store",
+          "protocol": "https",
+          "host": [
+            "api",
+            "amnplc",
+            "com"
+          ],
+          "path": [
+            "api",
+            "feature-store"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Promotional image",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.amnplc.com/api/promotional-image",
+          "protocol": "https",
+          "host": [
+            "api",
+            "amnplc",
+            "com"
+          ],
+          "path": [
+            "api",
+            "promotional-image"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Property By Category Id",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.amnplc.com/api/delivery-categroy/1",
+          "protocol": "https",
+          "host": [
+            "api",
+            "amnplc",
+            "com"
+          ],
+          "path": [
+            "api",
+            "delivery-categroy",
+            "1"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Property By Delivery Type Id",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.amnplc.com/api/delivery-type/1",
+          "protocol": "https",
+          "host": [
+            "api",
+            "amnplc",
+            "com"
+          ],
+          "path": [
+            "api",
+            "delivery-type",
+            "1"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "menu Detail",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.amnplc.com/api/menu/1",
+          "protocol": "https",
+          "host": [
+            "api",
+            "amnplc",
+            "com"
+          ],
+          "path": [
+            "api",
+            "menu",
+            "1"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

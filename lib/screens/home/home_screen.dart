@@ -1,0 +1,264 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import '../../controllers/restaurant_controller.dart';
+import '../../constants/pages.dart';
+import '../../core/theme/app_colors.dart';
+import '../../utils/api_call_status.dart';
+import '../../utils/templates/loaded_widgets_template.dart';
+import '../../widgets/skeletons/skeleton_loaders.dart';
+import 'widgets/circular_categories_bar.dart';
+import 'widgets/home_filter_bottom_sheet.dart';
+import 'widgets/promotional_carousel_section.dart';
+import 'widgets/restaurant_list_item.dart';
+import 'widgets/special_offers_section.dart';
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final restaurantController = Get.find<RestaurantController>();
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () => restaurantController.loadRestaurants(),
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            // 1. Promotional Carousel Slider Section (Full-width edge-to-edge with frosted translucent header pill)
+            Obx(
+              () => PromotionalCarouselSection(
+                promotions: restaurantController.promotions,
+                isLoading:
+                    restaurantController.status.value == ApiCallStatus.loading,
+              ),
+            ),
+
+            // 2. Overlapping Curved Bottom Card (yenetena_mobile discover_ethiopia_optimized pattern)
+            Transform.translate(
+              offset: const Offset(0, -22),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: theme.scaffoldBackgroundColor,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(28),
+                    topRight: Radius.circular(28),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
+                      blurRadius: 14,
+                      offset: const Offset(0, -4),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.only(top: 18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Search Bar
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                      child: GestureDetector(
+                        onTap: () => Get.toNamed(AppRoutes.search),
+                        child: Container(
+                          height: 52,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? AppColors.darkSurfaceContainerLow
+                                : AppColors.surfaceContainerLow,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.search_rounded,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'search_hint'.tr,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant
+                                        .withValues(alpha: 0.7),
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.tune_rounded,
+                                  size: 18,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 18),
+
+                    // 1. Circular Categories Row (Matching Screenshot)
+                    const CircularCategoriesBar(),
+
+                    const SizedBox(height: 22),
+
+                    // 2. Special Offers Section (Matching Screenshot)
+                    SpecialOffersSection(
+                      onFilterTap: () => HomeFilterBottomSheet.show(context),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // 3. "All Restaurants Nearby" Section Header (Matching Screenshot)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'all_restaurants_nearby'.tr,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 19,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () => HomeFilterBottomSheet.show(context),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.transparent,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: AppColors.primary,
+                                  width: 1.3,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.tune_rounded,
+                                    size: 14,
+                                    color: AppColors.primary,
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    'filter'.tr,
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    // Vertical Restaurants List with Skeleton Support
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Obx(() {
+                        final status = restaurantController.status.value;
+                        final list = restaurantController.filteredRestaurants;
+
+                        return LoadedWidget(
+                          status: status,
+                          onReload: () => restaurantController.loadRestaurants(),
+                          loadingChild: Column(
+                            children: List.generate(
+                              4,
+                              (_) => const ShimmerRestaurantCardSkeleton(),
+                            ),
+                          ),
+                          emptyChild: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 40),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.storefront_outlined,
+                                    size: 48,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'no_restaurants_found'.tr,
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          child: list.isEmpty
+                              ? Center(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 40),
+                                    child: Column(
+                                      children: [
+                                        Icon(
+                                          Icons.storefront_outlined,
+                                          size: 48,
+                                          color: Colors.grey.shade400,
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          'no_restaurants_found'.tr,
+                                          style: theme.textTheme.titleMedium?.copyWith(
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                              : Column(
+                                  children: list.map((restaurant) {
+                                    return RestaurantListItem(store: restaurant);
+                                  }).toList(),
+                                ),
+                        );
+                      }),
+                    ),
+
+                    const SizedBox(height: 32),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
