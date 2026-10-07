@@ -3,7 +3,7 @@
 An automated, native Dart release script that:
 1. **Increments version/build numbers** in `pubspec.yaml`.
 2. **Builds a release Android App Bundle (`.aab`)** via `flutter build appbundle --release`.
-3. **Uploads and commits the release** to Google Play Console (Internal, Closed, or Production track) via the Google Play Android Developer API.
+3. **Uploads and commits the release** to Google Play Console (Internal, Closed, or Production track) with **real-time progress, upload speed, and ETA tracking** via the Google Play Android Developer API.
 
 ---
 

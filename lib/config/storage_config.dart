@@ -38,6 +38,7 @@ class ConfigPreference {
     await sharedPreferencesInstance.remove('user_id');
     await sharedPreferencesInstance.remove('user_name');
     await sharedPreferencesInstance.remove('user_phone');
+    await sharedPreferencesInstance.remove('user_avatar');
     if (!getRememberMe()) {
       await sharedPreferencesInstance.remove('user_email');
     }
@@ -71,6 +72,13 @@ class ConfigPreference {
     await sharedPreferencesInstance.setString('user_email', email);
   }
 
+  static String? getUserAvatar() =>
+      sharedPreferencesInstance.getString('user_avatar');
+
+  static Future<void> setUserAvatar(String url) async {
+    await sharedPreferencesInstance.setString('user_avatar', url);
+  }
+
   static bool getRememberMe() =>
       sharedPreferencesInstance.getBool('remember_me') ?? true;
 
@@ -92,5 +100,13 @@ class ConfigPreference {
 
   static Future<void> setLanguage(String langCode) async {
     await sharedPreferencesInstance.setString('language_code', langCode);
+  }
+
+  // Favorite stores persistence
+  static List<String> getFavorites() =>
+      sharedPreferencesInstance.getStringList('favorite_store_ids') ?? [];
+
+  static Future<void> setFavorites(List<String> ids) async {
+    await sharedPreferencesInstance.setStringList('favorite_store_ids', ids);
   }
 }

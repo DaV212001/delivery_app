@@ -214,6 +214,8 @@ class AppNetworkImage extends StatelessWidget {
   final double borderRadius;
   final Widget? errorWidget;
   final Widget? placeholder;
+  final int? memCacheWidth;
+  final int? memCacheHeight;
 
   const AppNetworkImage({
     super.key,
@@ -224,6 +226,8 @@ class AppNetworkImage extends StatelessWidget {
     this.borderRadius = 0,
     this.errorWidget,
     this.placeholder,
+    this.memCacheWidth,
+    this.memCacheHeight,
   });
 
   @override
@@ -258,11 +262,26 @@ class AppNetworkImage extends StatelessWidget {
         errorBuilder: (context, error, stackTrace) => fallbackWidget(),
       );
     } else if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      final targetMemWidth = memCacheWidth ??
+          ((width != null && width!.isFinite && width! > 0)
+              ? (width! * 2.5).round()
+              : 500);
+      final targetMemHeight = memCacheHeight ??
+          ((height != null && height!.isFinite && height! > 0)
+              ? (height! * 2.5).round()
+              : null);
+
       content = CachedNetworkImage(
         imageUrl: trimmed,
+        cacheKey: trimmed,
         width: width,
         height: height,
         fit: fit,
+        memCacheWidth: targetMemWidth,
+        memCacheHeight: targetMemHeight,
+        fadeInDuration: const Duration(milliseconds: 150),
+        fadeOutDuration: const Duration(milliseconds: 150),
+        placeholderFadeInDuration: const Duration(milliseconds: 150),
         placeholder: (context, url) =>
             placeholder ??
             Shimmer.fromColors(

@@ -1,7 +1,9 @@
-// ignore_for_file: avoid_print
+// ignore_for_file: avoid_print, depend_on_referenced_packages
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:http/http.dart' as http;
 import 'package:googleapis/androidpublisher/v3.dart' as publisher;
 import 'package:googleapis_auth/auth_io.dart' as auth;
 
@@ -310,7 +312,7 @@ Future<bool> runFlutterBuild(Directory projectDir) async {
   return exitCode == 0;
 }
 
-/// Uploads the AAB to Google Play Console
+/// Uploads the AAB to Google Play Console with live progress
 Future<void> uploadToPlayStore({
   required File keyFile,
   required String packageName,
@@ -324,11 +326,23 @@ Future<void> uploadToPlayStore({
   final jsonString = keyFile.readAsStringSync();
   final credentials = auth.ServiceAccountCredentials.fromJson(jsonString);
 
+  final fileLength = await aabFile.length();
+  final mb = (fileLength / (1024 * 1024)).toStringAsFixed(2);
+  printStep('Preparing to upload AAB ($mb MB) to Google Play...');
+
+  final progressBar = _ProgressBar(totalBytes: fileLength);
+  final progressClient = _ProgressHttpClient(
+    http.Client(),
+    progressBar: progressBar,
+  );
+
   final client = await auth.clientViaServiceAccount(
     credentials,
     [publisher.AndroidPublisherApi.androidpublisherScope],
+    baseClient: progressClient,
   );
 
+  String? createdEditId;
   try {
     final api = publisher.AndroidPublisherApi(client);
 
@@ -339,13 +353,11 @@ Future<void> uploadToPlayStore({
     if (editId == null) {
       throw StateError('Failed to create an app edit. Edit ID returned was null.');
     }
+    createdEditId = editId;
     printSuccess('Created Edit ID: $editId');
 
     // 2. Upload the AAB bundle
-    final fileLength = await aabFile.length();
-    final mb = (fileLength / (1024 * 1024)).toStringAsFixed(2);
-    printStep('Uploading AAB ($mb MB) to Google Play. Please wait...');
-
+    printStep('Uploading AAB ($mb MB) to Google Play with real-time progress...');
     final mediaStream = publisher.Media(
       aabFile.openRead(),
       fileLength,
@@ -356,7 +368,10 @@ Future<void> uploadToPlayStore({
       packageName,
       editId,
       uploadMedia: mediaStream,
+      uploadOptions: publisher.ResumableUploadOptions(numberOfAttempts: 5),
     );
+
+    progressBar.complete();
 
     final uploadedVersionCode = bundle.versionCode ?? versionCode;
     printSuccess('Uploaded AAB successfully! Version Code: $uploadedVersionCode');
@@ -389,8 +404,171 @@ Future<void> uploadToPlayStore({
     printStep('Committing the edit to Google Play...');
     await api.edits.commit(packageName, editId);
     printSuccess('Google Play edit committed successfully! Release is now live on "$trackName" track.');
+  } catch (e) {
+    if (createdEditId != null) {
+      try {
+        final api = publisher.AndroidPublisherApi(client);
+        await api.edits.delete(packageName, createdEditId);
+      } catch (_) {}
+    }
+    rethrow;
   } finally {
     client.close();
+  }
+}
+
+/// HTTP Client that intercepts resumable upload PUT requests to report progress
+class _ProgressHttpClient extends http.BaseClient {
+  final http.Client _inner;
+  final _ProgressBar progressBar;
+
+  _ProgressHttpClient(this._inner, {required this.progressBar});
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final contentRange = request.headers['content-range'];
+    if (request.method == 'PUT' && contentRange != null) {
+      final rangeMatch = RegExp(r'bytes\s+(\d+)-(\d+)').firstMatch(contentRange);
+      if (rangeMatch != null) {
+        final chunkStart = int.parse(rangeMatch.group(1)!);
+        var chunkSent = 0;
+
+        final originalStream = request.finalize();
+        final trackedStream = originalStream.transform<List<int>>(
+          StreamTransformer.fromHandlers(
+            handleData: (chunk, sink) {
+              sink.add(chunk);
+              chunkSent += chunk.length;
+              progressBar.update(chunkStart + chunkSent);
+            },
+          ),
+        );
+
+        final trackedRequest = _StreamRequest(request, trackedStream);
+        return _inner.send(trackedRequest);
+      }
+    }
+
+    return _inner.send(request);
+  }
+
+  @override
+  void close() {
+    _inner.close();
+    super.close();
+  }
+}
+
+/// Custom BaseRequest that wraps a transformed byte stream while preserving original headers
+class _StreamRequest extends http.BaseRequest {
+  final http.ByteStream _byteStream;
+
+  _StreamRequest(http.BaseRequest original, Stream<List<int>> stream)
+      : _byteStream = http.ByteStream(stream),
+        super(original.method, original.url) {
+    headers.addAll(original.headers);
+    contentLength = original.contentLength;
+    followRedirects = original.followRedirects;
+    maxRedirects = original.maxRedirects;
+    persistentConnection = original.persistentConnection;
+  }
+
+  @override
+  http.ByteStream finalize() {
+    super.finalize();
+    return _byteStream;
+  }
+}
+
+/// Visual and percentage progress bar tracker
+class _ProgressBar {
+  final int totalBytes;
+  final Stopwatch _stopwatch = Stopwatch();
+  DateTime _lastRenderTime = DateTime.fromMillisecondsSinceEpoch(0);
+  int _lastLoggedPercentage = -10;
+  final bool _isTerminal;
+  bool _isCompleted = false;
+
+  _ProgressBar({required this.totalBytes})
+      : _isTerminal = stdout.hasTerminal {
+    _stopwatch.start();
+  }
+
+  void update(int currentBytes) {
+    if (_isCompleted) return;
+    if (currentBytes > totalBytes) currentBytes = totalBytes;
+
+    final now = DateTime.now();
+    // Throttle interactive terminal renders to ~100ms
+    if (_isTerminal &&
+        now.difference(_lastRenderTime).inMilliseconds < 100 &&
+        currentBytes < totalBytes) {
+      return;
+    }
+    _lastRenderTime = now;
+
+    final elapsedMs = _stopwatch.elapsedMilliseconds;
+    final percent = totalBytes > 0 ? (currentBytes / totalBytes) : 0.0;
+    final percentInt = (percent * 100).toInt();
+
+    final speedBytesPerSec =
+        elapsedMs > 0 ? (currentBytes / (elapsedMs / 1000.0)) : 0.0;
+    final speedMb = speedBytesPerSec / (1024 * 1024);
+
+    final remainingBytes = totalBytes - currentBytes;
+    final etaSec =
+        speedBytesPerSec > 0 ? (remainingBytes / speedBytesPerSec).round() : 0;
+    final etaStr = _formatDuration(etaSec);
+
+    final currentMb = (currentBytes / (1024 * 1024)).toStringAsFixed(2);
+    final totalMb = (totalBytes / (1024 * 1024)).toStringAsFixed(2);
+
+    if (_isTerminal) {
+      const barWidth = 28;
+      final filled = (percent * barWidth).round().clamp(0, barWidth);
+      final empty = barWidth - filled;
+      final bar = '█' * filled + '░' * empty;
+      final percentStr = (percent * 100).toStringAsFixed(1).padLeft(5);
+
+      final line =
+          '\r  [$bar] $percentStr% ($currentMb / $totalMb MB) ${speedMb.toStringAsFixed(2)} MB/s, ETA: $etaStr';
+      stdout.write(line);
+    } else {
+      // In non-interactive environment (CI, log files), emit milestone lines
+      if (percentInt >= _lastLoggedPercentage + 10 || currentBytes >= totalBytes) {
+        _lastLoggedPercentage = (percentInt ~/ 10) * 10;
+        final percentStr = (percent * 100).toStringAsFixed(1);
+        stdout.writeln(
+            '  [Upload Progress] $percentStr% ($currentMb / $totalMb MB) - ${speedMb.toStringAsFixed(2)} MB/s (ETA: $etaStr)');
+      }
+    }
+  }
+
+  void complete() {
+    if (_isCompleted) return;
+    _isCompleted = true;
+    _stopwatch.stop();
+
+    if (_isTerminal) {
+      stdout.writeln();
+    }
+
+    final elapsedSec = (_stopwatch.elapsedMilliseconds / 1000.0).toStringAsFixed(1);
+    final totalMb = (totalBytes / (1024 * 1024)).toStringAsFixed(2);
+    final avgSpeed = (_stopwatch.elapsedMilliseconds > 0)
+        ? ((totalBytes / (1024 * 1024)) / (_stopwatch.elapsedMilliseconds / 1000.0)).toStringAsFixed(2)
+        : '0.00';
+    printSuccess('Uploaded $totalMb MB in ${elapsedSec}s (avg $avgSpeed MB/s)');
+  }
+
+  static String _formatDuration(int seconds) {
+    if (seconds <= 0) return '0s';
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    if (m > 0) {
+      return '${m}m ${s}s';
+    }
+    return '${s}s';
   }
 }
 

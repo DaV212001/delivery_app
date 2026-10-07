@@ -6,10 +6,14 @@ import 'config/translations.dart';
 import 'controllers/localization_controller.dart';
 import 'core/theme/app_theme.dart';
 import 'routes/app_pages.dart';
+import 'services/gebeta_location_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  PaintingBinding.instance.imageCache.maximumSize = 2000;
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 250 << 20; // 250 MB
   await ConfigPreference.init();
+  GebetaLocationService.configureMapHeaders();
   runApp(const AmnDeliveryApp());
 }
 

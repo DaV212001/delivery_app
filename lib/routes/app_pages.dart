@@ -1,13 +1,19 @@
 import 'package:get/get.dart';
 import '../config/storage_config.dart';
 import '../constants/pages.dart';
+import '../screens/auth/forgot_password_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/otp_screen.dart';
 import '../screens/checkout/cart_screen.dart';
+import '../screens/courier/courier_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/main_navigation.dart';
 import '../screens/orders/order_history_screen.dart';
+import '../screens/profile/edit_profile_screen.dart';
 import '../screens/profile/profile_screen.dart';
+import '../screens/property/my_properties_list_screen.dart';
+import '../screens/property/my_property_screen.dart';
+import '../screens/property/register_property_screen.dart';
 import '../screens/search/search_screen.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/tracking/order_tracking_screen.dart';
@@ -55,6 +61,10 @@ class AppPages {
       page: () => const OrderTrackingScreen(),
     ),
     GetPage(
+      name: AppRoutes.orderDetail,
+      page: () => const OrderTrackingScreen(),
+    ),
+    GetPage(
       name: AppRoutes.orderHistory,
       page: () => const OrderHistoryScreen(),
     ),
@@ -63,12 +73,36 @@ class AppPages {
       page: () => const ProfileScreen(),
     ),
     GetPage(
+      name: AppRoutes.editProfile,
+      page: () => const EditProfileScreen(),
+    ),
+    GetPage(
       name: AppRoutes.wallet,
       page: () => const WalletScreen(),
     ),
     GetPage(
       name: AppRoutes.otp,
       page: () => const OtpScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.forgotPassword,
+      page: () => const ForgotPasswordScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.courier,
+      page: () => const CourierScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.myProperty,
+      page: () => const MyPropertiesListScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.manageProperty,
+      page: () => const MyPropertyScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.registerProperty,
+      page: () => const RegisterPropertyScreen(),
     ),
   ];
 }

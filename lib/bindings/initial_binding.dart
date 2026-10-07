@@ -6,6 +6,7 @@ import '../controllers/order_controller.dart';
 import '../controllers/profile_controller.dart';
 import '../controllers/restaurant_controller.dart';
 import '../core/theme/theme_controller.dart';
+import '../services/customer_socket_service.dart';
 
 class InitialBinding extends Bindings {
   @override
@@ -17,5 +18,7 @@ class InitialBinding extends Bindings {
     Get.put(CartController(), permanent: true);
     Get.put(OrderController(), permanent: true);
     Get.put(ProfileController(), permanent: true);
+    Get.put(CustomerSocketService(), permanent: true);
   }
 }
+

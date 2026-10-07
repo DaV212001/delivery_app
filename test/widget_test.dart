@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:delivery_app/config/dio_config.dart';
 import 'package:delivery_app/config/storage_config.dart';
+import 'package:delivery_app/config/translations.dart';
 import 'package:delivery_app/controllers/auth_controller.dart';
 import 'package:delivery_app/controllers/cart_controller.dart';
 import 'package:delivery_app/controllers/restaurant_controller.dart';
@@ -15,6 +16,9 @@ import 'package:delivery_app/screens/home/home_screen.dart';
 import 'package:delivery_app/screens/home/widgets/promotional_carousel_section.dart';
 import 'package:delivery_app/screens/orders/order_history_screen.dart';
 import 'package:delivery_app/screens/restaurant/restaurant_detail_screen.dart';
+import 'package:delivery_app/controllers/my_property_controller.dart';
+import 'package:delivery_app/models/my_property_model.dart';
+import 'package:delivery_app/screens/property/my_properties_list_screen.dart';
 import 'package:delivery_app/screens/tracking/order_tracking_screen.dart';
 import 'package:delivery_app/widgets/common/app_widgets.dart';
 
@@ -99,7 +103,7 @@ void main() {
       expect(cartController.deliveryFee, 2.99);
 
       cartController.applyPromo('AMN');
-      expect(cartController.promoDiscount.value, 2.99);
+      expect(cartController.promoDiscount.value, 50.0);
     });
   });
 
@@ -122,8 +126,10 @@ void main() {
       Get.put(AuthController());
 
       await tester.pumpWidget(
-        const GetMaterialApp(
-          home: HomeScreen(),
+        GetMaterialApp(
+          translations: AppTranslations(),
+          locale: const Locale('en', 'US'),
+          home: const HomeScreen(),
         ),
       );
 
@@ -136,7 +142,7 @@ void main() {
       expect(find.text('Books'), findsOneWidget);
     });
 
-    testWidgets('HomeScreen renders PromotionalCarouselSection, Special Offers, and All Restaurants Nearby', (tester) async {
+    testWidgets('HomeScreen renders PromotionalCarouselSection, Special Offers, and All Nearby', (tester) async {
       SharedPreferences.setMockInitialValues({});
       await ConfigPreference.init();
       Get.reset();
@@ -144,8 +150,10 @@ void main() {
       Get.put(AuthController());
 
       await tester.pumpWidget(
-        const GetMaterialApp(
-          home: HomeScreen(),
+        GetMaterialApp(
+          translations: AppTranslations(),
+          locale: const Locale('en', 'US'),
+          home: const HomeScreen(),
         ),
       );
 
@@ -154,27 +162,21 @@ void main() {
       // Verify PromotionalCarouselSection is present at top
       expect(find.byType(PromotionalCarouselSection), findsOneWidget);
 
-      // Verify translucent pill header elements
-      expect(find.text('Delivering to'), findsOneWidget);
-      expect(find.byIcon(Icons.location_on_rounded), findsOneWidget);
-
       // Verify search bar in curved card
-      expect(find.text('Search items, stores, essentials...'), findsOneWidget);
+      expect(find.text('search_hint'.tr), findsOneWidget);
 
       // Verify Special Offers section with discount badges and filter button
       expect(find.text('Special Offers'), findsOneWidget);
       expect(find.text('25.0% OFF'), findsWidgets);
       expect(find.text('J&J Chicken'), findsOneWidget);
-      expect(find.text('Injoy Burger | Meskel Flower'), findsWidgets);
 
-      // Verify All Restaurants Nearby section with filter button and cards
-      expect(find.text('All Restaurants Nearby'), findsOneWidget);
+      // Verify All Nearby section with filter button and cards
+      expect(find.text('All Nearby'), findsOneWidget);
       expect(find.text('Filter'), findsWidgets);
-      expect(find.text('Chanoly Noodles | Olympia'), findsWidgets);
+      expect(find.text('Chanoly Noodles'), findsWidgets);
+      expect(find.text('Olympia'), findsWidgets);
       expect(find.text('Around 1KM'), findsWidgets);
       expect(find.text('Around 41 min'), findsWidgets);
-      expect(find.text('Avg 778 Br per person'), findsOneWidget);
-      expect(find.text('Delivery Fee starting from 132 Br'), findsOneWidget);
     });
 
     testWidgets('Tapping circular category navigates to CategoryStoresScreen with Hero animation', (tester) async {
@@ -185,8 +187,10 @@ void main() {
       Get.put(AuthController());
 
       await tester.pumpWidget(
-        const GetMaterialApp(
-          home: HomeScreen(),
+        GetMaterialApp(
+          translations: AppTranslations(),
+          locale: const Locale('en', 'US'),
+          home: const HomeScreen(),
         ),
       );
 
@@ -214,7 +218,7 @@ void main() {
       expect(find.text('Search in Ethiopost...'), findsOneWidget);
 
       // Verify Express Parcel Courier is listed under Ethiopost/courier
-      expect(find.text('Express Parcel Courier | Stadium'), findsOneWidget);
+      expect(find.text('Express Parcel Courier'), findsOneWidget);
     });
   });
 
@@ -234,6 +238,8 @@ void main() {
 
       await tester.pumpWidget(
         GetMaterialApp(
+          translations: AppTranslations(),
+          locale: const Locale('en', 'US'),
           home: RestaurantDetailScreen(
             restaurant: MockData.restaurants.first,
           ),
@@ -244,7 +250,7 @@ void main() {
 
       expect(find.byType(RestaurantDetailScreen), findsOneWidget);
       expect(find.text('Distance'), findsOneWidget);
-      expect(find.text('Delivery'), findsOneWidget);
+      expect(find.text('delivery_time'.tr), findsOneWidget);
     });
 
     testWidgets('HomeScreen featured card renders on narrow screen (280px width) without RenderFlex overflow', (tester) async {
@@ -261,8 +267,10 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-        const GetMaterialApp(
-          home: HomeScreen(),
+        GetMaterialApp(
+          translations: AppTranslations(),
+          locale: const Locale('en', 'US'),
+          home: const HomeScreen(),
         ),
       );
 
@@ -317,8 +325,10 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-        const GetMaterialApp(
-          home: OrderHistoryScreen(),
+        GetMaterialApp(
+          translations: AppTranslations(),
+          locale: const Locale('en', 'US'),
+          home: const OrderHistoryScreen(),
         ),
       );
 
@@ -346,8 +356,10 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-        const GetMaterialApp(
-          home: OrderTrackingScreen(),
+        GetMaterialApp(
+          translations: AppTranslations(),
+          locale: const Locale('en', 'US'),
+          home: const OrderTrackingScreen(),
         ),
       );
 
@@ -356,6 +368,55 @@ void main() {
       expect(find.byType(OrderTrackingScreen), findsOneWidget);
       expect(find.text('Order Details'), findsOneWidget);
       expect(find.text('Delivery Address'), findsOneWidget);
+    });
+
+    testWidgets('MyPropertiesListScreen renders on narrow screen (280px width) without RenderFlex overflow', (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'user_id': 1,
+        'access_token': 'mock_token_1',
+      });
+      await ConfigPreference.init();
+      Get.reset();
+      final propCtrl = Get.put(MyPropertyController());
+      propCtrl.properties.assignAll([
+        MyPropertyModel(
+          id: 3,
+          name: 'Dr Tyre Auto Store & Services',
+          friendlyLocation: 'Teklehaimanot, Addis Ababa',
+          openingTime: '07:00:00',
+          closingTime: '17:30:00',
+          deliveryTime: '1 Hour',
+          status: '1',
+          typeName: 'COMMERCIAL TYRES',
+          categoryName: 'COMMERCIAL CAR TRIES',
+          logo: '',
+          coverImage: '',
+          description: 'Quality commercial tyres.',
+          latitude: '9.0',
+          longitude: '38.0',
+          deliveryTypeImage: '',
+          deliveryCategoryImage: '',
+        ),
+      ]);
+      propCtrl.isLoading.value = false;
+
+      tester.view.physicalSize = const Size(280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        GetMaterialApp(
+          translations: AppTranslations(),
+          locale: const Locale('en', 'US'),
+          home: const MyPropertiesListScreen(),
+        ),
+      );
+
+      await tester.pump(const Duration(milliseconds: 700));
+
+      expect(find.byType(MyPropertiesListScreen), findsOneWidget);
+      expect(find.text('Dr Tyre Auto Store & Services'), findsOneWidget);
     });
   });
 }

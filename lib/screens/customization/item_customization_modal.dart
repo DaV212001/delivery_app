@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/cart_controller.dart';
+import '../../controllers/restaurant_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/delivery_item.dart';
 import '../../widgets/common/app_widgets.dart';
@@ -55,6 +56,17 @@ class _ItemCustomizationModalState extends State<ItemCustomizationModal> {
   }
 
   double get _currentTotalPrice => _currentUnitPrice * _quantity;
+
+  bool get _isStoreClosed {
+    if (Get.isRegistered<RestaurantController>()) {
+      final rc = Get.find<RestaurantController>();
+      final store = rc.getRestaurantById(widget.item.storeId);
+      if (store != null) {
+        return store.isPastClosingTime;
+      }
+    }
+    return false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -329,74 +341,110 @@ class _ItemCustomizationModalState extends State<ItemCustomizationModal> {
                 ),
               ],
             ),
-            child: Row(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Quantity Stepper
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? AppColors.darkSurfaceContainerLow
-                        : AppColors.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.remove_rounded, size: 20),
-                        onPressed: _quantity > 1
-                            ? () => setState(() => _quantity--)
-                            : null,
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                        child: Text(
-                          '$_quantity',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
+                if (_isStoreClosed) ...[
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.access_time_filled_rounded, size: 16, color: AppColors.error),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'closed_ordering_disabled'.tr,
+                            style: const TextStyle(
+                              color: AppColors.error,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.add_rounded, size: 20),
-                        onPressed: () => setState(() => _quantity++),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
+                ],
+                Row(
+                  children: [
+                    // Quantity Stepper
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? AppColors.darkSurfaceContainerLow
+                            : AppColors.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.remove_rounded, size: 20),
+                            onPressed: _quantity > 1 && !_isStoreClosed
+                                ? () => setState(() => _quantity--)
+                                : null,
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                            child: Text(
+                              '$_quantity',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.add_rounded, size: 20),
+                            onPressed: !_isStoreClosed ? () => setState(() => _quantity++) : null,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
 
-                // Add to Cart Button
-                Expanded(
-                  child: AppButton(
-                    text: '${'add_to_cart'.tr} • ${_currentTotalPrice.toStringAsFixed(2)} Br',
-                    onPressed: () {
-                      final selectedAddonsList = widget.item.availableAddons
-                          .where((a) => _selectedAddonIds.contains(a.id))
-                          .toList();
+                    // Add to Cart Button
+                    Expanded(
+                      child: AppButton(
+                        text: _isStoreClosed
+                            ? 'closed_for_ordering'.tr
+                            : '${'add_to_cart'.tr} • ${_currentTotalPrice.toStringAsFixed(2)} Br',
+                        onPressed: _isStoreClosed
+                            ? null
+                            : () {
+                                final selectedAddonsList = widget.item.availableAddons
+                                    .where((a) => _selectedAddonIds.contains(a.id))
+                                    .toList();
 
-                      cartController.addItem(
-                        item: widget.item,
-                        quantity: _quantity,
-                        selectedVariant: _selectedVariant,
-                        selectedAddons: selectedAddonsList,
-                        removedOptions: _removedOptions.toList(),
-                        specialInstructions: _instructionsController.text.trim().isNotEmpty
-                            ? _instructionsController.text.trim()
-                            : null,
-                      );
+                                cartController.addItem(
+                                  item: widget.item,
+                                  quantity: _quantity,
+                                  selectedVariant: _selectedVariant,
+                                  selectedAddons: selectedAddonsList,
+                                  removedOptions: _removedOptions.toList(),
+                                  specialInstructions: _instructionsController.text.trim().isNotEmpty
+                                      ? _instructionsController.text.trim()
+                                      : null,
+                                );
 
-                      Get.back();
-                      Get.snackbar(
-                        'add_to_cart'.tr,
-                        '$_quantity x ${widget.item.name}',
-                        backgroundColor: AppColors.primary,
-                        colorText: Colors.white,
-                        snackPosition: SnackPosition.TOP,
-                        duration: const Duration(seconds: 2),
-                      );
-                    },
-                  ),
+                                Get.back();
+                                Get.snackbar(
+                                  'add_to_cart'.tr,
+                                  '$_quantity x ${widget.item.name}',
+                                  backgroundColor: AppColors.primary,
+                                  colorText: Colors.white,
+                                  snackPosition: SnackPosition.TOP,
+                                  duration: const Duration(seconds: 2),
+                                );
+                              },
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

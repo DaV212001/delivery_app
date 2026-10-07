@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -43,6 +44,17 @@ class AuthController extends GetxController {
   String? _pendingEmail;
   String? _pendingOtp; // client-generated OTP sent to the server
 
+  // Temporary storage while awaiting OTP verification for password reset
+  String? _resetPhone;
+  String? _resetOtp;
+  bool _resetOtpVerified = false;
+  final isSendingResetOtp = false.obs;
+  final isResettingPassword = false.obs;
+  final resetResendCooldown = 0.obs;
+
+  bool get isResetOtpVerified => _resetOtpVerified;
+  String? get resetPhone => _resetPhone;
+
   int? get currentUserId => ConfigPreference.getUserId();
 
   @override
@@ -58,12 +70,24 @@ class AuthController extends GetxController {
       final savedPhone = ConfigPreference.getUserPhone();
       final savedName = ConfigPreference.getUserName();
       final savedEmail = ConfigPreference.getUserEmail();
+      final savedAvatar = ConfigPreference.getUserAvatar();
+      String firstName = '';
+      String lastName = '';
+      if (savedName != null && savedName.isNotEmpty) {
+        final parts = savedName.trim().split(RegExp(r'\s+'));
+        firstName = parts.first;
+        if (parts.length > 1) {
+          lastName = parts.sublist(1).join(' ');
+        }
+      }
       _user.value = UserProfile(
         id: savedUserId?.toString() ?? '',
         name: savedName ?? 'Customer',
+        firstName: firstName,
+        lastName: lastName,
         email: savedEmail ?? '',
         phone: savedPhone ?? '',
-        avatarUrl: '',
+        avatarUrl: savedAvatar ?? '',
         tagline: 'AMN Delivery Customer',
         rating: 5.0,
         totalOrders: 0,
@@ -83,6 +107,9 @@ class AuthController extends GetxController {
       final p = await ProfileService.fetchProfile(uid);
       if (p != null) {
         _user.value = p;
+        if (p.avatarUrl.isNotEmpty) {
+          await ConfigPreference.setUserAvatar(p.avatarUrl);
+        }
       }
     }
   }
@@ -340,6 +367,236 @@ class AuthController extends GetxController {
         );
       },
     );
+  }
+
+  /// Sanitize phone number (strip non-digits, ensure 251 prefix)
+  static String sanitizePhone(String phone) {
+    String cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleanPhone.startsWith('09')) {
+      cleanPhone = '251${cleanPhone.substring(1)}';
+    } else if (cleanPhone.startsWith('9') && cleanPhone.length == 9) {
+      cleanPhone = '251$cleanPhone';
+    }
+    return cleanPhone;
+  }
+
+  Timer? _resetCooldownTimer;
+
+  void _showSnackbar(
+    String title,
+    String message, {
+    Color? backgroundColor,
+    Color? colorText,
+    Duration? duration,
+  }) {
+    if (Get.testMode) return;
+    if (Get.context != null && Get.overlayContext != null) {
+      Get.snackbar(
+        title,
+        message,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: backgroundColor,
+        colorText: colorText,
+        duration: duration,
+      );
+    }
+  }
+
+  /// Request OTP for forgot password flow
+  Future<bool> sendPasswordResetOtp(String phone) async {
+    final cleanPhone = sanitizePhone(phone);
+    if (cleanPhone.length < 9) {
+      _showSnackbar(
+        'error'.tr,
+        'enter_valid_phone'.tr,
+        backgroundColor: Colors.red.withValues(alpha: 0.8),
+        colorText: Colors.white,
+      );
+      return false;
+    }
+
+    isSendingResetOtp.value = true;
+    final otp = (1000 + Random().nextInt(9000)).toString();
+    _resetPhone = cleanPhone;
+    _resetOtp = otp;
+    _resetOtpVerified = false;
+
+    bool success = false;
+    await AuthService.sendOtp(
+      phone: cleanPhone,
+      otp: otp,
+      onSuccess: () {
+        success = true;
+        _startResetCooldown();
+        _showSnackbar(
+          'code_sent'.tr,
+          '${'enter_code_sent_to'.tr} $cleanPhone',
+          backgroundColor: Colors.green.withValues(alpha: 0.8),
+          colorText: Colors.white,
+        );
+      },
+      onFailure: (err) {
+        success = false;
+        _showSnackbar(
+          'error'.tr,
+          err,
+          backgroundColor: Colors.red.withValues(alpha: 0.8),
+          colorText: Colors.white,
+        );
+      },
+    );
+    isSendingResetOtp.value = false;
+    return success;
+  }
+
+  void _startResetCooldown([int seconds = 60]) {
+    _resetCooldownTimer?.cancel();
+    resetResendCooldown.value = seconds;
+    _resetCooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (resetResendCooldown.value > 0) {
+        resetResendCooldown.value--;
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  /// Resend OTP for forgot password flow
+  Future<bool> resendPasswordResetOtp() async {
+    if (_resetPhone == null || _resetPhone!.isEmpty) return false;
+    if (resetResendCooldown.value > 0) return false;
+
+    isSendingResetOtp.value = true;
+    final newOtp = (1000 + Random().nextInt(9000)).toString();
+    _resetOtp = newOtp;
+
+    bool success = false;
+    await AuthService.sendOtp(
+      phone: _resetPhone!,
+      otp: newOtp,
+      onSuccess: () {
+        success = true;
+        _startResetCooldown();
+        _showSnackbar(
+          'code_sent'.tr,
+          '${'enter_code_sent_to'.tr} $_resetPhone',
+        );
+      },
+      onFailure: (err) {
+        success = false;
+        _showSnackbar(
+          'failed_to_resend'.tr,
+          err,
+          backgroundColor: Colors.red.withValues(alpha: 0.8),
+          colorText: Colors.white,
+        );
+      },
+    );
+    isSendingResetOtp.value = false;
+    return success;
+  }
+
+  /// Verify entered OTP against generated reset OTP
+  bool verifyPasswordResetOtp(String otp) {
+    if (_resetOtp == null || otp != _resetOtp) {
+      _resetOtpVerified = false;
+      _showSnackbar(
+        'invalid_code'.tr,
+        'invalid_code_desc'.tr,
+        backgroundColor: Colors.red.withValues(alpha: 0.8),
+        colorText: Colors.white,
+      );
+      return false;
+    }
+
+    _resetOtpVerified = true;
+    _showSnackbar(
+      'success'.tr,
+      'phone_verified_success'.tr,
+      backgroundColor: Colors.green.withValues(alpha: 0.8),
+      colorText: Colors.white,
+      duration: const Duration(seconds: 2),
+    );
+    return true;
+  }
+
+  /// Reset password after OTP verification
+  Future<bool> resetPasswordWithOtp({
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    if (!_resetOtpVerified || _resetPhone == null) {
+      _showSnackbar(
+        'error'.tr,
+        'please_verify_otp_first'.tr,
+        backgroundColor: Colors.red.withValues(alpha: 0.8),
+        colorText: Colors.white,
+      );
+      return false;
+    }
+
+    if (newPassword.isEmpty || confirmPassword.isEmpty) {
+      _showSnackbar('error'.tr, 'fill_all_fields'.tr);
+      return false;
+    }
+
+    if (newPassword.length < 4) {
+      _showSnackbar('error'.tr, 'four_digit_pin'.tr);
+      return false;
+    }
+
+    if (newPassword != confirmPassword) {
+      _showSnackbar('error'.tr, 'passwords_dont_match'.tr);
+      return false;
+    }
+
+    isResettingPassword.value = true;
+    bool success = false;
+
+    await AuthService.forgotPassword(
+      phone: _resetPhone!,
+      password: newPassword,
+      passwordConfirmation: confirmPassword,
+      onSuccess: () {
+        success = true;
+        clearResetPasswordState();
+        _showSnackbar(
+          'success'.tr,
+          'password_reset_success'.tr,
+          backgroundColor: Colors.green.withValues(alpha: 0.8),
+          colorText: Colors.white,
+          duration: const Duration(seconds: 3),
+        );
+      },
+      onFailure: (err) {
+        success = false;
+        _showSnackbar(
+          'error'.tr,
+          err,
+          backgroundColor: Colors.red.withValues(alpha: 0.8),
+          colorText: Colors.white,
+        );
+      },
+    );
+
+    isResettingPassword.value = false;
+    return success;
+  }
+
+  void clearResetPasswordState() {
+    _resetCooldownTimer?.cancel();
+    _resetPhone = null;
+    _resetOtp = null;
+    _resetOtpVerified = false;
+    isSendingResetOtp.value = false;
+    isResettingPassword.value = false;
+    resetResendCooldown.value = 0;
+  }
+
+  @override
+  void onClose() {
+    _resetCooldownTimer?.cancel();
+    super.onClose();
   }
 
   Future<void> logout() async {

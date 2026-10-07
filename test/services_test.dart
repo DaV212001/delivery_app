@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http_mock_adapter/http_mock_adapter.dart';
 import 'package:delivery_app/config/dio_config.dart';
 import 'package:delivery_app/constants/api_endpoints.dart';
+import 'package:delivery_app/models/address_model.dart';
 import 'package:delivery_app/models/order.dart';
 import 'package:delivery_app/services/auth_service.dart';
 import 'package:delivery_app/services/info_service.dart';
@@ -258,6 +260,205 @@ void main() {
       final faqs = await InfoService.fetchFaqs();
       expect(faqs.length, 1);
       expect(faqs.first.questionText, 'How does delivery work?');
+    });
+
+    test('ProfileService updates user profile successfully via PUT /profile/{id}', () async {
+      dioAdapter.onPut(
+        ApiEndpoints.profile(1),
+        (server) => server.reply(200, {
+          'success': true,
+          'message': 'Profile updated successfully',
+          'data': {
+            'id': 1,
+            'f_name': 'aman',
+            'l_name': 'til',
+            'email': 'tilahunamanuel0@gmail.com',
+            'phone': '251911058179',
+          },
+        }),
+        data: {
+          'f_name': 'aman',
+          'l_name': 'til',
+          'email': 'tilahunamanuel0@gmail.com',
+          'phone': '251911058179',
+        },
+      );
+
+      bool succeeded = false;
+      Map<String, dynamic>? updatedData;
+
+      await ProfileService.updateProfile(
+        customerId: 1,
+        firstName: 'aman',
+        lastName: 'til',
+        email: 'tilahunamanuel0@gmail.com',
+        phone: '251911058179',
+        onSuccess: (data) {
+          succeeded = true;
+          updatedData = data;
+        },
+        onFailure: (err) => fail('Should not fail: $err'),
+      );
+
+      expect(succeeded, true);
+      expect(updatedData?['f_name'], 'aman');
+      expect(updatedData?['l_name'], 'til');
+      expect(updatedData?['email'], 'tilahunamanuel0@gmail.com');
+      expect(updatedData?['phone'], '251911058179');
+    });
+
+    test('ProfileService handles update profile failure and extracts field errors', () async {
+      dioAdapter.onPut(
+        ApiEndpoints.profile(1),
+        (server) => server.reply(422, {
+          'message': 'The email has already been taken.',
+          'errors': {
+            'email': ['The email has already been taken.'],
+          },
+        }),
+        data: {
+          'f_name': 'aman',
+          'l_name': 'til',
+          'email': 'taken@example.com',
+          'phone': '251911058179',
+        },
+      );
+
+      String? errorMessage;
+      await ProfileService.updateProfile(
+        customerId: 1,
+        firstName: 'aman',
+        lastName: 'til',
+        email: 'taken@example.com',
+        phone: '251911058179',
+        onSuccess: (_) => fail('Should have failed'),
+        onFailure: (err) => errorMessage = err,
+      );
+
+      expect(errorMessage, 'The email has already been taken.');
+    });
+
+    test('ProfileService updates delivery address successfully via PUT /delivery-adress/{id}', () async {
+      dioAdapter.onPut(
+        ApiEndpoints.deliveryAddressDetail(162),
+        (server) => server.reply(200, {
+          'success': true,
+          'message': 'Address updated successfully',
+        }),
+        data: {
+          'id': 162,
+          'name': 'office',
+          'latitude': 4.5678,
+          'longitude': 2.74573,
+          'user_id': 1,
+        },
+      );
+
+      bool addressUpdated = false;
+      await ProfileService.editDeliveryAddress(
+        address: const AddressModel(
+          id: 162,
+          name: 'office',
+          latitude: 4.5678,
+          longitude: 2.74573,
+          userId: 1,
+        ),
+        onSuccess: () => addressUpdated = true,
+        onFailure: (err) => fail('Should not fail: $err'),
+      );
+
+      expect(addressUpdated, true);
+    });
+
+    test('AuthService.uploadProfileImage succeeds and extracts profile_image URL', () async {
+      final tempDir = Directory.systemTemp;
+      final tempFile = File('${tempDir.path}/test_avatar.jpg')..writeAsStringSync('fake-image-bytes');
+
+      dioAdapter.onPost(
+        ApiEndpoints.customerChangeProfileImage,
+        (server) => server.reply(200, {
+          'message': 'Profile picture changed successfully',
+          'data': {
+            'id': 1,
+            'profile_image': 'https://api.amnplc.com/public/storage/profileImage/1789731525.jpg',
+          },
+        }),
+        data: Matchers.any,
+      );
+
+      String uploadedUrl = '';
+      await AuthService.uploadProfileImage(
+        userId: 1,
+        filePath: tempFile.path,
+        onSuccess: (url) => uploadedUrl = url,
+        onFailure: (err) => fail('Should not fail: $err'),
+      );
+
+      expect(uploadedUrl, 'https://api.amnplc.com/public/storage/profileImage/1789731525.jpg');
+      try {
+        if (tempFile.existsSync()) tempFile.deleteSync();
+      } catch (_) {}
+    });
+
+    test('AuthService.uploadProfileImage falls back to /change-profile-image on 404', () async {
+      final tempDir = Directory.systemTemp;
+      final tempFile = File('${tempDir.path}/test_avatar_fallback.jpg')..writeAsStringSync('fake-image-bytes');
+
+      dioAdapter.onPost(
+        ApiEndpoints.customerChangeProfileImage,
+        (server) => server.reply(404, {'message': 'Not Found'}),
+        data: Matchers.any,
+      );
+
+      dioAdapter.onPost(
+        ApiEndpoints.changeProfileImage,
+        (server) => server.reply(200, {
+          'message': 'Profile picture changed successfully',
+          'data': {
+            'profile_image': 'https://api.hellomesa6810.com/public/storage/profileImage/fallback.jpg',
+          },
+        }),
+        data: Matchers.any,
+      );
+
+      String uploadedUrl = '';
+      await AuthService.uploadProfileImage(
+        userId: 1,
+        filePath: tempFile.path,
+        onSuccess: (url) => uploadedUrl = url,
+        onFailure: (err) => fail('Should not fail: $err'),
+      );
+
+      expect(uploadedUrl, 'https://api.hellomesa6810.com/public/storage/profileImage/fallback.jpg');
+      try {
+        if (tempFile.existsSync()) tempFile.deleteSync();
+      } catch (_) {}
+    });
+
+    test('AuthService.uploadProfileImage handles upload failure', () async {
+      final tempDir = Directory.systemTemp;
+      final tempFile = File('${tempDir.path}/test_avatar_fail.jpg')..writeAsStringSync('fake-image-bytes');
+
+      dioAdapter.onPost(
+        ApiEndpoints.customerChangeProfileImage,
+        (server) => server.reply(422, {
+          'message': 'The image must be a valid file.',
+        }),
+        data: Matchers.any,
+      );
+
+      String errorMessage = '';
+      await AuthService.uploadProfileImage(
+        userId: 1,
+        filePath: tempFile.path,
+        onSuccess: (_) => fail('Should have failed'),
+        onFailure: (err) => errorMessage = err,
+      );
+
+      expect(errorMessage, 'The image must be a valid file.');
+      try {
+        if (tempFile.existsSync()) tempFile.deleteSync();
+      } catch (_) {}
     });
   });
 }

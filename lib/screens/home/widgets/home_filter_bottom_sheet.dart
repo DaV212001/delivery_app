@@ -109,7 +109,12 @@ class HomeFilterBottomSheet extends StatelessWidget {
                 _FilterOptionChip(
                   label: 'fastest_delivery'.tr,
                   isSelected: currentSort == 'fastest',
-                  onTap: () => controller.sortBy.value = 'fastest',
+                  onTap: () {
+                    controller.sortBy.value = 'fastest';
+                    if (controller.userLat.value == null) {
+                      controller.requestLocationAndCalculateDistances(promptIfDeniedForever: true);
+                    }
+                  },
                 ),
                 _FilterOptionChip(
                   label: 'lowest_price'.tr,

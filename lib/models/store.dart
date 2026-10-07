@@ -261,11 +261,10 @@ class Store {
   /// Calculate distance between this store and user coordinates
   double? calculateDistanceTo({double? userLat, double? userLng}) {
     if (latitude == null || longitude == null) return null;
-    final uLat = userLat ?? LocationUtils.defaultLatitude;
-    final uLng = userLng ?? LocationUtils.defaultLongitude;
+    if (userLat == null || userLng == null) return null;
     return LocationUtils.calculateDistanceInKm(
-      lat1: uLat,
-      lon1: uLng,
+      lat1: userLat,
+      lon1: userLng,
       lat2: latitude!,
       lon2: longitude!,
     );
@@ -274,7 +273,7 @@ class Store {
   /// Formatted dynamic distance badge e.g. "Around 1.2km"
   String formattedDistanceBadgeTo({double? userLat, double? userLng}) {
     final dist = calculateDistanceTo(userLat: userLat, userLng: userLng);
-    if (dist == null) return '';
+    if (dist == null) return formattedDistanceBadge;
     return LocationUtils.formatDistanceBadge(dist);
   }
 
@@ -298,6 +297,46 @@ class Store {
     }
     return open.isNotEmpty ? open : close;
   }
+
+  /// Returns true if the store is currently closed (past closing time or before opening time)
+  bool get isPastClosingTime {
+    if (closingTime == null || closingTime!.trim().isEmpty) return false;
+    try {
+      final now = DateTime.now();
+      final currentMinutes = now.hour * 60 + now.minute;
+
+      final closeParts = closingTime!.trim().split(':');
+      if (closeParts.length >= 2) {
+        final closeHour = int.tryParse(closeParts[0]);
+        final closeMinute = int.tryParse(closeParts[1]);
+        if (closeHour == null || closeMinute == null) return false;
+        final closeMinutes = closeHour * 60 + closeMinute;
+
+        if (openingTime != null && openingTime!.trim().isNotEmpty) {
+          final openParts = openingTime!.trim().split(':');
+          if (openParts.length >= 2) {
+            final openHour = int.tryParse(openParts[0]);
+            final openMinute = int.tryParse(openParts[1]);
+            if (openHour != null && openMinute != null) {
+              final openMinutes = openHour * 60 + openMinute;
+              if (closeMinutes >= openMinutes) {
+                // Same day operation e.g. 08:00 - 22:00
+                return currentMinutes < openMinutes || currentMinutes >= closeMinutes;
+              } else {
+                // Overnight operation e.g. 18:00 - 02:00
+                return currentMinutes < openMinutes && currentMinutes >= closeMinutes;
+              }
+            }
+          }
+        }
+
+        return currentMinutes >= closeMinutes;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  bool get isOpen => !isPastClosingTime;
 
   static String _formatTime(String? timeStr) {
     if (timeStr == null || timeStr.trim().isEmpty) return '';

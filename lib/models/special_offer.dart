@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'delivery_item.dart';
 
 class SpecialOffer {
   final String id;
@@ -10,6 +11,7 @@ class SpecialOffer {
   final double discountPercent;
   final String imageUrl;
   final String storeId;
+  final DeliveryItem? deliveryItem;
 
   const SpecialOffer({
     required this.id,
@@ -21,12 +23,28 @@ class SpecialOffer {
     required this.discountPercent,
     required this.imageUrl,
     required this.storeId,
+    this.deliveryItem,
   });
 
   String get storeWithBranch => '$storeName | $branchName';
   String get formattedDiscountPercent => '${discountPercent.toStringAsFixed(1)}% OFF';
   String get formattedDiscountedPrice => '${discountedPrice.toStringAsFixed(1)} Br';
   String get formattedOriginalPrice => '${originalPrice.toStringAsFixed(2)} Br';
+
+  DeliveryItem toDeliveryItem() {
+    if (deliveryItem != null) return deliveryItem!;
+    return DeliveryItem(
+      id: id,
+      storeId: storeId,
+      name: name,
+      description: '$storeName - $branchName',
+      price: discountedPrice,
+      imageUrl: imageUrl,
+      category: 'Special Offers',
+      isSpecialOffer: true,
+      discountPercent: discountPercent,
+    );
+  }
 }
 
 class CircularCategory {

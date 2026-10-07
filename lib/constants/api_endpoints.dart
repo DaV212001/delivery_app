@@ -1,4 +1,14 @@
 class ApiEndpoints {
+  // Auth endpoints (Driver)
+  static const String driverLogin = '/driver-login';
+  static const String driverRegister = '/driver-register';
+  static const String driverForgetPassword = '/driver-forget-password';
+  static const String driverSendOtp = '/driver-send-otp';
+  static const String driverVerifyOtp = '/driver-verify-otp';
+  static const String driverChangePassword = '/driver-change-password';
+  static const String driverLogout = '/driver-logout';
+  static const String driverChangeProfileImage = '/driver-change-profile-image';
+
   // Auth endpoints (Customer)
   static const String customerLogin = '/customer-login';
   static const String customerRegister = '/customer-register';
@@ -8,6 +18,7 @@ class ApiEndpoints {
   static const String customerChangePassword = '/customer-change-password';
   static const String customerLogout = '/customer-logout';
   static const String customerChangeProfileImage = '/customer-change-profile-image';
+  static const String changeProfileImage = '/change-profile-image';
 
   // General & Discovery endpoints
   static const String categories = '/delivery-categroy';
@@ -24,6 +35,14 @@ class ApiEndpoints {
   static String propertyDetail(dynamic id) => '/property/$id';
   static const String searchGlobal = '/search';
   static String searchProperty(dynamic id) => '/property/$id/search';
+  static String myProperty(dynamic customerId) => '/my-property/$customerId';
+  static String myMenuCategory(dynamic propertyId) => '/my-menu-category/$propertyId';
+  static const String menuCategory = '/menu-category';
+  static String menuCategoryDetail(dynamic id) => '/menu-category/$id';
+  static String myMenuByProperty(dynamic propertyId) => '/my-menu-by-property/$propertyId';
+  static const String myMenu = '/my-menu';
+  static String myMenuDetail(dynamic id) => '/my-menu/$id';
+  static const String updateMenuStatus = '/update-menu-status';
 
   // Order endpoints
   static const String order = '/order';
@@ -46,4 +65,7 @@ class ApiEndpoints {
   static const String privacy = '/privacy';
   static const String termsAndConditions = '/term_and_condition';
   static const String faq = '/faq';
+
+  // Real-Time Socket Server (Render)
+  static const String socketServerUrl = 'https://amn-delivery-socket-server.onrender.com';
 }

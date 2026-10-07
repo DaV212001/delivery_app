@@ -2,6 +2,8 @@ import 'package:get/get.dart';
 import '../models/cart_item.dart';
 import '../models/delivery_item.dart';
 
+import 'restaurant_controller.dart';
+
 class CartController extends GetxController {
   final items = <CartItem>[].obs;
   final deliveryAddress = ''.obs;
@@ -10,6 +12,7 @@ class CartController extends GetxController {
   final promoCode = ''.obs;
   final promoDiscount = 0.0.obs;
 
+  bool get isCashAllowed => total <= 2000.0;
 
   int get totalItemCount {
     return items.fold(0, (sum, item) => sum + item.quantity);
@@ -48,6 +51,17 @@ class CartController extends GetxController {
   }) {
     final effectiveItem = item ?? foodItem;
     if (effectiveItem == null) return;
+
+    if (Get.isRegistered<RestaurantController>()) {
+      final rc = Get.find<RestaurantController>();
+      final store = rc.getRestaurantById(effectiveItem.storeId);
+      if (store != null && store.isPastClosingTime) {
+        if (Get.context != null && !Get.testMode) {
+          Get.snackbar('store'.tr, 'closed_ordering_disabled'.tr);
+        }
+        return;
+      }
+    }
 
     final effectiveVariant = selectedVariant ?? selectedTemperature;
     final effectiveRemovals = removedOptions.isNotEmpty ? removedOptions : removedIngredients;

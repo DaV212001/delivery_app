@@ -66,5 +66,13 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>AMN Delivery needs your location to calculate distance to restaurants and delivery time.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>AMN Delivery needs your location to calculate distance to restaurants and track orders.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>AMN Delivery requires access to your camera to take a profile picture.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>AMN Delivery requires access to your photo library to select a profile picture.</string>
 </dict>
 </plist>

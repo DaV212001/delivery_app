@@ -54,3 +54,6 @@ app.*.map.json
 *play-service-account*.json
 secrets/
 
+# Agent context handover
+.context/
+

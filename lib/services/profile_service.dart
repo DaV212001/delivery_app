@@ -39,8 +39,18 @@ class ProfileService {
         'phone': phone,
       },
       onSuccess: (response) {
-        if (response.data is Map<String, dynamic>) {
-          onSuccess(response.data as Map<String, dynamic>);
+        final resData = response.data;
+        if (resData is Map<String, dynamic>) {
+          if (resData['success'] == false) {
+            onFailure(resData['message']?.toString() ?? 'Failed to update profile');
+            return;
+          }
+          final userMap = resData['data'] is Map<String, dynamic>
+              ? resData['data'] as Map<String, dynamic>
+              : (resData['user'] is Map<String, dynamic>
+                  ? resData['user'] as Map<String, dynamic>
+                  : resData);
+          onSuccess(userMap);
         } else {
           onSuccess({});
         }
@@ -48,7 +58,17 @@ class ProfileService {
       onFailure: (error, response) {
         String msg = 'Failed to update profile';
         if (response.data is Map<String, dynamic>) {
-          msg = response.data['message']?.toString() ?? msg;
+          final errMap = response.data['errors'];
+          if (errMap is Map && errMap.isNotEmpty) {
+            final firstErrorList = errMap.values.first;
+            if (firstErrorList is List && firstErrorList.isNotEmpty) {
+              msg = firstErrorList.first.toString();
+            } else if (firstErrorList != null) {
+              msg = firstErrorList.toString();
+            }
+          } else {
+            msg = response.data['message']?.toString() ?? msg;
+          }
         }
         onFailure(msg);
       },
@@ -192,7 +212,17 @@ class ProfileService {
       onFailure: (error, response) {
         String msg = 'Failed to update address';
         if (response.data is Map<String, dynamic>) {
-          msg = response.data['message']?.toString() ?? msg;
+          final errMap = response.data['errors'];
+          if (errMap is Map && errMap.isNotEmpty) {
+            final firstErrorList = errMap.values.first;
+            if (firstErrorList is List && firstErrorList.isNotEmpty) {
+              msg = firstErrorList.first.toString();
+            } else if (firstErrorList != null) {
+              msg = firstErrorList.toString();
+            }
+          } else {
+            msg = response.data['message']?.toString() ?? msg;
+          }
         }
         onFailure(msg);
       },

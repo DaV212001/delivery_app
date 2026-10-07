@@ -8,10 +8,17 @@ class AppRoutes {
   static const String restaurantDetail = '/restaurant-detail';
   static const String cart = '/cart';
   static const String tracking = '/tracking';
+  static const String orderDetail = '/order-detail';
   static const String orderHistory = '/orders';
   static const String profile = '/profile';
   static const String wallet = '/wallet';
   static const String otp = '/otp';
+  static const String forgotPassword = '/forgot-password';
+  static const String editProfile = '/edit-profile';
+  static const String courier = '/courier';
+  static const String myProperty = '/my-property';
+  static const String manageProperty = '/manage-property';
+  static const String registerProperty = '/register-property';
 
   // Compatible alias required by SKILL.md AuthInterceptor
   static const String loginRoute = login;

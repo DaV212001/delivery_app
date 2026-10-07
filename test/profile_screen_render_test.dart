@@ -1,8 +1,10 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:delivery_app/config/dio_config.dart';
 import 'package:delivery_app/config/storage_config.dart';
+import 'package:delivery_app/config/translations.dart';
 import 'package:delivery_app/controllers/auth_controller.dart';
 import 'package:delivery_app/controllers/cart_controller.dart';
 import 'package:delivery_app/controllers/order_controller.dart';
@@ -26,9 +28,12 @@ void main() {
     Get.put(ThemeController());
     Get.put(AuthController());
     Get.put(ProfileController());
+    Get.put(RestaurantController());
 
     await tester.pumpWidget(
       GetMaterialApp(
+        translations: AppTranslations(),
+        locale: const Locale('en', 'US'),
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         home: const ProfileScreen(),
@@ -38,17 +43,18 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     // Verify Guest Mode UI
-    expect(find.text('Welcome, Guest'), findsOneWidget);
-    expect(find.text('Sign In or Register'), findsOneWidget);
+    expect(find.text('Guest Mode'), findsOneWidget);
+    expect(find.text('Sign In / Register'), findsOneWidget);
     // Wallet card and Top Up should NOT be visible in guest mode
     expect(find.text('Top Up'), findsNothing);
-    expect(find.text('AMN Wallet Balance'), findsNothing);
-    expect(find.text('Log Out'), findsNothing);
+    expect(find.text('AMN Wallet'), findsNothing);
+    expect(find.text('Sign Out'), findsNothing);
 
     // Preferences & Support should still be accessible
     expect(find.text('Dark Mode'), findsOneWidget);
-    expect(find.text('Help Center'), findsOneWidget);
-    expect(find.text('Privacy & Terms'), findsOneWidget);
+    expect(find.text('FAQ'), findsOneWidget);
+    expect(find.text('Privacy Policy'), findsOneWidget);
+    expect(find.text('Terms & Conditions'), findsOneWidget);
 
     final exception = tester.takeException();
     expect(exception, isNull);
@@ -69,9 +75,12 @@ void main() {
     Get.put(ThemeController());
     Get.put(AuthController());
     Get.put(ProfileController());
+    Get.put(RestaurantController());
 
     await tester.pumpWidget(
       GetMaterialApp(
+        translations: AppTranslations(),
+        locale: const Locale('en', 'US'),
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         home: const ProfileScreen(),
@@ -81,10 +90,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     // Verify Authenticated Mode UI
-    expect(find.text('Welcome, Guest'), findsNothing);
-    expect(find.text('AMN Wallet Balance'), findsOneWidget);
+    expect(find.text('Guest Mode'), findsNothing);
+    expect(find.text('AMN Wallet'), findsOneWidget);
     expect(find.text('Top Up'), findsOneWidget);
-    expect(find.text('Log Out'), findsOneWidget);
+    expect(find.text('Sign Out'), findsOneWidget);
 
     // Tap "Top Up" button
     final topUpFinder = find.text('Top Up');
@@ -119,6 +128,8 @@ void main() {
 
     await tester.pumpWidget(
       GetMaterialApp(
+        translations: AppTranslations(),
+        locale: const Locale('en', 'US'),
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         home: const MainNavigationScreen(),
@@ -153,12 +164,15 @@ void main() {
     Get.put(ThemeController());
     final auth = Get.put(AuthController());
     Get.put(ProfileController());
+    Get.put(RestaurantController());
 
     // Set avatarUrl to empty string
     auth.user = auth.user.copyWith(avatarUrl: '');
 
     await tester.pumpWidget(
       GetMaterialApp(
+        translations: AppTranslations(),
+        locale: const Locale('en', 'US'),
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         home: const ProfileScreen(),

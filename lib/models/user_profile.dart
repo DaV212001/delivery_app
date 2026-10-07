@@ -3,6 +3,8 @@ import '../constants/app_assets.dart';
 class UserProfile {
   final String id;
   final String name;
+  final String firstName;
+  final String lastName;
   final String email;
   final String phone;
   final String avatarUrl;
@@ -15,6 +17,8 @@ class UserProfile {
   const UserProfile({
     required this.id,
     required this.name,
+    this.firstName = '',
+    this.lastName = '',
     required this.email,
     this.phone = '',
     required this.avatarUrl,
@@ -32,11 +36,23 @@ class UserProfile {
             ? rawJson['data'] as Map<String, dynamic>
             : rawJson);
 
-    final firstName = json['f_name']?.toString() ?? rawJson['f_name']?.toString() ?? '';
-    final lastName = json['l_name']?.toString() ?? rawJson['l_name']?.toString() ?? '';
+    var firstName = json['f_name']?.toString() ?? rawJson['f_name']?.toString() ?? '';
+    var lastName = json['l_name']?.toString() ?? rawJson['l_name']?.toString() ?? '';
+    final rawName = json['name']?.toString() ?? rawJson['name']?.toString() ?? '';
+
+    if (firstName.isEmpty && lastName.isEmpty && rawName.isNotEmpty) {
+      final parts = rawName.trim().split(RegExp(r'\s+'));
+      if (parts.isNotEmpty) {
+        firstName = parts.first;
+        if (parts.length > 1) {
+          lastName = parts.sublist(1).join(' ');
+        }
+      }
+    }
+
     final fullName = (firstName.isNotEmpty || lastName.isNotEmpty)
         ? '$firstName $lastName'.trim()
-        : (json['name']?.toString() ?? rawJson['name']?.toString() ?? 'User');
+        : (rawName.isNotEmpty ? rawName : 'User');
 
     final photo = json['profile_picture']?.toString() ??
         json['profile_image']?.toString() ??
@@ -59,6 +75,8 @@ class UserProfile {
     return UserProfile(
       id: id,
       name: fullName,
+      firstName: firstName,
+      lastName: lastName,
       email: json['email']?.toString() ?? rawJson['email']?.toString() ?? '',
       phone: json['phone']?.toString() ?? rawJson['phone']?.toString() ?? '',
       avatarUrl: photo.isNotEmpty ? photo : AppAssets.userAvatar,
@@ -73,6 +91,8 @@ class UserProfile {
   UserProfile copyWith({
     String? id,
     String? name,
+    String? firstName,
+    String? lastName,
     String? email,
     String? phone,
     String? avatarUrl,
@@ -85,6 +105,8 @@ class UserProfile {
     return UserProfile(
       id: id ?? this.id,
       name: name ?? this.name,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
       email: email ?? this.email,
       phone: phone ?? this.phone,
       avatarUrl: avatarUrl ?? this.avatarUrl,

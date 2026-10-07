@@ -1,6 +1,10 @@
+import 'package:dio/dio.dart';
 import '../constants/api_endpoints.dart';
 import '../models/category_model.dart';
 import '../models/delivery_item.dart';
+import '../models/my_menu_category_model.dart';
+import '../models/my_menu_item_model.dart';
+import '../models/my_property_model.dart';
 import '../models/store.dart';
 import '../utils/templates/dio_template.dart';
 
@@ -289,5 +293,356 @@ class PropertyService {
     );
 
     return result;
+  }
+
+  /// Fetch properties owned by a customer
+  static Future<List<MyPropertyModel>> fetchMyProperties(dynamic customerId) async {
+    final list = <MyPropertyModel>[];
+    await DioService.dioGet(
+      path: ApiEndpoints.myProperty(customerId),
+      onSuccess: (response) {
+        final resData = response.data;
+        final rawList = resData is Map<String, dynamic>
+            ? (resData['data'] is List ? resData['data'] : null)
+            : (resData is List ? resData : null);
+        if (rawList is List) {
+          for (final item in rawList) {
+            if (item is Map<String, dynamic>) {
+              list.add(MyPropertyModel.fromJson(item));
+            }
+          }
+        }
+      },
+    );
+    return list;
+  }
+
+  /// Fetch menu categories for a specific property
+  static Future<List<MyMenuCategoryModel>> fetchMyMenuCategories(dynamic propertyId) async {
+    final list = <MyMenuCategoryModel>[];
+    await DioService.dioGet(
+      path: ApiEndpoints.myMenuCategory(propertyId),
+      onSuccess: (response) {
+        final resData = response.data;
+        final rawList = resData is Map<String, dynamic>
+            ? (resData['data'] is List ? resData['data'] : null)
+            : (resData is List ? resData : null);
+        if (rawList is List) {
+          for (final item in rawList) {
+            if (item is Map<String, dynamic>) {
+              list.add(MyMenuCategoryModel.fromJson(item));
+            }
+          }
+        }
+      },
+    );
+    return list;
+  }
+
+  /// Add a new menu category
+  static Future<MyMenuCategoryModel?> addMenuCategory({
+    required String name,
+    required dynamic propertyId,
+  }) async {
+    MyMenuCategoryModel? created;
+    await DioService.dioPost(
+      path: ApiEndpoints.menuCategory,
+      data: {
+        'name': name,
+        'property_id': propertyId.toString(),
+      },
+      onSuccess: (response) {
+        final data = response.data;
+        if (data is Map<String, dynamic> && data['data'] != null) {
+          final inner = data['data'];
+          if (inner is List && inner.isNotEmpty && inner.first is Map<String, dynamic>) {
+            created = MyMenuCategoryModel.fromJson(inner.first as Map<String, dynamic>);
+          } else if (inner is Map<String, dynamic>) {
+            created = MyMenuCategoryModel.fromJson(inner);
+          }
+        }
+      },
+    );
+    return created;
+  }
+
+  /// Update an existing menu category
+  static Future<bool> updateMenuCategory({
+    required dynamic id,
+    required String name,
+    required dynamic propertyId,
+  }) async {
+    bool ok = false;
+    await DioService.dioPut(
+      path: ApiEndpoints.menuCategoryDetail(id),
+      data: {
+        'name': name,
+        'property_id': propertyId.toString(),
+      },
+      onSuccess: (response) {
+        ok = true;
+      },
+    );
+    return ok;
+  }
+
+  /// Fetch menu items of a property (detailed catalog)
+  static Future<List<MyMenuItemModel>> fetchPropertyMenus(dynamic propertyId) async {
+    final list = <MyMenuItemModel>[];
+
+    // First attempt: fetch from property details which returns rich items
+    await DioService.dioGet(
+      path: ApiEndpoints.propertyDetail(propertyId),
+      onSuccess: (response) {
+        final resData = response.data;
+        if (resData is Map<String, dynamic> && resData['data'] is Map<String, dynamic>) {
+          final data = resData['data'] as Map<String, dynamic>;
+          if (data['menus'] is List) {
+            for (final m in data['menus']) {
+              if (m is Map<String, dynamic>) {
+                list.add(MyMenuItemModel.fromJson(m));
+              }
+            }
+          }
+        }
+      },
+    );
+
+    // Fallback if propertyDetail returned no menus
+    if (list.isEmpty) {
+      await DioService.dioGet(
+        path: ApiEndpoints.myMenuByProperty(propertyId),
+        onSuccess: (response) {
+          final resData = response.data;
+          final rawList = resData is Map<String, dynamic>
+              ? (resData['data'] is List ? resData['data'] : null)
+              : (resData is List ? resData : null);
+          if (rawList is List) {
+            for (final m in rawList) {
+              if (m is Map<String, dynamic>) {
+                list.add(MyMenuItemModel.fromJson(m));
+              }
+            }
+          }
+        },
+      );
+    }
+
+    return list;
+  }
+
+  /// Search menus within a specific property
+  static Future<List<MyMenuItemModel>> searchPropertyMenus({
+    required dynamic propertyId,
+    required String keyword,
+  }) async {
+    final list = <MyMenuItemModel>[];
+    await DioService.dioGet(
+      path: ApiEndpoints.searchProperty(propertyId),
+      queryParameters: {'keyword': keyword},
+      onSuccess: (response) {
+        final resData = response.data;
+        if (resData is Map<String, dynamic> && resData['data'] is Map<String, dynamic>) {
+          final data = resData['data'] as Map<String, dynamic>;
+          final results = data['results'] ?? data['menus'];
+          if (results is List) {
+            for (final m in results) {
+              if (m is Map<String, dynamic>) {
+                list.add(MyMenuItemModel.fromJson(m));
+              }
+            }
+          }
+        }
+      },
+    );
+    return list;
+  }
+
+  /// Add a new menu item
+  static Future<MyMenuItemModel?> addMenuItem({
+    required dynamic propertyId,
+    required String name,
+    required dynamic menuCategoryId,
+    required double price,
+    String? description,
+    bool specialOffer = false,
+    double discountPercent = 0.0,
+    String? imageFilePath,
+  }) async {
+    MyMenuItemModel? created;
+    final map = <String, dynamic>{
+      'property_id': propertyId.toString(),
+      'name': name,
+      'desacriprion': description ?? '',
+      'menu_categroy_id': menuCategoryId.toString(),
+      'price': price.toString(),
+      'special_offer': specialOffer ? '1' : '0',
+      'discount_percent': discountPercent > 0 ? discountPercent.toString() : '0',
+    };
+
+    if (imageFilePath != null && imageFilePath.isNotEmpty) {
+      final fileName = imageFilePath.split(RegExp(r'[/\\]')).last;
+      map['image'] = await MultipartFile.fromFile(imageFilePath, filename: fileName);
+    }
+
+    final formData = FormData.fromMap(map);
+
+    await DioService.dioUpload(
+      path: ApiEndpoints.myMenu,
+      formData: formData,
+      onSuccess: (response) {
+        final resData = response.data;
+        if (resData is Map<String, dynamic> && resData['data'] != null) {
+          final data = resData['data'];
+          if (data is List && data.isNotEmpty && data.first is Map<String, dynamic>) {
+            created = MyMenuItemModel.fromJson(data.first as Map<String, dynamic>);
+          } else if (data is Map<String, dynamic>) {
+            created = MyMenuItemModel.fromJson(data);
+          }
+        }
+      },
+    );
+
+    return created;
+  }
+
+  /// Update an existing menu item
+  static Future<bool> updateMenuItem({
+    required dynamic menuId,
+    required dynamic propertyId,
+    required String name,
+    required dynamic menuCategoryId,
+    required double price,
+    String? description,
+    bool specialOffer = false,
+    double discountPercent = 0.0,
+    String? imageFilePath,
+  }) async {
+    bool ok = false;
+    final map = <String, dynamic>{
+      'property_id': propertyId.toString(),
+      'name': name,
+      'desacriprion': description ?? '',
+      'menu_categroy_id': menuCategoryId.toString(),
+      'price': price.toString(),
+      'special_offer': specialOffer ? '1' : '0',
+      'discount_percent': discountPercent > 0 ? discountPercent.toString() : '0',
+    };
+
+    if (imageFilePath != null && imageFilePath.isNotEmpty) {
+      final fileName = imageFilePath.split(RegExp(r'[/\\]')).last;
+      map['image'] = await MultipartFile.fromFile(imageFilePath, filename: fileName);
+    }
+
+    final formData = FormData.fromMap(map);
+
+    await DioService.dioUpload(
+      path: ApiEndpoints.myMenuDetail(menuId),
+      formData: formData,
+      onSuccess: (response) {
+        ok = true;
+      },
+    );
+
+    return ok;
+  }
+
+  /// Toggle or update menu item active status (1 = active, 0 = inactive)
+  static Future<bool> updateMenuStatus({
+    required dynamic menuId,
+    required int status,
+  }) async {
+    bool ok = false;
+    final formData = FormData.fromMap({
+      'id': menuId.toString(),
+      'status': status.toString(),
+    });
+
+    await DioService.dioUpload(
+      path: ApiEndpoints.updateMenuStatus,
+      formData: formData,
+      onSuccess: (response) {
+        ok = true;
+      },
+    );
+
+    return ok;
+  }
+
+  /// Register a new property
+  static Future<MyPropertyModel?> registerProperty({
+    required dynamic customerId,
+    required String name,
+    required dynamic categoryId,
+    required dynamic typeId,
+    required String friendlyLocation,
+    required String description,
+    required String deliveryTime,
+    required String tinNumber,
+    required String latitude,
+    required String longitude,
+    required String fromTime,
+    required String toTime,
+    String? logoPath,
+    String? coverImagePath,
+    String? tinCertificatePath,
+    String? tradeLicensePath,
+  }) async {
+    MyPropertyModel? registered;
+
+    final map = <String, dynamic>{
+      'customer_id': customerId.toString(),
+      'name': name,
+      'category_id': categoryId.toString(),
+      'type_id': typeId.toString(),
+      'frendly_location': friendlyLocation,
+      'description': description,
+      'delivery_time': deliveryTime,
+      'tin_number': tinNumber,
+      'latitude': latitude,
+      'longitude': longitude,
+      'from_time': fromTime,
+      'to_time': toTime,
+    };
+
+    if (logoPath != null && logoPath.isNotEmpty) {
+      final fName = logoPath.split(RegExp(r'[/\\]')).last;
+      map['logo'] = await MultipartFile.fromFile(logoPath, filename: fName);
+    }
+
+    if (coverImagePath != null && coverImagePath.isNotEmpty) {
+      final fName = coverImagePath.split(RegExp(r'[/\\]')).last;
+      map['cover_image'] = await MultipartFile.fromFile(coverImagePath, filename: fName);
+    }
+
+    if (tinCertificatePath != null && tinCertificatePath.isNotEmpty) {
+      final fName = tinCertificatePath.split(RegExp(r'[/\\]')).last;
+      map['tin_certificate'] = await MultipartFile.fromFile(tinCertificatePath, filename: fName);
+    }
+
+    if (tradeLicensePath != null && tradeLicensePath.isNotEmpty) {
+      final fName = tradeLicensePath.split(RegExp(r'[/\\]')).last;
+      map['trade_license'] = await MultipartFile.fromFile(tradeLicensePath, filename: fName);
+    }
+
+    final formData = FormData.fromMap(map);
+
+    await DioService.dioUpload(
+      path: ApiEndpoints.properties,
+      formData: formData,
+      onSuccess: (response) {
+        final resData = response.data;
+        if (resData is Map<String, dynamic> && resData['data'] != null) {
+          final data = resData['data'];
+          if (data is List && data.isNotEmpty && data.first is Map<String, dynamic>) {
+            registered = MyPropertyModel.fromJson(data.first as Map<String, dynamic>);
+          } else if (data is Map<String, dynamic>) {
+            registered = MyPropertyModel.fromJson(data);
+          }
+        }
+      },
+    );
+
+    return registered;
   }
 }

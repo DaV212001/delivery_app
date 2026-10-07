@@ -1,6 +1,6 @@
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
-import 'package:get/get.dart' hide Response;
+import 'package:get/get.dart' hide Response, FormData, MultipartFile;
 import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -90,6 +90,48 @@ class LoggingInterceptor extends Interceptor {
     ),
   );
 
+  static dynamic parseBody(dynamic data) {
+    if (data is FormData) {
+      final Map<String, dynamic> formMap = {};
+
+      for (final entry in data.fields) {
+        if (formMap.containsKey(entry.key)) {
+          final existing = formMap[entry.key];
+          if (existing is List) {
+            existing.add(entry.value);
+          } else {
+            formMap[entry.key] = [existing, entry.value];
+          }
+        } else {
+          formMap[entry.key] = entry.value;
+        }
+      }
+
+      for (final entry in data.files) {
+        final file = entry.value;
+        final fileMap = <String, dynamic>{
+          'filename': file.filename ?? 'unknown',
+          'length': file.length,
+          if (file.contentType != null) 'contentType': file.contentType.toString(),
+        };
+
+        if (formMap.containsKey(entry.key)) {
+          final existing = formMap[entry.key];
+          if (existing is List) {
+            existing.add(fileMap);
+          } else {
+            formMap[entry.key] = [existing, fileMap];
+          }
+        } else {
+          formMap[entry.key] = fileMap;
+        }
+      }
+
+      return formMap;
+    }
+    return data;
+  }
+
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     _logger.i({
@@ -98,7 +140,7 @@ class LoggingInterceptor extends Interceptor {
       'url': options.uri.toString(),
       'headers': options.headers,
       'queryParameters': options.queryParameters,
-      'body': options.data,
+      'body': parseBody(options.data),
     });
     handler.next(options);
   }
@@ -123,6 +165,8 @@ class LoggingInterceptor extends Interceptor {
         'statusCode': err.response?.statusCode,
         'message': err.message,
         'response': err.response?.data,
+        if (err.requestOptions.data != null)
+          'body': parseBody(err.requestOptions.data),
       },
       error: err,
       stackTrace: err.stackTrace,

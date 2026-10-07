@@ -210,17 +210,55 @@ class AuthService {
       'image': await MultipartFile.fromFile(filePath, filename: fileName),
     });
 
+    void parseResponse(dynamic response) {
+      String newUrl = '';
+      if (response.data is Map) {
+        final map = response.data as Map;
+        final data = map['data'];
+        if (data is Map) {
+          newUrl = data['profile_image']?.toString() ??
+              data['image']?.toString() ??
+              data['url']?.toString() ??
+              data['avatar']?.toString() ??
+              '';
+        } else if (data is String && data.isNotEmpty) {
+          newUrl = data;
+        } else {
+          newUrl = map['profile_image']?.toString() ??
+              map['image']?.toString() ??
+              map['url']?.toString() ??
+              '';
+        }
+      } else if (response.data is String) {
+        newUrl = response.data.toString();
+      }
+      onSuccess(newUrl);
+    }
+
     await DioService.dioUpload(
       path: ApiEndpoints.customerChangeProfileImage,
       formData: formData,
-      onSuccess: (response) {
-        String newUrl = '';
-        if (response.data is Map) {
-          newUrl = response.data['data']?.toString() ?? response.data['url']?.toString() ?? '';
+      onSuccess: parseResponse,
+      onFailure: (error, response) async {
+        if (response.statusCode == 404) {
+          final fallbackFormData = FormData.fromMap({
+            'user_id': userId.toString(),
+            'image': await MultipartFile.fromFile(filePath, filename: fileName),
+          });
+          await DioService.dioUpload(
+            path: ApiEndpoints.changeProfileImage,
+            formData: fallbackFormData,
+            onSuccess: parseResponse,
+            onFailure: (err2, resp2) {
+              final msg = resp2.data is Map
+                  ? resp2.data['message']?.toString() ?? 'Failed to upload photo'
+                  : 'Failed to upload photo';
+              onFailure(msg);
+            },
+          );
+          return;
         }
-        onSuccess(newUrl);
-      },
-      onFailure: (error, response) {
+
         final msg = response.data is Map
             ? response.data['message']?.toString() ?? 'Failed to upload photo'
             : 'Failed to upload photo';

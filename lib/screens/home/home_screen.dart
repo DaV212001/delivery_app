@@ -7,13 +7,45 @@ import '../../utils/api_call_status.dart';
 import '../../utils/templates/loaded_widgets_template.dart';
 import '../../widgets/skeletons/skeleton_loaders.dart';
 import 'widgets/circular_categories_bar.dart';
+import 'widgets/home_courier_section.dart';
 import 'widgets/home_filter_bottom_sheet.dart';
 import 'widgets/promotional_carousel_section.dart';
 import 'widgets/restaurant_list_item.dart';
 import 'widgets/special_offers_section.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (Get.isRegistered<RestaurantController>()) {
+        Get.find<RestaurantController>().requestLocationAndCalculateDistances();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (Get.isRegistered<RestaurantController>()) {
+        Get.find<RestaurantController>().requestLocationAndCalculateDistances();
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +57,10 @@ class HomeScreen extends StatelessWidget {
       backgroundColor: theme.scaffoldBackgroundColor,
       body: RefreshIndicator(
         color: AppColors.primary,
-        onRefresh: () => restaurantController.loadRestaurants(),
+        onRefresh: () async {
+          await restaurantController.loadRestaurants();
+          await restaurantController.requestLocationAndCalculateDistances();
+        },
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
@@ -120,9 +155,12 @@ class HomeScreen extends StatelessWidget {
                       onFilterTap: () => HomeFilterBottomSheet.show(context),
                     ),
 
+                    // 3. Courier Delivery Banner ("Thinking of sending anything?")
+                    const HomeCourierSection(),
+
                     const SizedBox(height: 24),
 
-                    // 3. "All Restaurants Nearby" Section Header (Matching Screenshot)
+                    // 4. "All Restaurants Nearby" Section Header (Matching Screenshot)
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20.0),
                       child: Row(
@@ -179,6 +217,119 @@ class HomeScreen extends StatelessWidget {
                         ],
                       ),
                     ),
+
+                    // Location Services / Permission Notice Banner (if disabled or denied, with no button)
+                    Obx(() {
+                      final isServiceOff =
+                          restaurantController.locationServiceDisabled.value;
+                      final isDenied =
+                          restaurantController.locationPermissionDenied.value;
+                      final hasLocation =
+                          restaurantController.userLat.value != null;
+
+                      if ((isServiceOff || isDenied) && !hasLocation) {
+                        return Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 10, 20, 4),
+                          child: Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(16),
+                            child: InkWell(
+                              onTap: () => restaurantController.openLocationFix(),
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? const Color(0xFF2A1517)
+                                      : const Color(0xFFFEF2F2),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: isDark
+                                        ? const Color(0xFF7F1D1D)
+                                        : const Color(0xFFFECACA),
+                                    width: 1.2,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black
+                                          .withValues(alpha: isDark ? 0.2 : 0.04),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFDC2626)
+                                            .withValues(alpha: 0.12),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.location_off_rounded,
+                                        color: Color(0xFFDC2626),
+                                        size: 20,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            isServiceOff
+                                                ? 'location_services_off_title'.tr
+                                                : 'location_permission_needed_title'.tr,
+                                            style: theme.textTheme.bodyMedium
+                                                ?.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                              color: isDark
+                                                  ? const Color(0xFFFCA5A5)
+                                                  : const Color(0xFF991B1B),
+                                              fontSize: 13.5,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            isServiceOff
+                                                ? 'location_services_off_sub'.tr
+                                                : 'location_permission_banner'.tr,
+                                            style: theme.textTheme.bodySmall
+                                                ?.copyWith(
+                                              color: isDark
+                                                  ? const Color(0xFFE2E8F0)
+                                                      .withValues(alpha: 0.8)
+                                                  : const Color(0xFF7F1D1D)
+                                                      .withValues(alpha: 0.85),
+                                              fontSize: 11.5,
+                                              height: 1.25,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    const Icon(
+                                      Icons.arrow_forward_ios_rounded,
+                                      size: 13,
+                                      color: Color(0xFFDC2626),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    }),
 
                     const SizedBox(height: 14),
 

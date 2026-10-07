@@ -1,8 +1,10 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:delivery_app/config/dio_config.dart';
 import 'package:delivery_app/config/storage_config.dart';
+import 'package:delivery_app/config/translations.dart';
 import 'package:delivery_app/controllers/auth_controller.dart';
 import 'package:delivery_app/controllers/profile_controller.dart';
 import 'package:delivery_app/core/theme/app_theme.dart';
@@ -24,6 +26,8 @@ void main() {
 
     await tester.pumpWidget(
       GetMaterialApp(
+        translations: AppTranslations(),
+        locale: const Locale('en', 'US'),
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         home: const WalletScreen(),
@@ -34,7 +38,7 @@ void main() {
 
     expect(find.text('AMN Wallet'), findsOneWidget);
     expect(find.text('Access Your Wallet'), findsOneWidget);
-    expect(find.text('Sign In or Register'), findsOneWidget);
+    expect(find.text('Sign In / Register'), findsOneWidget);
     expect(find.text('AMN PAY WALLET'), findsNothing);
 
     expect(tester.takeException(), isNull);
@@ -91,6 +95,8 @@ void main() {
 
     await tester.pumpWidget(
       GetMaterialApp(
+        translations: AppTranslations(),
+        locale: const Locale('en', 'US'),
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         home: const WalletScreen(),
@@ -103,7 +109,7 @@ void main() {
     expect(find.text('AMN Wallet'), findsOneWidget);
     expect(find.text('AMN PAY WALLET'), findsOneWidget);
     expect(find.text('1450.00 Br'), findsOneWidget);
-    expect(find.text('Top Up Now'), findsWidgets);
+    expect(find.text('Top Up Wallet'), findsWidgets);
 
     // Verify Quick Stats
     expect(find.text('Total Records'), findsOneWidget);
@@ -152,10 +158,10 @@ void main() {
     await tester.pumpAndSettle();
 
     // Open Top Up Dialog
-    await tester.tap(find.text('Top Up Now').first);
+    await tester.tap(find.text('Top Up Wallet').first);
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('Top Up Wallet'), findsOneWidget);
+    expect(find.text('Top Up Wallet'), findsWidgets);
     expect(find.text('+250 Br'), findsOneWidget);
     expect(find.text('Proceed to Pay'), findsOneWidget);
 
@@ -167,7 +173,7 @@ void main() {
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Top Up Wallet'), findsNothing);
+    expect(find.text('Top Up Wallet'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

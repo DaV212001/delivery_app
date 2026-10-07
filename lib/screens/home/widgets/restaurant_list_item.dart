@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../controllers/profile_controller.dart';
+import '../../../controllers/restaurant_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../models/store.dart';
 import '../../../widgets/common/app_widgets.dart';
@@ -20,6 +21,9 @@ class RestaurantListItem extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
     final profileController = Get.isRegistered<ProfileController>()
         ? Get.find<ProfileController>()
+        : null;
+    final restaurantController = Get.isRegistered<RestaurantController>()
+        ? Get.find<RestaurantController>()
         : null;
 
     return InkWell(
@@ -107,19 +111,20 @@ class RestaurantListItem extends StatelessWidget {
                         spacing: 8,
                         runSpacing: 4,
                         children: [
-                          if (profileController != null)
-                            Obx(() {
-                              final userLat = profileController.selectedAddress.value?.latitude;
-                              final userLng = profileController.selectedAddress.value?.longitude;
-                              final distBadge = store.formattedDistanceBadgeTo(
-                                userLat: userLat,
-                                userLng: userLng,
-                              );
-                              if (distBadge.isEmpty) return const SizedBox.shrink();
-                              return _InfoBadgeChip(label: distBadge);
-                            })
-                          else
-                            _InfoBadgeChip(label: store.formattedDistanceBadge),
+                          Obx(() {
+                            // Prioritize user's live current GPS location, then selected address
+                            final curLat = restaurantController?.userLat.value ??
+                                profileController?.selectedAddress.value?.latitude;
+                            final curLng = restaurantController?.userLng.value ??
+                                profileController?.selectedAddress.value?.longitude;
+
+                            final distBadge = store.formattedDistanceBadgeTo(
+                              userLat: curLat,
+                              userLng: curLng,
+                            );
+                            if (distBadge.isEmpty) return const SizedBox.shrink();
+                            return _InfoBadgeChip(label: distBadge);
+                          }),
                           _InfoBadgeChip(label: store.formattedTimeBadge),
                         ],
                       ),

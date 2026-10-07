@@ -6,7 +6,6 @@ import '../../constants/app_assets.dart';
 import '../../controllers/auth_controller.dart';
 import '../../constants/pages.dart';
 import '../../core/theme/app_colors.dart';
-import '../../services/auth_service.dart';
 import '../../widgets/common/app_widgets.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -57,70 +56,13 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _showForgotPasswordDialog() {
-    final phoneCtrl = TextEditingController(text: _phoneController.text);
-    final passCtrl = TextEditingController();
-    final confirmPassCtrl = TextEditingController();
-
-    Get.dialog(
-      AlertDialog(
-        title: Text('reset_password'.tr),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: phoneCtrl,
-                decoration: InputDecoration(
-                  labelText: 'phone_number'.tr,
-                  hintText: '251911058179',
-                ),
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: passCtrl,
-                decoration: InputDecoration(labelText: 'new_password'.tr),
-                obscureText: true,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: confirmPassCtrl,
-                decoration: InputDecoration(labelText: 'confirm_password'.tr),
-                obscureText: true,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: Text('cancel'.tr),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (phoneCtrl.text.isEmpty || passCtrl.text.isEmpty) {
-                Get.snackbar('error'.tr, 'fill_all_fields'.tr);
-                return;
-              }
-              Get.back();
-              await AuthService.forgotPassword(
-                phone: phoneCtrl.text.trim(),
-                password: passCtrl.text,
-                passwordConfirmation: confirmPassCtrl.text,
-                onSuccess: () {
-                  Get.snackbar('success'.tr, 'password_reset_success'.tr);
-                },
-                onFailure: (err) {
-                  Get.snackbar('error'.tr, err);
-                },
-              );
-            },
-            child: Text('reset'.tr),
-          ),
-        ],
-      ),
-    );
+  void _showForgotPasswordDialog() async {
+    final result = await Get.toNamed(AppRoutes.forgotPassword, arguments: {
+      'phone': _phoneController.text.trim(),
+    });
+    if (result is String && result.isNotEmpty) {
+      _phoneController.text = result;
+    }
   }
 
   @override

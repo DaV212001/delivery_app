@@ -1,24 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../config/dio_config.dart';
+import '../config/storage_config.dart';
 import '../data/mock_data.dart';
 import '../models/category_model.dart';
 import '../models/delivery_item.dart';
 import '../models/promotion.dart';
 import '../models/special_offer.dart';
 import '../models/store.dart';
+import 'package:geolocator/geolocator.dart';
+import '../services/gebeta_location_service.dart';
 import '../services/property_service.dart';
 import '../utils/api_call_status.dart';
+import '../utils/location_utils.dart';
 import 'profile_controller.dart';
 
-class RestaurantController extends GetxController {
+class RestaurantController extends GetxController with WidgetsBindingObserver {
   final status = ApiCallStatus.success.obs;
   final restaurants = <Store>[].obs;
   final promotions = <Promotion>[].obs;
   final specialOffers = <SpecialOffer>[].obs;
   final circularCategories = <CircularCategory>[].obs;
   final selectedCircularCategory = ''.obs;
-  final favorites = <String>{'store_techhub', 'store_freshmart'}.obs;
+  final favorites = <String>{}.obs;
+
+  // User's live GPS coordinates from current location
+  final userLat = Rx<double?>(null);
+  final userLng = Rx<double?>(null);
+  final isLocationLoading = false.obs;
+  final locationPermissionDenied = false.obs;
+  final locationServiceDisabled = false.obs;
 
   final selectedCategory = 'All'.obs;
   final searchQuery = ''.obs;
@@ -42,6 +53,8 @@ class RestaurantController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    WidgetsBinding.instance.addObserver(this);
+    _loadFavorites();
     if (DioConfig.isTestMode) {
       restaurants.assignAll(MockData.restaurants);
       promotions.assignAll(MockData.promotions);
@@ -49,7 +62,123 @@ class RestaurantController extends GetxController {
       circularCategories.assignAll(MockData.circularCategories);
     } else {
       loadRestaurants();
+      requestLocationAndCalculateDistances();
     }
+  }
+
+  @override
+  void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.onClose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      requestLocationAndCalculateDistances();
+    }
+  }
+
+  bool _isRequestingLocation = false;
+
+  /// Actively requests location permission and triggers the system prompt
+  /// whenever location is disabled (automatic when user opens or resumes the app)
+  /// and calculates distances to each restaurant from the user's current GPS location.
+  Future<void> requestLocationAndCalculateDistances({bool promptIfDeniedForever = false}) async {
+    if (DioConfig.isTestMode) return;
+    if (_isRequestingLocation) return;
+    _isRequestingLocation = true;
+
+    isLocationLoading.value = true;
+    try {
+      final pos = await GebetaLocationService.getCurrentPosition(
+        promptIfDeniedForever: promptIfDeniedForever,
+      );
+
+      if (pos != null) {
+        userLat.value = pos.latitude;
+        userLng.value = pos.longitude;
+        locationPermissionDenied.value = false;
+        locationServiceDisabled.value = false;
+        recalculateStoreDistances();
+      } else {
+        final recheckService = await Geolocator.isLocationServiceEnabled();
+        locationServiceDisabled.value = !recheckService;
+
+        final permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied ||
+            permission == LocationPermission.deniedForever) {
+          locationPermissionDenied.value = true;
+        } else {
+          locationPermissionDenied.value = false;
+        }
+      }
+    } catch (_) {
+      locationPermissionDenied.value = true;
+    } finally {
+      isLocationLoading.value = false;
+      _isRequestingLocation = false;
+    }
+  }
+
+  /// Direct action when user taps the location banner card to resolve location issue.
+  /// First triggers the native system resolution prompt; falls back to device settings if needed.
+  Future<void> openLocationFix() async {
+    try {
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.deniedForever) {
+        await Geolocator.openAppSettings();
+        return;
+      }
+
+      // First trigger the system resolution prompt
+      await requestLocationAndCalculateDistances(promptIfDeniedForever: true);
+
+      // If still disabled after user interaction, open location settings
+      final isServiceOn = await Geolocator.isLocationServiceEnabled();
+      if (!isServiceOn) {
+        await Geolocator.openLocationSettings();
+      }
+    } catch (_) {
+      await Geolocator.openAppSettings();
+    }
+  }
+
+  /// Recalculates distance for all loaded restaurants from the user's current GPS location
+  void recalculateStoreDistances() {
+    final lat = userLat.value;
+    final lng = userLng.value;
+    if (lat == null || lng == null) return;
+
+    for (int i = 0; i < restaurants.length; i++) {
+      final s = restaurants[i];
+      if (s.latitude != null && s.longitude != null) {
+        final d = LocationUtils.calculateDistanceInKm(
+          lat1: lat,
+          lon1: lng,
+          lat2: s.latitude!,
+          lon2: s.longitude!,
+        );
+        restaurants[i] = s.copyWith(distanceKm: d);
+      }
+    }
+    restaurants.refresh();
+  }
+
+  /// Explicitly update coordinates (for testing or manual selection)
+  void updateUserLocation(double lat, double lng) {
+    userLat.value = lat;
+    userLng.value = lng;
+    recalculateStoreDistances();
+  }
+
+  void _loadFavorites() {
+    try {
+      final saved = ConfigPreference.getFavorites();
+      if (saved.isNotEmpty) {
+        favorites.assignAll(saved);
+      }
+    } catch (_) {}
   }
 
   Future<void> loadRestaurants() async {
@@ -135,13 +264,14 @@ class RestaurantController extends GetxController {
           return SpecialOffer(
             id: item.id,
             name: item.name,
-            storeName: 'AMN Restaurant',
-            branchName: 'Summit',
+            storeName: '',
+            branchName: '',
             discountedPrice: item.price,
             originalPrice: orig,
             discountPercent: discount,
             imageUrl: item.imageUrl,
-            storeId: item.storeId.isNotEmpty ? item.storeId : '1',
+            storeId: item.storeId,
+            deliveryItem: item,
           );
         }).toList();
         specialOffers.assignAll(mappedOffers);
@@ -164,6 +294,9 @@ class RestaurantController extends GetxController {
 
       if (combinedStores.isNotEmpty) {
         restaurants.assignAll(combinedStores);
+        if (userLat.value != null && userLng.value != null) {
+          recalculateStoreDistances();
+        }
       } else if (DioConfig.isTestMode) {
         restaurants.assignAll(MockData.restaurants);
       } else {
@@ -242,8 +375,8 @@ class RestaurantController extends GetxController {
       final profileController = Get.isRegistered<ProfileController>()
           ? Get.find<ProfileController>()
           : null;
-      final uLat = profileController?.activeLatitude;
-      final uLng = profileController?.activeLongitude;
+      final uLat = userLat.value ?? profileController?.activeLatitude;
+      final uLng = userLng.value ?? profileController?.activeLongitude;
       list.sort((a, b) {
         final distA = a.calculateDistanceTo(userLat: uLat, userLng: uLng) ?? a.distanceKm;
         final distB = b.calculateDistanceTo(userLat: uLat, userLng: uLng) ?? b.distanceKm;
@@ -262,9 +395,16 @@ class RestaurantController extends GetxController {
     } else {
       favorites.add(restaurantId);
     }
+    try {
+      ConfigPreference.setFavorites(favorites.toList());
+    } catch (_) {}
   }
 
   bool isFavorite(String restaurantId) => favorites.contains(restaurantId);
+
+  List<Store> get favoriteRestaurants {
+    return restaurants.where((r) => favorites.contains(r.id)).toList();
+  }
 
   Store? getRestaurantById(String id) {
     try {
@@ -339,8 +479,8 @@ class RestaurantController extends GetxController {
       final profileController = Get.isRegistered<ProfileController>()
           ? Get.find<ProfileController>()
           : null;
-      final uLat = profileController?.activeLatitude;
-      final uLng = profileController?.activeLongitude;
+      final uLat = userLat.value ?? profileController?.activeLatitude;
+      final uLng = userLng.value ?? profileController?.activeLongitude;
       list.sort((a, b) {
         final distA = a.calculateDistanceTo(userLat: uLat, userLng: uLng) ?? a.distanceKm;
         final distB = b.calculateDistanceTo(userLat: uLat, userLng: uLng) ?? b.distanceKm;

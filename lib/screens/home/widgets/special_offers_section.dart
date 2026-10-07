@@ -6,7 +6,7 @@ import '../../../models/special_offer.dart';
 import '../../../utils/api_call_status.dart';
 import '../../../widgets/common/app_widgets.dart';
 import '../../../widgets/skeletons/skeleton_loaders.dart';
-import '../../restaurant/restaurant_detail_screen.dart';
+import '../../customization/item_customization_modal.dart';
 
 class SpecialOffersSection extends StatelessWidget {
   final VoidCallback onFilterTap;
@@ -131,12 +131,10 @@ class SpecialOffersSection extends StatelessWidget {
               itemBuilder: (context, index) {
                 final offer = offers[index];
                 return _SpecialOfferCard(
+                  key: ValueKey('offer_${offer.id}'),
                   offer: offer,
                   onTap: () {
-                    final store = controller.getRestaurantById(offer.storeId);
-                    if (store != null) {
-                      Get.to(() => RestaurantDetailScreen(restaurant: store));
-                    }
+                    ItemCustomizationModal.show(context, offer.toDeliveryItem());
                   },
                 );
               },
@@ -148,22 +146,34 @@ class SpecialOffersSection extends StatelessWidget {
   }
 }
 
-class _SpecialOfferCard extends StatelessWidget {
+class _SpecialOfferCard extends StatefulWidget {
   final SpecialOffer offer;
   final VoidCallback onTap;
 
   const _SpecialOfferCard({
+    super.key,
     required this.offer,
     required this.onTap,
   });
 
   @override
+  State<_SpecialOfferCard> createState() => _SpecialOfferCardState();
+}
+
+class _SpecialOfferCardState extends State<_SpecialOfferCard>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final offer = widget.offer;
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Container(
         width: 168,
         decoration: BoxDecoration(
@@ -237,23 +247,18 @@ class _SpecialOfferCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    offer.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    offer.storeWithBranch,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontSize: 11,
+                  // Title with up to 2 lines for clarity
+                  SizedBox(
+                    height: 38,
+                    child: Text(
+                      offer.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                        height: 1.25,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),

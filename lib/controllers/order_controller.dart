@@ -81,7 +81,7 @@ class OrderController extends GetxController {
     }
   }
 
-  Future<void> placeOrder({
+  Future<bool> placeOrder({
     String? storeName,
     String? storeImageUrl,
     String? restaurantName,
@@ -99,6 +99,8 @@ class OrderController extends GetxController {
     int propertyId = 1,
     double latitude = 9.0320,
     double longitude = 38.7469,
+    double? storeLatitude,
+    double? storeLongitude,
   }) async {
     final uid = currentCustomerId;
     if (uid == null) {
@@ -107,111 +109,45 @@ class OrderController extends GetxController {
         'sign_in_to_order'.tr,
         snackPosition: SnackPosition.BOTTOM,
       );
-      return;
+      return false;
     }
 
     isPlacingOrder.value = true;
+    bool success = false;
 
-    final effectiveName = storeName ?? restaurantName ?? 'AMN Restaurant';
-    final effectiveImage = storeImageUrl ?? restaurantImageUrl ?? AppAssets.parcelBoxItem;
+    try {
+      final effectiveName = storeName ?? restaurantName ?? 'Store';
+      final effectiveImage = storeImageUrl ?? restaurantImageUrl ?? AppAssets.parcelBoxItem;
 
-    // Current date formatted YYYY-MM-DD
-    final now = DateTime.now();
-    final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      // Current date formatted YYYY-MM-DD
+      final now = DateTime.now();
+      final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
-    final effectiveMenuIds = (menuIds != null && menuIds.isNotEmpty) ? menuIds : [1];
-    final effectiveQuantities = (quantities != null && quantities.isNotEmpty) ? quantities : [1];
-    final effectivePrices = (prices != null && prices.isNotEmpty) ? prices : [total];
+      final effectiveMenuIds = (menuIds != null && menuIds.isNotEmpty) ? menuIds : [1];
+      final effectiveQuantities = (quantities != null && quantities.isNotEmpty) ? quantities : [1];
+      final effectivePrices = (prices != null && prices.isNotEmpty) ? prices : [total];
 
-    final request = OrderCreateRequest(
-      customerId: uid,
-      menuIds: effectiveMenuIds,
-      location: deliveryAddress,
-      date: dateStr,
-      paymentType: paymentType,
-      quantities: effectiveQuantities,
-      totalQuantity: effectiveQuantities.fold(0, (s, q) => s + q),
-      prices: effectivePrices,
-      totalPrice: total,
-      totalItem: effectiveMenuIds.length,
-      propertyId: propertyId,
-      latitude: latitude,
-      longitude: longitude,
-    );
+      final request = OrderCreateRequest(
+        customerId: uid,
+        menuIds: effectiveMenuIds,
+        location: deliveryAddress,
+        date: dateStr,
+        paymentType: paymentType,
+        quantities: effectiveQuantities,
+        totalQuantity: effectiveQuantities.fold(0, (s, q) => s + q),
+        prices: effectivePrices,
+        totalPrice: total,
+        totalItem: effectiveMenuIds.length,
+        propertyId: propertyId,
+        latitude: latitude,
+        longitude: longitude,
+      );
 
-    await OrderService.createOrder(
-      request: request,
-      onSuccess: (data) async {
-        isPlacingOrder.value = false;
+      await OrderService.createOrder(
+        request: request,
+        onSuccess: (data) async {
+          success = true;
 
-        final newOrder = OrderModel(
-          orderId: '#AMN-${1000 + DateTime.now().millisecond * 7}',
-          storeName: effectiveName,
-          storeImageUrl: effectiveImage,
-          orderDate: DateTime.now(),
-          items: [],
-          subtotal: subtotal,
-          deliveryFee: deliveryFee,
-          taxAndFees: taxAndFees,
-          total: total,
-          deliveryAddress: deliveryAddress,
-          status: OrderProgressStatus.preparing,
-          estimatedArrival: '25 mins',
-          storeType: storeType,
-          driver: const DriverInfo(
-            name: 'Alex M.',
-            vehicle: 'Silver Honda Civic',
-            plateNumber: 'ABC-123',
-            rating: 4.9,
-            photoUrl: AppAssets.driverAvatar,
-            phone: '+251 911 058 179',
-          ),
-        );
-
-        activeOrder.value = newOrder;
-
-        // If payment gateway returned a checkout URL (e.g. Chapa hosted checkout), navigate user to it
-        String? checkoutUrl;
-        if (data['data'] is Map<String, dynamic>) {
-          final inner = data['data'] as Map<String, dynamic>;
-          checkoutUrl = inner['checkout_url']?.toString() ??
-              inner['payment_url']?.toString() ??
-              inner['url']?.toString();
-        }
-        checkoutUrl ??= data['checkout_url']?.toString() ??
-            data['payment_url']?.toString() ??
-            data['url']?.toString();
-
-        if (checkoutUrl != null && checkoutUrl.isNotEmpty) {
-          await Get.to(
-            () => PaymentWebViewScreen(
-              initialUrl: checkoutUrl!,
-              title: 'Order Payment',
-              onReceiptDetected: () async {
-                final profileController = Get.isRegistered<ProfileController>()
-                    ? Get.find<ProfileController>()
-                    : Get.put(ProfileController());
-                await profileController.loadWallet();
-              },
-            ),
-          );
-          if (Get.isRegistered<ProfileController>()) {
-            await Get.find<ProfileController>().loadWallet();
-          }
-        }
-
-        Get.snackbar(
-          'order_placed'.tr,
-          'order_sent_to_store'.tr,
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.green.withValues(alpha: 0.8),
-          colorText: Colors.white,
-        );
-      },
-      onFailure: (error) {
-        isPlacingOrder.value = false;
-        if (DioConfig.isTestMode) {
-          // Still create local order so checkout doesn't get blocked in offline tests
           final newOrder = OrderModel(
             orderId: '#AMN-${1000 + DateTime.now().millisecond * 7}',
             storeName: effectiveName,
@@ -226,19 +162,110 @@ class OrderController extends GetxController {
             status: OrderProgressStatus.preparing,
             estimatedArrival: '25 mins',
             storeType: storeType,
+            storeLatitude: storeLatitude,
+            storeLongitude: storeLongitude,
+            deliveryLatitude: latitude,
+            deliveryLongitude: longitude,
+            driver: const DriverInfo(
+              name: 'Alex M.',
+              vehicle: 'Silver Honda Civic',
+              plateNumber: 'ABC-123',
+              rating: 4.9,
+              photoUrl: AppAssets.driverAvatar,
+              phone: '+251 911 058 179',
+            ),
           );
+
           activeOrder.value = newOrder;
-        } else {
+
+          // If payment gateway returned a checkout URL (e.g. Chapa hosted checkout), navigate user to it
+          String? checkoutUrl;
+          if (data['data'] is Map<String, dynamic>) {
+            final inner = data['data'] as Map<String, dynamic>;
+            checkoutUrl = inner['checkout_url']?.toString() ??
+                inner['payment_url']?.toString() ??
+                inner['url']?.toString();
+          }
+          checkoutUrl ??= data['checkout_url']?.toString() ??
+              data['payment_url']?.toString() ??
+              data['url']?.toString();
+
+          if (checkoutUrl != null && checkoutUrl.isNotEmpty) {
+            await Get.to(
+              () => PaymentWebViewScreen(
+                initialUrl: checkoutUrl!,
+                title: 'Order Payment',
+                onReceiptDetected: () async {
+                  final profileController = Get.isRegistered<ProfileController>()
+                      ? Get.find<ProfileController>()
+                      : Get.put(ProfileController());
+                  await profileController.loadWallet();
+                },
+              ),
+            );
+            if (Get.isRegistered<ProfileController>()) {
+              await Get.find<ProfileController>().loadWallet();
+            }
+          }
+
           Get.snackbar(
-            'order_failed'.tr,
-            error,
+            'order_placed'.tr,
+            'order_sent_to_store'.tr,
             snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: Colors.red.withValues(alpha: 0.8),
+            backgroundColor: Colors.green.withValues(alpha: 0.8),
             colorText: Colors.white,
           );
-        }
-      },
-    );
+        },
+        onFailure: (error) {
+          if (DioConfig.isTestMode) {
+            success = true;
+            // Still create local order so checkout doesn't get blocked in offline tests
+            final newOrder = OrderModel(
+              orderId: '#AMN-${1000 + DateTime.now().millisecond * 7}',
+              storeName: effectiveName,
+              storeImageUrl: effectiveImage,
+              orderDate: DateTime.now(),
+              items: [],
+              subtotal: subtotal,
+              deliveryFee: deliveryFee,
+              taxAndFees: taxAndFees,
+              total: total,
+              deliveryAddress: deliveryAddress,
+              status: OrderProgressStatus.preparing,
+              estimatedArrival: '25 mins',
+              storeType: storeType,
+            );
+            activeOrder.value = newOrder;
+          } else {
+            success = false;
+            Get.snackbar(
+              'order_failed'.tr,
+              error,
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: Colors.red.withValues(alpha: 0.8),
+              colorText: Colors.white,
+            );
+          }
+        },
+      );
+    } catch (e) {
+      if (DioConfig.isTestMode) {
+        success = true;
+      } else {
+        success = false;
+        Get.snackbar(
+          'order_failed'.tr,
+          e.toString(),
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red.withValues(alpha: 0.8),
+          colorText: Colors.white,
+        );
+      }
+    } finally {
+      isPlacingOrder.value = false;
+    }
+
+    return success;
   }
 
   Future<void> fetchDetail(dynamic orderId) async {
@@ -248,7 +275,25 @@ class OrderController extends GetxController {
     }
   }
 
+  void updateActiveOrderStatus(OrderProgressStatus newStatus) {
+    if (activeOrder.value != null) {
+      activeOrder.value = activeOrder.value!.copyWith(status: newStatus);
+      activeOrder.refresh();
+    }
+  }
+
+  void updateActiveOrderLocation({required double latitude, required double longitude}) {
+    if (activeOrder.value != null) {
+      activeOrder.value = activeOrder.value!.copyWith(
+        driverLatitude: latitude,
+        driverLongitude: longitude,
+      );
+      activeOrder.refresh();
+    }
+  }
+
   void cancelOrder() {
     activeOrder.value = null;
   }
 }
+

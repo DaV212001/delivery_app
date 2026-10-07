@@ -3,10 +3,12 @@ import 'package:get/get.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/localization_controller.dart';
 import '../../controllers/profile_controller.dart';
+import '../../controllers/restaurant_controller.dart';
 import '../../constants/pages.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/theme_controller.dart';
 import '../../widgets/common/app_widgets.dart';
+import '../home/widgets/restaurant_list_item.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -64,78 +66,128 @@ class ProfileScreen extends StatelessWidget {
 
   void _showAddressesSheet(BuildContext context, ProfileController profileController) {
     Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.75,
-          ),
-          child: Obx(
-            () => SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'saved_addresses'.tr,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
-                        onPressed: () => _showAddAddressDialog(context, profileController),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (profileController.addresses.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 24),
-                      child: Center(child: Text('no_saved_addresses'.tr)),
-                    )
-                  else
-                    ...profileController.addresses.map(
-                      (addr) {
-                        final isSelected = profileController.selectedAddress.value?.id == addr.id ||
-                            profileController.selectedAddress.value?.name == addr.name;
-                        return ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          onTap: () {
-                            profileController.selectAddress(addr);
-                            Get.back();
-                          },
-                          leading: Icon(
-                            isSelected ? Icons.check_circle_rounded : Icons.location_on_outlined,
-                            color: AppColors.primary,
-                          ),
-                          title: Text(
-                            addr.name,
-                            style: TextStyle(
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                              color: isSelected ? AppColors.primary : null,
-                            ),
-                          ),
-                          subtitle: Text('${addr.latitude.toStringAsFixed(4)}, ${addr.longitude.toStringAsFixed(4)}'),
-                          trailing: addr.id != null
-                              ? IconButton(
-                                  icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
-                                  onPressed: () => profileController.deleteAddress(addr.id!),
-                                )
-                              : null,
-                        );
-                      },
+      Material(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.75,
+            ),
+            child: Obx(
+              () => SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'saved_addresses'.tr,
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
+                          onPressed: () => _showAddAddressDialog(context, profileController),
+                        ),
+                      ],
                     ),
-                ],
+                    const SizedBox(height: 12),
+                    if (profileController.addresses.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Center(child: Text('no_saved_addresses'.tr)),
+                      )
+                    else
+                      ...profileController.addresses.map(
+                        (addr) {
+                          final isSelected = profileController.selectedAddress.value?.id == addr.id ||
+                              profileController.selectedAddress.value?.name == addr.name;
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            onTap: () {
+                              profileController.selectAddress(addr);
+                              Get.back();
+                            },
+                            leading: Icon(
+                              isSelected ? Icons.check_circle_rounded : Icons.location_on_outlined,
+                              color: AppColors.primary,
+                            ),
+                            title: Text(
+                              addr.name,
+                              style: TextStyle(
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                color: isSelected ? AppColors.primary : null,
+                              ),
+                            ),
+                            subtitle: Text('${addr.latitude.toStringAsFixed(4)}, ${addr.longitude.toStringAsFixed(4)}'),
+                            trailing: addr.id != null
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.edit_outlined, size: 20, color: AppColors.primary),
+                                        onPressed: () => _showEditAddressDialog(context, profileController, addr),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                                        onPressed: () => profileController.deleteAddress(addr.id!),
+                                      ),
+                                    ],
+                                  )
+                                : null,
+                          );
+                        },
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showEditAddressDialog(
+    BuildContext context,
+    ProfileController profileController,
+    dynamic address,
+  ) {
+    final nameCtrl = TextEditingController(text: address.name);
+    final latCtrl = TextEditingController(text: address.latitude.toString());
+    final lngCtrl = TextEditingController(text: address.longitude.toString());
+
+    Get.dialog(
+      AlertDialog(
+        title: Text('edit_address'.tr),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nameCtrl, decoration: InputDecoration(labelText: 'address_name'.tr)),
+            const SizedBox(height: 8),
+            TextField(controller: latCtrl, decoration: InputDecoration(labelText: 'latitude'.tr)),
+            const SizedBox(height: 8),
+            TextField(controller: lngCtrl, decoration: InputDecoration(labelText: 'longitude'.tr)),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: Text('cancel'.tr)),
+          ElevatedButton(
+            onPressed: () {
+              final lat = double.tryParse(latCtrl.text) ?? address.latitude;
+              final lng = double.tryParse(lngCtrl.text) ?? address.longitude;
+              final label = nameCtrl.text.trim().isNotEmpty ? nameCtrl.text.trim() : address.name;
+              if (address.id != null) {
+                profileController.editAddress(address.id!, label, lat, lng);
+              }
+            },
+            child: Text('save'.tr),
+          ),
+        ],
       ),
     );
   }
@@ -209,10 +261,116 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  void _showPrivacyDialog(BuildContext context, ProfileController profileController) {
+  void _showFavoriteSpotsSheet(BuildContext context, RestaurantController restaurantController) {
+    final theme = Theme.of(context);
+
+    Get.bottomSheet(
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: theme.scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.75,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'favorite_spots'.tr,
+                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Get.back(),
+                  ),
+                ],
+              ),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+              Flexible(
+                child: Obx(() {
+                  final favs = restaurantController.favoriteRestaurants;
+                  if (favs.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 64,
+                              height: 64,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppColors.primary.withValues(alpha: 0.1),
+                              ),
+                              child: const Icon(
+                                Icons.favorite_border_rounded,
+                                size: 32,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'no_favorite_spots'.tr,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'no_favorite_spots_sub'.tr,
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: favs.length,
+                    itemBuilder: (ctx, idx) {
+                      final store = favs[idx];
+                      return RestaurantListItem(store: store);
+                    },
+                  );
+                }),
+              ),
+            ],
+          ),
+        ),
+      ),
+      isScrollControlled: true,
+    );
+  }
+
+  void _showPrivacyPolicyDialog(BuildContext context, ProfileController profileController) {
     Get.dialog(
       AlertDialog(
-        title: Text('privacy_and_terms'.tr),
+        title: Text('privacy_policy'.tr),
         content: SizedBox(
           width: double.maxFinite,
           height: 400,
@@ -221,7 +379,32 @@ class ProfileScreen extends StatelessWidget {
               () => Text(
                 profileController.privacyPolicy.value.isNotEmpty
                     ? profileController.privacyPolicy.value
-                    : 'AMN Delivery is committed to protecting your privacy and security. By using our service, you agree to our standard terms and delivery policies.',
+                    : 'AMN Delivery is committed to protecting your privacy and security. We collect and process your personal data in accordance with applicable laws to provide seamless food and grocery delivery services.',
+                style: const TextStyle(fontSize: 13, height: 1.4),
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: Text('done'.tr)),
+        ],
+      ),
+    );
+  }
+
+  void _showTermsDialog(BuildContext context, ProfileController profileController) {
+    Get.dialog(
+      AlertDialog(
+        title: Text('terms_and_conditions'.tr),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: SingleChildScrollView(
+            child: Obx(
+              () => Text(
+                profileController.termsAndConditions.value.isNotEmpty
+                    ? profileController.termsAndConditions.value
+                    : 'By using our service, you agree to AMN Delivery standard terms and delivery policies. All orders and payments are subject to service availability and merchant operating hours.',
                 style: const TextStyle(fontSize: 13, height: 1.4),
               ),
             ),
@@ -247,6 +430,9 @@ class ProfileScreen extends StatelessWidget {
     final themeController = Get.isRegistered<ThemeController>()
         ? Get.find<ThemeController>()
         : Get.put(ThemeController());
+    final restaurantController = Get.isRegistered<RestaurantController>()
+        ? Get.find<RestaurantController>()
+        : Get.put(RestaurantController());
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -338,6 +524,26 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
 
+                  // Merchant Section
+                  _SettingsGroup(
+                    title: 'merchant_management'.tr,
+                    children: [
+                      _SettingsTile(
+                        icon: Icons.storefront_rounded,
+                        title: 'my_property'.tr,
+                        subtitle: 'my_property_sub'.tr,
+                        onTap: () {
+                          if (!authController.isLoggedIn) {
+                            Get.toNamed(AppRoutes.login);
+                          } else {
+                            Get.toNamed(AppRoutes.myProperty);
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
                   // Preferences Section (Always accessible)
                   _buildPreferencesGroup(context, theme, themeController, profileController),
                   const SizedBox(height: 40),
@@ -365,22 +571,25 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-                      Container(
-                        width: 84,
-                        height: 84,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppColors.primary,
-                            width: 3,
+                      GestureDetector(
+                        onTap: () => Get.toNamed(AppRoutes.editProfile),
+                        child: Container(
+                          width: 84,
+                          height: 84,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppColors.primary,
+                              width: 3,
+                            ),
                           ),
-                        ),
-                        child: ClipOval(
-                          child: AppNetworkImage(
-                            imageUrl: user.avatarUrl,
-                            width: 84,
-                            height: 84,
-                            fit: BoxFit.cover,
+                          child: ClipOval(
+                            child: AppNetworkImage(
+                              imageUrl: user.avatarUrl,
+                              width: 84,
+                              height: 84,
+                              fit: BoxFit.cover,
+                            ),
                           ),
                         ),
                       ),
@@ -409,6 +618,23 @@ class ProfileScreen extends StatelessWidget {
                           iconColor: AppColors.primary,
                           label: '${user.totalOrders} ${'orders_count'.tr}',
                         ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Edit Profile Button
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: BorderSide(color: AppColors.primary.withValues(alpha: 0.4)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        ),
+                        icon: const Icon(Icons.edit_outlined, size: 16),
+                        label: Text(
+                          'edit_profile'.tr,
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                        ),
+                        onPressed: () => Get.toNamed(AppRoutes.editProfile),
                       ),
                     ],
                   ),
@@ -517,6 +743,12 @@ class ProfileScreen extends StatelessWidget {
                 _SettingsGroup(
                   title: 'account_settings'.tr,
                   children: [
+                    _SettingsTile(
+                      icon: Icons.person_outline_rounded,
+                      title: 'edit_profile'.tr,
+                      subtitle: 'edit_profile_sub'.tr,
+                      onTap: () => Get.toNamed(AppRoutes.editProfile),
+                    ),
                     Obx(
                       () => _SettingsTile(
                         icon: Icons.location_on_outlined,
@@ -533,11 +765,19 @@ class ProfileScreen extends StatelessWidget {
                         onTap: () => Get.toNamed(AppRoutes.wallet),
                       ),
                     ),
+                    Obx(
+                      () => _SettingsTile(
+                        icon: Icons.favorite_border_rounded,
+                        title: 'favorite_spots'.tr,
+                        subtitle: '${restaurantController.favoriteRestaurants.length} ${'saved_stores_sub'.tr}',
+                        onTap: () => _showFavoriteSpotsSheet(context, restaurantController),
+                      ),
+                    ),
                     _SettingsTile(
-                      icon: Icons.favorite_border_rounded,
-                      title: 'favorite_spots'.tr,
-                      subtitle: 'saved_stores_sub'.tr,
-                      onTap: () {},
+                      icon: Icons.storefront_rounded,
+                      title: 'my_properties'.tr,
+                      subtitle: 'my_properties_sub'.tr,
+                      onTap: () => Get.toNamed(AppRoutes.myProperty),
                     ),
                   ],
                 ),
@@ -621,15 +861,21 @@ class ProfileScreen extends StatelessWidget {
         ),
         _SettingsTile(
           icon: Icons.help_outline_rounded,
-          title: 'help_center'.tr,
+          title: 'faq'.tr,
           subtitle: 'faqs_support_sub'.tr,
           onTap: () => _showFaqsDialog(context, profileController),
         ),
         _SettingsTile(
-          icon: Icons.policy_outlined,
-          title: 'privacy_and_terms'.tr,
+          icon: Icons.privacy_tip_outlined,
+          title: 'privacy_policy'.tr,
+          subtitle: 'privacy_sub'.tr,
+          onTap: () => _showPrivacyPolicyDialog(context, profileController),
+        ),
+        _SettingsTile(
+          icon: Icons.description_outlined,
+          title: 'terms_and_conditions'.tr,
           subtitle: 'terms_sub'.tr,
-          onTap: () => _showPrivacyDialog(context, profileController),
+          onTap: () => _showTermsDialog(context, profileController),
         ),
       ],
     );
@@ -638,14 +884,14 @@ class ProfileScreen extends StatelessWidget {
   void _showLanguageSelectionSheet(BuildContext context) {
     final theme = Theme.of(context);
     Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-        decoration: BoxDecoration(
-          color: theme.scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: SafeArea(
-          child: Column(
+      Material(
+        color: theme.scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          child: SafeArea(
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -692,8 +938,9 @@ class ProfileScreen extends StatelessWidget {
           ),
         ),
       ),
-      isScrollControlled: true,
-    );
+    ),
+    isScrollControlled: true,
+  );
   }
 }
 

@@ -133,5 +133,68 @@ void main() {
         expect(e.response?.statusCode, 400);
       }
     });
+
+    test('LoggingInterceptor.parseBody parses FormData fields and MultipartFile metadata', () {
+      // 1. Non-FormData inputs are returned unchanged
+      expect(LoggingInterceptor.parseBody({'hello': 'world'}), {'hello': 'world'});
+      expect(LoggingInterceptor.parseBody('raw string'), 'raw string');
+      expect(LoggingInterceptor.parseBody(null), isNull);
+
+      // 2. FormData with fields and files
+      final formData = FormData.fromMap({
+        'name': 'Bole Restaurant',
+        'category_id': 5,
+        'image': MultipartFile.fromString('dummy image content', filename: 'logo.jpg'),
+      });
+
+      final parsed = LoggingInterceptor.parseBody(formData);
+      expect(parsed, isA<Map<String, dynamic>>());
+      expect(parsed['name'], 'Bole Restaurant');
+      expect(parsed['category_id'], '5');
+      expect(parsed['image'], isA<Map<String, dynamic>>());
+      expect(parsed['image']['filename'], 'logo.jpg');
+      expect(parsed['image']['length'], 19);
+
+      // 3. FormData with duplicate keys
+      final multiFormData = FormData();
+      multiFormData.fields.add(const MapEntry('tags', 'burger'));
+      multiFormData.fields.add(const MapEntry('tags', 'fastfood'));
+      multiFormData.files.add(MapEntry(
+        'files',
+        MultipartFile.fromString('file 1', filename: 'f1.txt'),
+      ));
+      multiFormData.files.add(MapEntry(
+        'files',
+        MultipartFile.fromString('file 2', filename: 'f2.txt'),
+      ));
+
+      final multiParsed = LoggingInterceptor.parseBody(multiFormData);
+      expect(multiParsed['tags'], ['burger', 'fastfood']);
+      expect(multiParsed['files'], isA<List>());
+      expect((multiParsed['files'] as List).length, 2);
+      expect(multiParsed['files'][0]['filename'], 'f1.txt');
+      expect(multiParsed['files'][1]['filename'], 'f2.txt');
+    });
+
+    test('LoggingInterceptor intercepts and logs FormData request with DioAdapter', () async {
+      final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'));
+      dio.interceptors.add(LoggingInterceptor());
+
+      final adapter = DioAdapter(dio: dio);
+      adapter.onPost(
+        '/upload',
+        (server) => server.reply(200, {'success': true}),
+        data: Matchers.any,
+      );
+
+      final formData = FormData.fromMap({
+        'title': 'Test Item',
+        'file': MultipartFile.fromString('test data', filename: 'test.png'),
+      });
+
+      final res = await dio.post('/upload', data: formData);
+      expect(res.statusCode, 200);
+      expect(res.data['success'], true);
+    });
   });
 }

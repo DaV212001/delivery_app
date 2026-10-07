@@ -191,6 +191,33 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                             ],
                           ),
                         ],
+                        if (_currentRestaurant.isPastClosingTime) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.do_not_disturb_on_rounded, size: 16, color: AppColors.error),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'closed_ordering_disabled'.tr,
+                                    style: const TextStyle(
+                                      color: AppColors.error,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 16),
                         const Divider(),
                         const SizedBox(height: 12),
@@ -207,14 +234,21 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                                 subtitle: '${_currentRestaurant.reviewsCount}+ ${'reviews'.tr}',
                               ),
                               _MetricDivider(),
-                              _MetricItem(
-                                icon: Icons.navigation_rounded,
-                                title: _currentRestaurant.formattedDistanceBadgeTo(
-                                  userLat: profileController?.selectedAddress.value?.latitude,
-                                  userLng: profileController?.selectedAddress.value?.longitude,
-                                ),
-                                subtitle: 'distance'.tr,
-                              ),
+                              Obx(() {
+                                final curLat = restaurantController.userLat.value ??
+                                    profileController?.selectedAddress.value?.latitude;
+                                final curLng = restaurantController.userLng.value ??
+                                    profileController?.selectedAddress.value?.longitude;
+
+                                return _MetricItem(
+                                  icon: Icons.navigation_rounded,
+                                  title: _currentRestaurant.formattedDistanceBadgeTo(
+                                    userLat: curLat,
+                                    userLng: curLng,
+                                  ),
+                                  subtitle: 'distance'.tr,
+                                );
+                              }),
                               _MetricDivider(),
                               _MetricItem(
                                 icon: Icons.access_time_rounded,
@@ -315,7 +349,19 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                         final item = filteredItems[index];
                         return _MenuItemCard(
                           item: item,
-                          onTap: () => ItemCustomizationModal.show(context, item),
+                          onTap: () {
+                            if (_currentRestaurant.isPastClosingTime) {
+                              Get.snackbar(
+                                'store'.tr,
+                                'closed_ordering_disabled'.tr,
+                                snackPosition: SnackPosition.BOTTOM,
+                                backgroundColor: AppColors.error,
+                                colorText: Colors.white,
+                              );
+                              return;
+                            }
+                            ItemCustomizationModal.show(context, item);
+                          },
                         );
                       },
                       childCount: filteredItems.length,

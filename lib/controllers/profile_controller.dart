@@ -8,6 +8,8 @@ import '../models/address_model.dart';
 import '../models/faq_model.dart';
 import '../models/wallet_model.dart';
 import '../screens/wallet/payment_webview_screen.dart';
+import 'package:image_picker/image_picker.dart';
+import '../services/auth_service.dart';
 import '../services/info_service.dart';
 import '../services/profile_service.dart';
 import '../utils/api_call_status.dart';
@@ -26,6 +28,7 @@ class ProfileController extends GetxController {
   final isLoadingWallet = false.obs;
   final isLoadingAddresses = false.obs;
   final isSaving = false.obs;
+  final isUploadingAvatar = false.obs;
 
   int? get customerId => ConfigPreference.getUserId();
   bool get isAuthenticated => customerId != null;
@@ -258,5 +261,231 @@ class ProfileController extends GetxController {
       },
       onFailure: (err) => Get.snackbar('error'.tr, err),
     );
+  }
+
+  /// Update customer profile (f_name, l_name, email, phone)
+  Future<bool> updateProfile({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String phone,
+  }) async {
+    final uid = customerId;
+    if (uid == null) {
+      Get.snackbar(
+        'sign_in_required'.tr,
+        'sign_in_prompt'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return false;
+    }
+
+    final cleanPhone = AuthController.sanitizePhone(phone);
+    isSaving.value = true;
+    bool success = false;
+
+    await ProfileService.updateProfile(
+      customerId: uid,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      email: email.trim(),
+      phone: cleanPhone,
+      onSuccess: (data) async {
+        isSaving.value = false;
+        success = true;
+
+        final fullName = '$firstName $lastName'.trim();
+        await ConfigPreference.setUserName(fullName);
+        await ConfigPreference.setUserEmail(email.trim());
+        await ConfigPreference.setUserPhone(cleanPhone);
+
+        if (Get.isRegistered<AuthController>()) {
+          final auth = Get.find<AuthController>();
+          auth.user = auth.user.copyWith(
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            name: fullName,
+            email: email.trim(),
+            phone: cleanPhone,
+          );
+          // Sync any extra server-updated fields in the background
+          auth.refreshUserProfile();
+        }
+
+        Get.snackbar(
+          'success'.tr,
+          'profile_updated_successfully'.tr,
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green.withValues(alpha: 0.8),
+          colorText: Colors.white,
+          duration: const Duration(seconds: 2),
+        );
+      },
+      onFailure: (error) {
+        isSaving.value = false;
+        success = false;
+        Get.snackbar(
+          'error'.tr,
+          error,
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red.withValues(alpha: 0.8),
+          colorText: Colors.white,
+        );
+      },
+    );
+
+    return success;
+  }
+
+  /// Edit existing delivery address
+  Future<void> editAddress(int id, String name, double lat, double lng) async {
+    final uid = customerId;
+    if (uid == null) {
+      Get.snackbar(
+        'sign_in_required'.tr,
+        'sign_in_prompt'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+    isSaving.value = true;
+    final updatedAddress = AddressModel(
+      id: id,
+      name: name,
+      latitude: lat,
+      longitude: lng,
+      userId: uid,
+    );
+
+    await ProfileService.editDeliveryAddress(
+      address: updatedAddress,
+      onSuccess: () async {
+        isSaving.value = false;
+        await loadAddresses();
+        Get.back();
+        if (selectedAddress.value?.id == id) {
+          selectedAddress.value = updatedAddress;
+          if (Get.isRegistered<AuthController>()) {
+            try {
+              final auth = Get.find<AuthController>();
+              auth.user = auth.user.copyWith(defaultAddress: updatedAddress.name);
+            } catch (_) {}
+          }
+        }
+        Get.snackbar(
+          'success'.tr,
+          'address_updated'.tr,
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green.withValues(alpha: 0.8),
+          colorText: Colors.white,
+          duration: const Duration(seconds: 2),
+        );
+      },
+      onFailure: (error) {
+        isSaving.value = false;
+        Get.snackbar(
+          'error'.tr,
+          error,
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red.withValues(alpha: 0.8),
+          colorText: Colors.white,
+        );
+      },
+    );
+  }
+
+  void _showSnackbar(
+    String title,
+    String message, {
+    Color? backgroundColor,
+    Color? colorText,
+    Duration? duration,
+  }) {
+    if (Get.testMode) return;
+    if (Get.context != null && Get.overlayContext != null) {
+      Get.snackbar(
+        title,
+        message,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: backgroundColor,
+        colorText: colorText,
+        duration: duration,
+      );
+    }
+  }
+
+  /// Upload profile image by local file path
+  Future<bool> uploadProfileImage(String filePath) async {
+    final uid = customerId;
+    if (uid == null) {
+      _showSnackbar(
+        'sign_in_required'.tr,
+        'sign_in_prompt'.tr,
+      );
+      return false;
+    }
+
+    isUploadingAvatar.value = true;
+    bool success = false;
+
+    await AuthService.uploadProfileImage(
+      userId: uid,
+      filePath: filePath,
+      onSuccess: (newUrl) async {
+        isUploadingAvatar.value = false;
+        success = true;
+
+        if (newUrl.isNotEmpty) {
+          await ConfigPreference.setUserAvatar(newUrl);
+          if (Get.isRegistered<AuthController>()) {
+            final auth = Get.find<AuthController>();
+            auth.user = auth.user.copyWith(avatarUrl: newUrl);
+          }
+        }
+
+        _showSnackbar(
+          'success'.tr,
+          'photo_updated_successfully'.tr,
+          backgroundColor: Colors.green.withValues(alpha: 0.8),
+          colorText: Colors.white,
+          duration: const Duration(seconds: 2),
+        );
+      },
+      onFailure: (error) {
+        isUploadingAvatar.value = false;
+        success = false;
+        _showSnackbar(
+          'error'.tr,
+          error,
+          backgroundColor: Colors.red.withValues(alpha: 0.8),
+          colorText: Colors.white,
+          duration: const Duration(seconds: 2),
+        );
+      },
+    );
+
+    return success;
+  }
+
+  /// Pick an image from Camera or Gallery and upload
+  Future<void> pickAndUploadAvatar(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+      if (picked != null) {
+        await uploadProfileImage(picked.path);
+      }
+    } catch (e) {
+      Get.snackbar(
+        'error'.tr,
+        'failed_to_upload_photo'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
   }
 }

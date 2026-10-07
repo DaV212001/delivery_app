@@ -92,6 +92,19 @@ class _CategoryStoresScreenState extends State<CategoryStoresScreen>
       if (controller.filterOffers.value) {
         list = list.where((s) => s.deliveryFee.toLowerCase().contains('free')).toList();
       }
+      if (controller.sortBy.value == 'rating') {
+        list.sort((a, b) => b.rating.compareTo(a.rating));
+      } else if (controller.sortBy.value == 'fastest') {
+        final uLat = controller.userLat.value;
+        final uLng = controller.userLng.value;
+        list.sort((a, b) {
+          final distA = a.calculateDistanceTo(userLat: uLat, userLng: uLng) ?? a.distanceKm;
+          final distB = b.calculateDistanceTo(userLat: uLat, userLng: uLng) ?? b.distanceKm;
+          return distA.compareTo(distB);
+        });
+      } else if (controller.sortBy.value == 'price') {
+        list.sort((a, b) => (a.avgPricePerPerson ?? 0).compareTo(b.avgPricePerPerson ?? 0));
+      }
       return list;
     }
     return controller.getStoresForCategory(widget.category.categoryKey, query: query);

@@ -70,7 +70,8 @@ class DioService {
       }
     } catch (error, stack) {
       Logger().e('GET $path failed', error: error, stackTrace: stack);
-      await onFailure?.call(error, response);
+      final res = (error is DioException && error.response != null) ? error.response! : response;
+      await onFailure?.call(error, res);
     }
   }
 
@@ -95,7 +96,8 @@ class DioService {
       }
     } catch (error, stack) {
       Logger().e('POST $path failed', error: error, stackTrace: stack);
-      await onFailure?.call(error, response);
+      final res = (error is DioException && error.response != null) ? error.response! : response;
+      await onFailure?.call(error, res);
     }
   }
 
@@ -120,7 +122,8 @@ class DioService {
       }
     } catch (error, stack) {
       Logger().e('PUT $path failed', error: error, stackTrace: stack);
-      await onFailure?.call(error, response);
+      final res = (error is DioException && error.response != null) ? error.response! : response;
+      await onFailure?.call(error, res);
     }
   }
 
@@ -145,7 +148,8 @@ class DioService {
       }
     } catch (error, stack) {
       Logger().e('DELETE $path failed', error: error, stackTrace: stack);
-      await onFailure?.call(error, response);
+      final res = (error is DioException && error.response != null) ? error.response! : response;
+      await onFailure?.call(error, res);
     }
   }
 
@@ -170,7 +174,8 @@ class DioService {
       }
     } catch (error, stack) {
       Logger().e('UPLOAD $path failed', error: error, stackTrace: stack);
-      await onFailure?.call(error, response);
+      final res = (error is DioException && error.response != null) ? error.response! : response;
+      await onFailure?.call(error, res);
     }
   }
 }
