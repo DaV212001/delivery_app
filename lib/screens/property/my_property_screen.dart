@@ -106,6 +106,107 @@ class MyPropertyScreen extends StatelessWidget {
     );
   }
 
+  void _showManageCategoriesSheet(BuildContext context, MyPropertyController controller) {
+    final theme = Theme.of(context);
+
+    Get.bottomSheet(
+      Material(
+        color: theme.scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'manage_categories'.tr,
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    TextButton.icon(
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      label: Text('add_category'.tr),
+                      onPressed: () {
+                        Get.back();
+                        showAddEditCategoryDialog(context: context, controller: controller);
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Obx(() {
+                  final cats = controller.categories;
+                  if (cats.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: Text(
+                          'No categories yet',
+                          style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                      ),
+                    );
+                  }
+                  return Column(
+                    children: cats.map((cat) {
+                      final count = controller.menuItems
+                          .where((m) => m.menuCategoryId?.toString() == cat.id.toString())
+                          .length;
+                      return ListTile(
+                        leading: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.category_outlined, size: 18, color: AppColors.primary),
+                        ),
+                        title: Text(cat.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                        subtitle: Text('$count items'),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.edit_outlined, size: 20, color: AppColors.primary),
+                          tooltip: 'edit_category'.tr,
+                          onPressed: () {
+                            Get.back();
+                            showAddEditCategoryDialog(
+                              context: context,
+                              controller: controller,
+                              categoryId: cat.id,
+                              initialName: cat.name,
+                            );
+                          },
+                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      );
+                    }).toList(),
+                  );
+                }),
+              ],
+            ),
+          ),
+        ),
+      ),
+      isScrollControlled: true,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -152,6 +253,19 @@ class MyPropertyScreen extends StatelessWidget {
           );
         }),
         actions: [
+          Obx(() {
+            final prop = controller.selectedProperty.value;
+            if (prop != null) {
+              return IconButton(
+                tooltip: 'edit_property'.tr,
+                icon: const Icon(Icons.edit_outlined),
+                onPressed: () {
+                  Get.toNamed(AppRoutes.editProperty, arguments: prop);
+                },
+              );
+            }
+            return const SizedBox.shrink();
+          }),
           Obx(() {
             if (controller.properties.length > 1) {
               return IconButton(
@@ -694,6 +808,24 @@ class MyPropertyScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: BorderSide(color: AppColors.primary.withValues(alpha: 0.4)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    label: Text(
+                      'edit_property'.tr,
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    ),
+                    onPressed: () => Get.toNamed(AppRoutes.editProperty, arguments: property),
+                  ),
+                ),
                 const SizedBox(height: 14),
               ],
             ),
@@ -727,6 +859,7 @@ class MyPropertyScreen extends StatelessWidget {
   }
 
   Widget _buildCategorySection(BuildContext context, MyPropertyController controller, bool isDark) {
+    final theme = Theme.of(context);
     return Obx(() {
       final cats = controller.categories;
       final selectedId = controller.selectedCategoryId.value;
@@ -742,25 +875,48 @@ class MyPropertyScreen extends StatelessWidget {
                 'menu_categories'.tr,
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-              InkWell(
-                onTap: () => showAddEditCategoryDialog(
-                  context: context,
-                  controller: controller,
-                ),
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.add_circle_outline, size: 16, color: AppColors.primary),
-                      const SizedBox(width: 4),
-                      Text(
-                        'add_category'.tr,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  InkWell(
+                    onTap: () => _showManageCategoriesSheet(context, controller),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.tune_rounded, size: 15, color: AppColors.primary),
+                          const SizedBox(width: 4),
+                          Text(
+                            'manage_categories'.tr,
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  InkWell(
+                    onTap: () => showAddEditCategoryDialog(
+                      context: context,
+                      controller: controller,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.add_circle_outline, size: 15, color: AppColors.primary),
+                          const SizedBox(width: 4),
+                          Text(
+                            'add_category'.tr,
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -789,10 +945,51 @@ class MyPropertyScreen extends StatelessWidget {
                         categoryId: cat.id,
                         initialName: cat.name,
                       ),
-                      child: PillChip(
-                        label: '${cat.name} ($count)',
-                        isSelected: isSelected,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
                         onTap: () => controller.filterByCategory(cat.id),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.primary
+                                : (isDark ? AppColors.darkSurfaceContainerLow : AppColors.surfaceContainerLow),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isSelected ? AppColors.primary : theme.dividerColor.withValues(alpha: 0.15),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '${cat.name} ($count)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                  color: isSelected ? Colors.white : theme.colorScheme.onSurface,
+                                ),
+                              ),
+                              if (isSelected) ...[
+                                const SizedBox(width: 6),
+                                InkWell(
+                                  onTap: () => showAddEditCategoryDialog(
+                                    context: context,
+                                    controller: controller,
+                                    categoryId: cat.id,
+                                    initialName: cat.name,
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(2),
+                                    child: Icon(Icons.edit_rounded, size: 13, color: Colors.white),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   );

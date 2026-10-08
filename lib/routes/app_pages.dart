@@ -104,5 +104,9 @@ class AppPages {
       name: AppRoutes.registerProperty,
       page: () => const RegisterPropertyScreen(),
     ),
+    GetPage(
+      name: AppRoutes.editProperty,
+      page: () => const RegisterPropertyScreen(),
+    ),
   ];
 }

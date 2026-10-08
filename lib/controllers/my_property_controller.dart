@@ -377,4 +377,65 @@ class MyPropertyController extends GetxController {
     }
     return false;
   }
+
+  /// Update an existing property
+  Future<bool> updateExistingProperty({
+    required int propertyId,
+    required String name,
+    required dynamic categoryId,
+    required dynamic typeId,
+    required String friendlyLocation,
+    required String description,
+    required String deliveryTime,
+    String? tinNumber,
+    required String latitude,
+    required String longitude,
+    required String fromTime,
+    required String toTime,
+    String? logoPath,
+    String? coverImagePath,
+    String? tinCertificatePath,
+    String? tradeLicensePath,
+  }) async {
+    isRegistering.value = true;
+    try {
+      final ok = await PropertyService.updateProperty(
+        propertyId: propertyId,
+        customerId: currentCustomerId,
+        name: name.trim(),
+        categoryId: categoryId,
+        typeId: typeId,
+        friendlyLocation: friendlyLocation.trim(),
+        description: description.trim(),
+        deliveryTime: deliveryTime.trim(),
+        tinNumber: tinNumber?.trim(),
+        latitude: latitude.trim(),
+        longitude: longitude.trim(),
+        fromTime: fromTime.trim(),
+        toTime: toTime.trim(),
+        logoPath: logoPath,
+        coverImagePath: coverImagePath,
+        tinCertificatePath: tinCertificatePath,
+        tradeLicensePath: tradeLicensePath,
+      );
+
+      if (ok) {
+        await loadProperties(forceRefresh: true);
+        Get.back();
+        Get.snackbar(
+          'success'.tr,
+          'Property updated successfully!',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green.withValues(alpha: 0.8),
+          colorText: Colors.white,
+        );
+        return true;
+      }
+    } catch (e) {
+      Get.snackbar('error'.tr, 'Failed to update property: $e');
+    } finally {
+      isRegistering.value = false;
+    }
+    return false;
+  }
 }

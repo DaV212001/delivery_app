@@ -54,6 +54,7 @@ class OrderController extends GetxController {
       final activeList = await OrderService.fetchActiveOrders(uid);
       if (activeList.isNotEmpty) {
         activeOrder.value = activeList.first;
+        fetchDetail(activeList.first.orderId);
       } else {
         activeOrder.value = null;
       }
@@ -269,9 +270,15 @@ class OrderController extends GetxController {
   }
 
   Future<void> fetchDetail(dynamic orderId) async {
-    final detail = await OrderService.fetchOrderDetail(orderId);
+    final cleanId = orderId.toString().replaceAll(RegExp(r'[^0-9]'), '');
+    final targetId = cleanId.isNotEmpty ? cleanId : orderId.toString();
+    final detail = await OrderService.fetchOrderDetail(targetId);
     if (detail != null) {
-      activeOrder.value = detail;
+      if (activeOrder.value == null ||
+          activeOrder.value!.orderId.replaceAll(RegExp(r'[^0-9]'), '') == targetId) {
+        activeOrder.value = detail;
+        activeOrder.refresh();
+      }
     }
   }
 

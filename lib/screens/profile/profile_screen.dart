@@ -8,6 +8,7 @@ import '../../constants/pages.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/theme_controller.dart';
 import '../../widgets/common/app_widgets.dart';
+import '../../widgets/map/property_location_picker_screen.dart';
 import '../home/widgets/restaurant_list_item.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -157,71 +158,181 @@ class ProfileScreen extends StatelessWidget {
     ProfileController profileController,
     dynamic address,
   ) {
-    final nameCtrl = TextEditingController(text: address.name);
-    final latCtrl = TextEditingController(text: address.latitude.toString());
-    final lngCtrl = TextEditingController(text: address.longitude.toString());
-
-    Get.dialog(
-      AlertDialog(
-        title: Text('edit_address'.tr),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: nameCtrl, decoration: InputDecoration(labelText: 'address_name'.tr)),
-            const SizedBox(height: 8),
-            TextField(controller: latCtrl, decoration: InputDecoration(labelText: 'latitude'.tr)),
-            const SizedBox(height: 8),
-            TextField(controller: lngCtrl, decoration: InputDecoration(labelText: 'longitude'.tr)),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Get.back(), child: Text('cancel'.tr)),
-          ElevatedButton(
-            onPressed: () {
-              final lat = double.tryParse(latCtrl.text) ?? address.latitude;
-              final lng = double.tryParse(lngCtrl.text) ?? address.longitude;
-              final label = nameCtrl.text.trim().isNotEmpty ? nameCtrl.text.trim() : address.name;
-              if (address.id != null) {
-                profileController.editAddress(address.id!, label, lat, lng);
-              }
-            },
-            child: Text('save'.tr),
-          ),
-        ],
-      ),
+    _showAddressEditorDialog(
+      context: context,
+      profileController: profileController,
+      address: address,
     );
   }
 
   void _showAddAddressDialog(BuildContext context, ProfileController profileController) {
-    final nameCtrl = TextEditingController(text: '');
-    final latCtrl = TextEditingController(text: '9.0209');
-    final lngCtrl = TextEditingController(text: '38.7469');
+    _showAddressEditorDialog(
+      context: context,
+      profileController: profileController,
+      address: null,
+    );
+  }
+
+  void _showAddressEditorDialog({
+    required BuildContext context,
+    required ProfileController profileController,
+    dynamic address,
+  }) {
+    final isEditing = address != null;
+    final nameCtrl = TextEditingController(text: address?.name ?? '');
+    double selectedLat = (address?.latitude is num)
+        ? (address.latitude as num).toDouble()
+        : double.tryParse(address?.latitude?.toString() ?? '') ?? 9.0209;
+    double selectedLng = (address?.longitude is num)
+        ? (address.longitude as num).toDouble()
+        : double.tryParse(address?.longitude?.toString() ?? '') ?? 38.7469;
+    String locationLabel = address?.name ?? '';
 
     Get.dialog(
-      AlertDialog(
-        title: Text('add_address'.tr),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: nameCtrl, decoration: InputDecoration(labelText: 'address_name'.tr)),
-            const SizedBox(height: 8),
-            TextField(controller: latCtrl, decoration: InputDecoration(labelText: 'latitude'.tr)),
-            const SizedBox(height: 8),
-            TextField(controller: lngCtrl, decoration: InputDecoration(labelText: 'longitude'.tr)),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Get.back(), child: Text('cancel'.tr)),
-          ElevatedButton(
-            onPressed: () {
-              final lat = double.tryParse(latCtrl.text) ?? 9.0209;
-              final lng = double.tryParse(lngCtrl.text) ?? 38.7469;
-              final label = nameCtrl.text.trim().isNotEmpty ? nameCtrl.text.trim() : 'Home';
-              profileController.addAddress(label, lat, lng);
-            },
-            child: Text('save'.tr),
-          ),
-        ],
+      StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final theme = Theme.of(ctx);
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                Icon(
+                  isEditing ? Icons.edit_location_alt_rounded : Icons.add_location_alt_rounded,
+                  color: AppColors.primary,
+                  size: 22,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  isEditing ? 'edit_address'.tr : 'add_address'.tr,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'address_name'.tr,
+                      hintText: 'e.g. Home, Office, Bole Atlas',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      filled: true,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  // Map Location Selector Card
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.pin_drop_rounded, size: 18, color: AppColors.primary),
+                            const SizedBox(width: 6),
+                            Text(
+                              'pinned_location'.tr,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${selectedLat.toStringAsFixed(5)}, ${selectedLng.toStringAsFixed(5)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                        if (locationLabel.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            locationLabel,
+                            style: const TextStyle(fontSize: 11, color: Colors.grey),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              side: const BorderSide(color: AppColors.primary),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            icon: const Icon(Icons.map_outlined, size: 16),
+                            label: Text(
+                              isEditing ? 'change_location_on_map'.tr : 'select_location_on_map'.tr,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                            onPressed: () async {
+                              final result = await Get.to<PropertyLocationResult>(
+                                () => PropertyLocationPickerScreen(
+                                  title: 'Pin Delivery Address',
+                                  initialLatitude: selectedLat,
+                                  initialLongitude: selectedLng,
+                                  initialAddress: nameCtrl.text.trim(),
+                                ),
+                              );
+                              if (result != null) {
+                                setDialogState(() {
+                                  selectedLat = result.latitude;
+                                  selectedLng = result.longitude;
+                                  if (result.address.isNotEmpty) {
+                                    locationLabel = result.address;
+                                    if (nameCtrl.text.trim().isEmpty) {
+                                      nameCtrl.text = result.address;
+                                    }
+                                  }
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Get.back(),
+                child: Text('cancel'.tr),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () {
+                  final label = nameCtrl.text.trim().isNotEmpty
+                      ? nameCtrl.text.trim()
+                      : (locationLabel.isNotEmpty ? locationLabel : 'Home');
+                  if (isEditing && address?.id != null) {
+                    profileController.editAddress(address.id!, label, selectedLat, selectedLng);
+                  } else {
+                    profileController.addAddress(label, selectedLat, selectedLng);
+                  }
+                },
+                child: Text('save'.tr),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

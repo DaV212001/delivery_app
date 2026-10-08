@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import '../constants/app_assets.dart';
+import '../services/property_service.dart';
 import 'cart_item.dart';
 import 'delivery_item.dart';
 import 'store.dart';
@@ -237,6 +238,19 @@ class OrderModel {
     final totalPrice = double.tryParse(json['total_price']?.toString() ?? '0') ?? 0.0;
     final totalItems = int.tryParse(json['total_item']?.toString() ?? '1') ?? 1;
 
+    final propId = json['property_id']?.toString();
+    final cachedStore = PropertyService.getCachedProperty(propId);
+
+    String rawStoreName = json['property_name']?.toString() ?? json['property']?.toString() ?? '';
+    if (rawStoreName.trim().isEmpty || rawStoreName.toLowerCase() == 'null' || rawStoreName.toLowerCase() == 'store') {
+      rawStoreName = cachedStore?.name ?? 'Store';
+    }
+
+    String rawStoreLogo = json['property_logo']?.toString() ?? '';
+    if (rawStoreLogo.trim().isEmpty || rawStoreLogo.toLowerCase() == 'null') {
+      rawStoreLogo = cachedStore?.logoUrl ?? cachedStore?.heroImageUrl ?? AppAssets.parcelBoxItem;
+    }
+
     DateTime date = DateTime.now();
     if (json['date'] != null) {
       try {
@@ -252,8 +266,8 @@ class OrderModel {
 
     return OrderModel(
       orderId: '#AMN-$id',
-      storeName: json['property_name']?.toString() ?? json['property']?.toString() ?? 'Store',
-      storeImageUrl: AppAssets.parcelBoxItem,
+      storeName: rawStoreName,
+      storeImageUrl: rawStoreLogo,
       orderDate: date,
       items: List.generate(
         totalItems,
@@ -261,11 +275,11 @@ class OrderModel {
           id: 'item_$index',
           item: DeliveryItem(
             id: 'menu_$index',
-            storeId: json['property_id']?.toString() ?? '1',
-            name: 'Order Item ${index + 1}',
+            storeId: propId ?? '1',
+            name: rawStoreName != 'Store' ? '$rawStoreName Item ${index + 1}' : 'Order Item ${index + 1}',
             description: '',
-            price: totalPrice / totalItems,
-            imageUrl: AppAssets.parcelBoxItem,
+            price: totalItems > 0 ? (totalPrice / totalItems) : totalPrice,
+            imageUrl: rawStoreLogo,
             category: 'Order',
           ),
           quantity: 1,
@@ -278,9 +292,9 @@ class OrderModel {
       deliveryAddress: loc,
       status: orderStatus,
       estimatedArrival: orderStatus == OrderProgressStatus.delivered ? 'Delivered' : '20 mins',
-      storeType: StoreType.restaurant,
-      storeLatitude: double.tryParse(json['store_latitude']?.toString() ?? ''),
-      storeLongitude: double.tryParse(json['store_longitude']?.toString() ?? ''),
+      storeType: cachedStore?.type ?? StoreType.restaurant,
+      storeLatitude: double.tryParse(json['store_latitude']?.toString() ?? '') ?? cachedStore?.latitude,
+      storeLongitude: double.tryParse(json['store_longitude']?.toString() ?? '') ?? cachedStore?.longitude,
       deliveryLatitude: double.tryParse(json['latitude']?.toString() ?? ''),
       deliveryLongitude: double.tryParse(json['longitude']?.toString() ?? ''),
       driver: const DriverInfo(
@@ -297,6 +311,7 @@ class OrderModel {
   factory OrderModel.fromOrderDetailJson({
     required Map<String, dynamic> statusJson,
     required List<dynamic> itemsList,
+    Store? fallbackStore,
   }) {
     final rawStatus = statusJson['status']?.toString() ?? '0';
     OrderProgressStatus orderStatus;
@@ -317,30 +332,79 @@ class OrderModel {
     final id = statusJson['id']?.toString() ?? '';
     final loc = statusJson['location']?.toString() ?? 'Addis Ababa';
     final totalPrice = double.tryParse(statusJson['total_price']?.toString() ?? '0') ?? 0.0;
+    final propId = statusJson['property_id']?.toString();
+    final cachedStore = fallbackStore ?? PropertyService.getCachedProperty(propId);
 
-    String storeName = statusJson['property_name']?.toString() ?? statusJson['property']?.toString() ?? 'Store';
-    String storeLogo = AppAssets.parcelBoxItem;
+    String storeName = '';
+    String storeLogo = '';
+
+    // 1. Scan itemsList: each item in /my_order_detail/{id} has "property" and "property_logo"
+    for (final raw in itemsList) {
+      if (raw is Map<String, dynamic>) {
+        final p = raw['property']?.toString().trim();
+        if (p != null && p.isNotEmpty && p.toLowerCase() != 'null') {
+          storeName = p;
+        }
+        final logo = raw['property_logo']?.toString().trim();
+        if (logo != null && logo.isNotEmpty && logo.toLowerCase() != 'null') {
+          storeLogo = logo;
+        }
+      }
+    }
+
+    // 2. Next check statusJson
+    if (storeName.isEmpty) {
+      final pStatus = (statusJson['property_name'] ?? statusJson['property'] ?? statusJson['store_name'])?.toString().trim();
+      if (pStatus != null && pStatus.isNotEmpty && pStatus.toLowerCase() != 'null') {
+        storeName = pStatus;
+      }
+    }
+
+    // 3. Fallback to cachedStore
+    if (storeName.isEmpty && cachedStore != null && cachedStore.name.isNotEmpty) {
+      storeName = cachedStore.name;
+    }
+    if (storeName.isEmpty) {
+      storeName = 'Store';
+    }
+
+    if (storeLogo.isEmpty) {
+      storeLogo = cachedStore?.logoUrl ?? cachedStore?.heroImageUrl ?? AppAssets.parcelBoxItem;
+    }
 
     final parsedItems = <CartItem>[];
+    double calculatedItemsSum = 0.0;
+
     for (int i = 0; i < itemsList.length; i++) {
       final raw = itemsList[i];
       if (raw is Map<String, dynamic>) {
-        if (raw['property'] != null) storeName = raw['property'].toString();
-        if (raw['property_logo'] != null) storeLogo = raw['property_logo'].toString();
+        // Name resolution: check item_name, name, menu_name, product_name, title
+        String rawName = (raw['item_name'] ?? raw['name'] ?? raw['menu_name'] ?? raw['product_name'] ?? raw['title'])?.toString().trim() ?? '';
+        if (rawName.isEmpty || rawName.toLowerCase() == 'null') {
+          rawName = storeName != 'Store' ? '$storeName Item ${i + 1}' : 'Order Item ${i + 1}';
+        }
 
-        final itemPrice = double.tryParse(raw['item_price']?.toString() ?? '0') ?? 0.0;
-        final qty = int.tryParse(raw['quantity']?.toString() ?? '1') ?? 1;
+        // Image resolution: check item_image, image, menu_image
+        String rawImage = (raw['item_image'] ?? raw['image'] ?? raw['menu_image'])?.toString().trim() ?? '';
+        if (rawImage.isEmpty || rawImage.toLowerCase() == 'null') {
+          rawImage = storeLogo.isNotEmpty ? storeLogo : AppAssets.parcelBoxItem;
+        }
+
+        final itemPrice = double.tryParse(raw['item_price']?.toString() ?? raw['price']?.toString() ?? '0') ?? 0.0;
+        final qty = int.tryParse(raw['quantity']?.toString() ?? raw['qty']?.toString() ?? '1') ?? 1;
+
+        calculatedItemsSum += itemPrice * qty;
 
         parsedItems.add(
           CartItem(
-            id: 'detail_item_$i',
+            id: raw['id']?.toString() ?? 'detail_item_$i',
             item: DeliveryItem(
-              id: 'menu_$i',
-              storeId: statusJson['property_id']?.toString() ?? '1',
-              name: raw['item_name']?.toString() ?? 'Menu Item',
-              description: '',
+              id: raw['menu_id']?.toString() ?? 'menu_$i',
+              storeId: propId ?? '1',
+              name: rawName,
+              description: raw['description']?.toString() ?? '',
               price: itemPrice,
-              imageUrl: raw['item_image']?.toString() ?? storeLogo,
+              imageUrl: rawImage,
               category: 'Menu',
             ),
             quantity: qty,
@@ -354,6 +418,29 @@ class OrderModel {
       try {
         date = DateTime.parse(statusJson['created_at']);
       } catch (_) {}
+    } else if (itemsList.isNotEmpty && itemsList.first is Map && itemsList.first['order_date'] != null) {
+      try {
+        date = DateTime.parse(itemsList.first['order_date']);
+      } catch (_) {}
+    }
+
+    final subtotal = calculatedItemsSum > 0 ? calculatedItemsSum : (totalPrice * 0.9);
+    final deliveryFee = (totalPrice > subtotal) ? (totalPrice - subtotal) : 50.0;
+    final taxAndFees = (totalPrice - subtotal - deliveryFee) > 0 ? (totalPrice - subtotal - deliveryFee) : 0.0;
+
+    DriverInfo? driverInfo;
+    final driverId = statusJson['driver_id']?.toString();
+    if (driverId != null && driverId.isNotEmpty && driverId != '0' && driverId.toLowerCase() != 'null') {
+      final driverName = (statusJson['driver_name'] ?? statusJson['driver']?['name'])?.toString() ?? 'Alex M.';
+      final driverPhone = (statusJson['driver_phone'] ?? statusJson['driver']?['phone'])?.toString() ?? '+251 911 058 179';
+      driverInfo = DriverInfo(
+        name: driverName,
+        vehicle: statusJson['driver_vehicle']?.toString() ?? 'Delivery Motorcycle',
+        plateNumber: statusJson['driver_plate']?.toString() ?? 'AA-2-12345',
+        rating: 4.9,
+        photoUrl: AppAssets.driverAvatar,
+        phone: driverPhone,
+      );
     }
 
     return OrderModel(
@@ -362,26 +449,19 @@ class OrderModel {
       storeImageUrl: storeLogo,
       orderDate: date,
       items: parsedItems,
-      subtotal: totalPrice * 0.9,
-      deliveryFee: 50.0,
-      taxAndFees: totalPrice * 0.1,
+      subtotal: subtotal,
+      deliveryFee: deliveryFee,
+      taxAndFees: taxAndFees,
       total: totalPrice,
       deliveryAddress: loc,
       status: orderStatus,
       estimatedArrival: orderStatus == OrderProgressStatus.delivered ? 'Delivered' : '20 mins',
-      storeType: StoreType.restaurant,
-      storeLatitude: double.tryParse(statusJson['store_latitude']?.toString() ?? ''),
-      storeLongitude: double.tryParse(statusJson['store_longitude']?.toString() ?? ''),
+      storeType: cachedStore?.type ?? StoreType.restaurant,
+      storeLatitude: double.tryParse(statusJson['store_latitude']?.toString() ?? statusJson['restaurant_latitude']?.toString() ?? '') ?? cachedStore?.latitude,
+      storeLongitude: double.tryParse(statusJson['store_longitude']?.toString() ?? statusJson['restaurant_longitude']?.toString() ?? '') ?? cachedStore?.longitude,
       deliveryLatitude: double.tryParse(statusJson['latitude']?.toString() ?? ''),
       deliveryLongitude: double.tryParse(statusJson['longitude']?.toString() ?? ''),
-      driver: const DriverInfo(
-        name: 'Alex M.',
-        vehicle: 'Silver Honda Civic',
-        plateNumber: 'ABC-123',
-        rating: 4.9,
-        photoUrl: AppAssets.driverAvatar,
-        phone: '+251 911 058 179',
-      ),
+      driver: driverInfo,
     );
   }
 

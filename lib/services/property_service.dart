@@ -173,6 +173,44 @@ class PropertyService {
     return list;
   }
 
+  static final Map<String, Store> _propertyCache = {};
+
+  /// Synchronously get cached property by ID if already fetched
+  static Store? getCachedProperty(dynamic id) {
+    if (id == null) return null;
+    final key = id.toString();
+    return _propertyCache[key];
+  }
+
+  /// Bulk cache stores into in-memory lookup map
+  static void cacheStores(Iterable<Store> stores) {
+    for (final s in stores) {
+      if (s.id.isNotEmpty) {
+        _propertyCache[s.id] = s;
+      }
+    }
+  }
+
+  /// Ensure all properties are cached in memory for instant name/logo resolution
+  static Future<void> ensurePropertiesCached() async {
+    if (_propertyCache.isNotEmpty) return;
+    await fetchProperties();
+  }
+
+  /// Resolve property by ID from cache or fetch asynchronously
+  static Future<Store?> resolveProperty(dynamic propertyId) async {
+    if (propertyId == null) return null;
+    final key = propertyId.toString();
+    if (_propertyCache.containsKey(key)) {
+      return _propertyCache[key];
+    }
+    final store = await fetchPropertyDetail(key);
+    if (store != null && store.id.isNotEmpty) {
+      _propertyCache[store.id] = store;
+    }
+    return store;
+  }
+
   /// Fetch all properties / stores
   static Future<List<Store>> fetchProperties() async {
     final list = <Store>[];
@@ -183,7 +221,11 @@ class PropertyService {
         if (data is Map<String, dynamic> && data['data'] is List) {
           for (final item in data['data']) {
             if (item is Map<String, dynamic>) {
-              list.add(Store.fromJson(item));
+              final store = Store.fromJson(item);
+              list.add(store);
+              if (store.id.isNotEmpty) {
+                _propertyCache[store.id] = store;
+              }
             }
           }
         }
@@ -249,9 +291,13 @@ class PropertyService {
             effectiveCategories.addAll(['All', 'Popular']);
           }
 
-          store = Store.fromJson(propJson, items: items).copyWith(
+          final resolvedStore = Store.fromJson(propJson, items: items).copyWith(
             categories: effectiveCategories,
           );
+          store = resolvedStore;
+          if (resolvedStore.id.isNotEmpty) {
+            _propertyCache[resolvedStore.id] = resolvedStore;
+          }
         }
       },
     );
@@ -644,5 +690,78 @@ class PropertyService {
     );
 
     return registered;
+  }
+
+  /// Update an existing property
+  static Future<bool> updateProperty({
+    required dynamic propertyId,
+    required dynamic customerId,
+    required String name,
+    required dynamic categoryId,
+    required dynamic typeId,
+    required String friendlyLocation,
+    required String description,
+    required String deliveryTime,
+    String? tinNumber,
+    required String latitude,
+    required String longitude,
+    required String fromTime,
+    required String toTime,
+    String? logoPath,
+    String? coverImagePath,
+    String? tinCertificatePath,
+    String? tradeLicensePath,
+  }) async {
+    bool ok = false;
+    final map = <String, dynamic>{
+      '_method': 'PUT',
+      'customer_id': customerId.toString(),
+      'name': name,
+      'category_id': categoryId.toString(),
+      'type_id': typeId.toString(),
+      'frendly_location': friendlyLocation,
+      'description': description,
+      'delivery_time': deliveryTime,
+      'latitude': latitude,
+      'longitude': longitude,
+      'from_time': fromTime,
+      'to_time': toTime,
+    };
+
+    if (tinNumber != null && tinNumber.isNotEmpty) {
+      map['tin_number'] = tinNumber;
+    }
+
+    if (logoPath != null && logoPath.isNotEmpty) {
+      final fName = logoPath.split(RegExp(r'[/\\]')).last;
+      map['logo'] = await MultipartFile.fromFile(logoPath, filename: fName);
+    }
+
+    if (coverImagePath != null && coverImagePath.isNotEmpty) {
+      final fName = coverImagePath.split(RegExp(r'[/\\]')).last;
+      map['cover_image'] = await MultipartFile.fromFile(coverImagePath, filename: fName);
+    }
+
+    if (tinCertificatePath != null && tinCertificatePath.isNotEmpty) {
+      final fName = tinCertificatePath.split(RegExp(r'[/\\]')).last;
+      map['tin_certificate'] = await MultipartFile.fromFile(tinCertificatePath, filename: fName);
+    }
+
+    if (tradeLicensePath != null && tradeLicensePath.isNotEmpty) {
+      final fName = tradeLicensePath.split(RegExp(r'[/\\]')).last;
+      map['trade_license'] = await MultipartFile.fromFile(tradeLicensePath, filename: fName);
+    }
+
+    final formData = FormData.fromMap(map);
+
+    await DioService.dioUpload(
+      path: ApiEndpoints.propertyDetail(propertyId),
+      formData: formData,
+      onSuccess: (response) {
+        ok = true;
+      },
+    );
+
+    return ok;
   }
 }

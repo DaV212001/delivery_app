@@ -193,12 +193,16 @@ class MyPropertiesListScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 4),
-                            Text(
-                              property.isOpen ? 'open_now'.tr : 'closed_now'.tr,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: property.isOpen ? Colors.green.shade700 : Colors.grey.shade700,
+                            Flexible(
+                              child: Text(
+                                property.isOpen ? 'open_now'.tr : 'closed_now'.tr,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: property.isOpen ? Colors.green.shade700 : Colors.grey.shade700,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
@@ -208,13 +212,25 @@ class MyPropertiesListScreen extends StatelessWidget {
                   ),
                 ),
 
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
+
+                // Compact Quick Edit Button
+                InkWell(
+                  onTap: () {
+                    Get.toNamed(AppRoutes.editProperty, arguments: property);
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: const Padding(
+                    padding: EdgeInsets.all(6),
+                    child: Icon(Icons.edit_outlined, size: 18, color: AppColors.primary),
+                  ),
+                ),
 
                 // Trailing Navigation Chevron
                 Icon(
                   Icons.chevron_right_rounded,
                   color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                  size: 22,
+                  size: 18,
                 ),
               ],
             ),

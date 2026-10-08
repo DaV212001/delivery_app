@@ -6,7 +6,6 @@ import 'checkout/cart_screen.dart';
 import 'home/home_screen.dart';
 import 'orders/order_history_screen.dart';
 import 'profile/profile_screen.dart';
-import 'search/search_screen.dart';
 
 class MainNavigationController extends GetxController {
   final currentIndex = 0.obs;
@@ -28,7 +27,6 @@ class MainNavigationScreen extends StatelessWidget {
 
     final pages = const [
       HomeScreen(),
-      SearchScreen(),
       CartScreen(),
       OrderHistoryScreen(),
       ProfileScreen(),
@@ -69,29 +67,23 @@ class MainNavigationScreen extends StatelessWidget {
                     onTap: () => nav.changePage(0),
                   ),
                   _NavItem(
-                    icon: Icons.search_rounded,
-                    label: 'search'.tr,
-                    isSelected: current == 1,
-                    onTap: () => nav.changePage(1),
-                  ),
-                  _NavItem(
                     icon: Icons.shopping_bag_outlined,
                     label: 'cart'.tr,
-                    isSelected: current == 2,
+                    isSelected: current == 1,
                     badgeCount: cartCount,
-                    onTap: () => nav.changePage(2),
+                    onTap: () => nav.changePage(1),
                   ),
                   _NavItem(
                     icon: Icons.receipt_long_rounded,
                     label: 'orders'.tr,
-                    isSelected: current == 3,
-                    onTap: () => nav.changePage(3),
+                    isSelected: current == 2,
+                    onTap: () => nav.changePage(2),
                   ),
                   _NavItem(
                     icon: Icons.person_outline_rounded,
                     label: 'profile'.tr,
-                    isSelected: current == 4,
-                    onTap: () => nav.changePage(4),
+                    isSelected: current == 3,
+                    onTap: () => nav.changePage(3),
                   ),
                 ],
               ),

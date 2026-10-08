@@ -380,6 +380,12 @@ class AppTranslations extends Translations {
           'add_photo': 'Add Photo',
           'take_a_photo': 'Take a Photo',
           'merchant_management': 'Merchant Management',
+          'edit_property': 'Edit Property',
+          'update_property': 'Update Property',
+          'manage_categories': 'Manage Categories',
+          'select_location_on_map': 'Select on Map',
+          'change_location_on_map': 'Change on Map',
+          'pinned_location': 'Pinned Location',
         },
 
         // ---------------------------------------------------------------------
@@ -759,6 +765,12 @@ class AppTranslations extends Translations {
           'add_photo': 'ፎቶ አክል',
           'take_a_photo': 'ፎቶ አንሳ',
           'merchant_management': 'የነጋዴ አስተዳደር',
+          'edit_property': 'ንብረት አርትዕ',
+          'update_property': 'ንብረት አዘምን',
+          'manage_categories': 'ምድቦችን አስተዳድር',
+          'select_location_on_map': 'በካርታ ላይ ምረጥ',
+          'change_location_on_map': 'በካርታ ላይ ቀይር',
+          'pinned_location': 'የተመረጠ ቦታ',
         },
 
         // ---------------------------------------------------------------------
@@ -1138,6 +1150,12 @@ class AppTranslations extends Translations {
           'add_photo': 'Suuraa Dabali',
           'take_a_photo': 'Suuraa Kaasi',
           'merchant_management': 'Bulchiinsa Daldalaa',
+          'edit_property': 'Qabeenya Gulaali',
+          'update_property': 'Qabeenya Fooyyessi',
+          'manage_categories': 'Gosa Meeshaalee Bulchi',
+          'select_location_on_map': 'Kaartaa irraa Filadhu',
+          'change_location_on_map': 'Kaartaa irraa Jijjiiri',
+          'pinned_location': 'Bakka Filatame',
         },
 
         // ---------------------------------------------------------------------
@@ -1517,6 +1535,12 @@ class AppTranslations extends Translations {
           'add_photo': 'ስእሊ ወስኽ',
           'take_a_photo': 'ስእሊ ኣልዕል',
           'merchant_management': 'ምምሕዳር ነጋዶ',
+          'edit_property': 'ንብረት ኣመዓራሪ',
+          'update_property': 'ንብረት ኣሐድስ',
+          'manage_categories': 'ምድባት ኣመሓድር',
+          'select_location_on_map': 'ኣብ ካርታ ሕረፅ',
+          'change_location_on_map': 'ኣብ ካርታ ቀይር',
+          'pinned_location': 'ዝተሓረየ ቦታ',
         },
 
         // ---------------------------------------------------------------------
@@ -1896,6 +1920,12 @@ class AppTranslations extends Translations {
           'add_photo': 'Kudar Sawir',
           'take_a_photo': 'Qaad Sawir',
           'merchant_management': 'Maamulka Ganacsatada',
+          'edit_property': 'Wax ka beddel Hantida',
+          'update_property': 'Cusbooneysii Hantida',
+          'manage_categories': 'Maamul Qeybaha',
+          'select_location_on_map': 'Ka dooro Khariidadda',
+          'change_location_on_map': 'Ku beddel Khariidadda',
+          'pinned_location': 'Goobta La Xushay',
         },
       };
 }

@@ -33,12 +33,14 @@ class PropertyLocationPickerScreen extends StatefulWidget {
   final double? initialLatitude;
   final double? initialLongitude;
   final String? initialAddress;
+  final String? title;
 
   const PropertyLocationPickerScreen({
     super.key,
     this.initialLatitude,
     this.initialLongitude,
     this.initialAddress,
+    this.title,
   });
 
   @override
@@ -361,7 +363,7 @@ class _PropertyLocationPickerScreenState
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Pin Store Location',
+                                widget.title ?? 'Pin Store Location',
                                 style: theme.textTheme.titleSmall?.copyWith(
                                   fontWeight: FontWeight.w700,
                                 ),

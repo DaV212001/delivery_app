@@ -187,6 +187,23 @@ void main() {
       expect(detailOrder.status, OrderProgressStatus.onTheWay);
       expect(detailOrder.items.length, 1);
       expect(detailOrder.items.first.item.name, 'checkebvsa');
+      expect(detailOrder.storeName, 'AMN Restaurant');
+
+      // Test fallbackStore resolution when items don't have property name
+      final fallbackStore = Store.fromJson({
+        'id': 1,
+        'property_name': 'Fallback Dr Tyre',
+      });
+      final orderWithFallback = OrderModel.fromOrderDetailJson(
+        statusJson: {'id': 15, 'property_id': '1'},
+        itemsList: [
+          {'item_name': '235/55R19', 'item_price': '67', 'quantity': 1},
+        ],
+        fallbackStore: fallbackStore,
+      );
+      expect(orderWithFallback.storeName, 'Fallback Dr Tyre');
+      expect(orderWithFallback.items.first.item.name, '235/55R19');
+      expect(orderWithFallback.items.first.item.price, 67.0);
     });
 
     test('AddressModel, Wallet, Faq, and UserProfile parse correctly', () {

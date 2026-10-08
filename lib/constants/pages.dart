@@ -19,6 +19,7 @@ class AppRoutes {
   static const String myProperty = '/my-property';
   static const String manageProperty = '/manage-property';
   static const String registerProperty = '/register-property';
+  static const String editProperty = '/edit-property';
 
   // Compatible alias required by SKILL.md AuthInterceptor
   static const String loginRoute = login;

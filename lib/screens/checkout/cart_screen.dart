@@ -10,6 +10,8 @@ import '../../core/theme/app_colors.dart';
 import '../../services/gebeta_location_service.dart';
 import '../../utils/location_utils.dart';
 import '../../widgets/common/app_widgets.dart';
+import '../../widgets/map/property_location_picker_screen.dart';
+import '../main_navigation.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -124,7 +126,16 @@ class _CartScreenState extends State<CartScreen> {
                   width: 200,
                   child: AppButton(
                     text: 'start_shopping'.tr,
-                    onPressed: () => Get.offNamed(AppRoutes.mainNav),
+                    onPressed: () {
+                      if (Get.isRegistered<MainNavigationController>()) {
+                        Get.find<MainNavigationController>().changePage(0);
+                      }
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.of(context).pop();
+                      } else {
+                        Get.offAllNamed(AppRoutes.mainNav);
+                      }
+                    },
                   ),
                 ),
               ],
@@ -1159,35 +1170,146 @@ class _CartScreenState extends State<CartScreen> {
         ? Get.find<ProfileController>()
         : Get.put(ProfileController());
 
+    double selectedLat = LocationUtils.defaultLatitude;
+    double selectedLng = LocationUtils.defaultLongitude;
+    String locationLabel = 'Bole, Addis Ababa';
+
     Get.dialog(
-      AlertDialog(
-        title: Text('add_address'.tr),
-        content: TextField(
-          controller: nameCtrl,
-          decoration: InputDecoration(
-            labelText: 'address_name'.tr,
-            hintText: 'e.g. Home, Office, Bole Medhanialem',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: Text('cancel'.tr),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final name = nameCtrl.text.trim();
-              if (name.isNotEmpty) {
-                await profileController.addAddress(
-                  name,
-                  LocationUtils.defaultLatitude,
-                  LocationUtils.defaultLongitude,
-                );
-              }
-            },
-            child: Text('save'.tr),
-          ),
-        ],
+      StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                const Icon(Icons.add_location_alt_rounded, color: AppColors.primary, size: 22),
+                const SizedBox(width: 8),
+                Text('add_address'.tr, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'address_name'.tr,
+                      hintText: 'e.g. Home, Office, Bole Medhanialem',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      filled: true,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  // Map Location Selector Card
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.pin_drop_rounded, size: 18, color: AppColors.primary),
+                            const SizedBox(width: 6),
+                            Text(
+                              'pinned_location'.tr,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${selectedLat.toStringAsFixed(5)}, ${selectedLng.toStringAsFixed(5)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                        if (locationLabel.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            locationLabel,
+                            style: const TextStyle(fontSize: 11, color: Colors.grey),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              side: const BorderSide(color: AppColors.primary),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            icon: const Icon(Icons.map_outlined, size: 16),
+                            label: Text('select_location_on_map'.tr, style: const TextStyle(fontSize: 13)),
+                            onPressed: () async {
+                              final result = await Get.to<PropertyLocationResult>(
+                                () => PropertyLocationPickerScreen(
+                                  title: 'Pin Delivery Address',
+                                  initialLatitude: selectedLat,
+                                  initialLongitude: selectedLng,
+                                  initialAddress: nameCtrl.text.trim(),
+                                ),
+                              );
+                              if (result != null) {
+                                setDialogState(() {
+                                  selectedLat = result.latitude;
+                                  selectedLng = result.longitude;
+                                  if (result.address.isNotEmpty) {
+                                    locationLabel = result.address;
+                                    if (nameCtrl.text.trim().isEmpty) {
+                                      nameCtrl.text = result.address;
+                                    }
+                                  }
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Get.back(),
+                child: Text('cancel'.tr),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () async {
+                  final name = nameCtrl.text.trim();
+                  if (name.isNotEmpty) {
+                    await profileController.addAddress(
+                      name,
+                      selectedLat,
+                      selectedLng,
+                    );
+                  } else {
+                    Get.snackbar('error'.tr, 'Please enter an address label');
+                  }
+                },
+                child: Text('save'.tr),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

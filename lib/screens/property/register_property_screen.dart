@@ -5,12 +5,14 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../controllers/my_property_controller.dart';
 import '../../core/theme/app_colors.dart';
+import '../../models/my_property_model.dart';
 import '../../services/gebeta_location_service.dart';
 import '../../widgets/common/app_widgets.dart';
 import '../../widgets/map/property_location_picker_screen.dart';
 
 class RegisterPropertyScreen extends StatefulWidget {
-  const RegisterPropertyScreen({super.key});
+  final MyPropertyModel? propertyToEdit;
+  const RegisterPropertyScreen({super.key, this.propertyToEdit});
 
   @override
   State<RegisterPropertyScreen> createState() => _RegisterPropertyScreenState();
@@ -39,6 +41,8 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
   String? _tradeLicensePath;
 
   bool _isGettingLocation = false;
+  MyPropertyModel? _propertyToEdit;
+  bool get _isEditing => _propertyToEdit != null;
 
   late final MyPropertyController _controller;
 
@@ -48,6 +52,32 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
     _controller = Get.isRegistered<MyPropertyController>()
         ? Get.find<MyPropertyController>()
         : Get.put(MyPropertyController());
+
+    _propertyToEdit = widget.propertyToEdit ??
+        (Get.arguments is MyPropertyModel ? Get.arguments as MyPropertyModel : null);
+
+    if (_propertyToEdit != null) {
+      final p = _propertyToEdit!;
+      _nameController.text = p.name;
+      _locationController.text = p.friendlyLocation;
+      _descController.text = p.description;
+      _deliveryTimeController.text = p.deliveryTime.isNotEmpty ? p.deliveryTime : '30 min';
+      _latController.text = p.latitude.isNotEmpty ? p.latitude : '9.0209';
+      _lngController.text = p.longitude.isNotEmpty ? p.longitude : '38.7469';
+
+      if (p.openingTime.contains(':')) {
+        final parts = p.openingTime.split(':');
+        final h = int.tryParse(parts[0]) ?? 8;
+        final m = int.tryParse(parts[1]) ?? 0;
+        _openTime = TimeOfDay(hour: h, minute: m);
+      }
+      if (p.closingTime.contains(':')) {
+        final parts = p.closingTime.split(':');
+        final h = int.tryParse(parts[0]) ?? 22;
+        final m = int.tryParse(parts[1]) ?? 0;
+        _closeTime = TimeOfDay(hour: h, minute: m);
+      }
+    }
 
     _controller.loadRegistrationDropdowns();
   }
@@ -187,23 +217,44 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
       _selectedTypeId = _controller.deliveryTypes.first.id;
     }
 
-    _controller.registerNewProperty(
-      name: _nameController.text.trim(),
-      categoryId: _selectedCategoryId ?? 1,
-      typeId: _selectedTypeId ?? 1,
-      friendlyLocation: _locationController.text.trim(),
-      description: _descController.text.trim(),
-      deliveryTime: _deliveryTimeController.text.trim(),
-      tinNumber: _tinController.text.trim().isNotEmpty ? _tinController.text.trim() : '0000000000',
-      latitude: _latController.text.trim(),
-      longitude: _lngController.text.trim(),
-      fromTime: _formatTimeOfDay(_openTime),
-      toTime: _formatTimeOfDay(_closeTime),
-      logoPath: _logoPath,
-      coverImagePath: _coverPath,
-      tinCertificatePath: _tinCertPath,
-      tradeLicensePath: _tradeLicensePath,
-    );
+    if (_isEditing) {
+      _controller.updateExistingProperty(
+        propertyId: _propertyToEdit!.id,
+        name: _nameController.text.trim(),
+        categoryId: _selectedCategoryId ?? 1,
+        typeId: _selectedTypeId ?? 1,
+        friendlyLocation: _locationController.text.trim(),
+        description: _descController.text.trim(),
+        deliveryTime: _deliveryTimeController.text.trim(),
+        tinNumber: _tinController.text.trim().isNotEmpty ? _tinController.text.trim() : null,
+        latitude: _latController.text.trim(),
+        longitude: _lngController.text.trim(),
+        fromTime: _formatTimeOfDay(_openTime),
+        toTime: _formatTimeOfDay(_closeTime),
+        logoPath: _logoPath,
+        coverImagePath: _coverPath,
+        tinCertificatePath: _tinCertPath,
+        tradeLicensePath: _tradeLicensePath,
+      );
+    } else {
+      _controller.registerNewProperty(
+        name: _nameController.text.trim(),
+        categoryId: _selectedCategoryId ?? 1,
+        typeId: _selectedTypeId ?? 1,
+        friendlyLocation: _locationController.text.trim(),
+        description: _descController.text.trim(),
+        deliveryTime: _deliveryTimeController.text.trim(),
+        tinNumber: _tinController.text.trim().isNotEmpty ? _tinController.text.trim() : '0000000000',
+        latitude: _latController.text.trim(),
+        longitude: _lngController.text.trim(),
+        fromTime: _formatTimeOfDay(_openTime),
+        toTime: _formatTimeOfDay(_closeTime),
+        logoPath: _logoPath,
+        coverImagePath: _coverPath,
+        tinCertificatePath: _tinCertPath,
+        tradeLicensePath: _tradeLicensePath,
+      );
+    }
   }
 
   @override
@@ -215,7 +266,7 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          'register_property'.tr,
+          _isEditing ? 'edit_property'.tr : 'register_property'.tr,
           style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         elevation: 0,
@@ -235,7 +286,7 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
         child: SafeArea(
           child: Obx(
             () => AppButton(
-              text: 'register_property'.tr,
+              text: _isEditing ? 'update_property'.tr : 'register_property'.tr,
               isLoading: _controller.isRegistering.value,
               onPressed: _handleSubmit,
             ),
@@ -294,7 +345,9 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
                       }
                       final selectedCat = cats.any((c) => c.id == _selectedCategoryId)
                           ? _selectedCategoryId
-                          : (cats.isNotEmpty ? cats.first.id : null);
+                          : (_propertyToEdit != null && cats.any((c) => c.name.text.toLowerCase() == _propertyToEdit!.categoryName.toLowerCase())
+                              ? cats.firstWhere((c) => c.name.text.toLowerCase() == _propertyToEdit!.categoryName.toLowerCase()).id
+                              : (cats.isNotEmpty ? cats.first.id : null));
                       return DropdownButtonFormField<int>(
                         isExpanded: true,
                         initialValue: selectedCat,
@@ -322,7 +375,9 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
                       }
                       final selectedType = types.any((t) => t.id == _selectedTypeId)
                           ? _selectedTypeId
-                          : (types.isNotEmpty ? types.first.id : null);
+                          : (_propertyToEdit != null && types.any((t) => t.name.text.toLowerCase() == _propertyToEdit!.typeName.toLowerCase())
+                              ? types.firstWhere((t) => t.name.text.toLowerCase() == _propertyToEdit!.typeName.toLowerCase()).id
+                              : (types.isNotEmpty ? types.first.id : null));
                       return DropdownButtonFormField<int>(
                         isExpanded: true,
                         initialValue: selectedType,
@@ -468,16 +523,33 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
                                   clipBehavior: Clip.antiAlias,
                                   child: _logoPath != null
                                       ? Image.file(File(_logoPath!), fit: BoxFit.cover, width: double.infinity)
-                                      : const Center(
-                                          child: Column(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              Icon(Icons.add_photo_alternate_outlined, color: AppColors.primary),
-                                              SizedBox(height: 4),
-                                              Text('Upload Logo', style: TextStyle(fontSize: 11)),
-                                            ],
-                                          ),
-                                        ),
+                                      : (_isEditing && _propertyToEdit!.logo.isNotEmpty)
+                                          ? Stack(
+                                              fit: StackFit.expand,
+                                              children: [
+                                                AppNetworkImage(
+                                                  imageUrl: _propertyToEdit!.logo,
+                                                  fit: BoxFit.cover,
+                                                  width: double.infinity,
+                                                ),
+                                                Container(
+                                                  color: Colors.black26,
+                                                  child: const Center(
+                                                    child: Icon(Icons.edit_rounded, color: Colors.white, size: 22),
+                                                  ),
+                                                ),
+                                              ],
+                                            )
+                                          : const Center(
+                                              child: Column(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  Icon(Icons.add_photo_alternate_outlined, color: AppColors.primary),
+                                                  SizedBox(height: 4),
+                                                  Text('Upload Logo', style: TextStyle(fontSize: 11)),
+                                                ],
+                                              ),
+                                            ),
                                 ),
                               ),
                             ],
@@ -505,16 +577,33 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
                                   clipBehavior: Clip.antiAlias,
                                   child: _coverPath != null
                                       ? Image.file(File(_coverPath!), fit: BoxFit.cover, width: double.infinity)
-                                      : const Center(
-                                          child: Column(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              Icon(Icons.image_outlined, color: AppColors.primary),
-                                              SizedBox(height: 4),
-                                              Text('Upload Banner', style: TextStyle(fontSize: 11)),
-                                            ],
-                                          ),
-                                        ),
+                                      : (_isEditing && _propertyToEdit!.coverImage.isNotEmpty)
+                                          ? Stack(
+                                              fit: StackFit.expand,
+                                              children: [
+                                                AppNetworkImage(
+                                                  imageUrl: _propertyToEdit!.coverImage,
+                                                  fit: BoxFit.cover,
+                                                  width: double.infinity,
+                                                ),
+                                                Container(
+                                                  color: Colors.black26,
+                                                  child: const Center(
+                                                    child: Icon(Icons.edit_rounded, color: Colors.white, size: 22),
+                                                  ),
+                                                ),
+                                              ],
+                                            )
+                                          : const Center(
+                                              child: Column(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  Icon(Icons.image_outlined, color: AppColors.primary),
+                                                  SizedBox(height: 4),
+                                                  Text('Upload Banner', style: TextStyle(fontSize: 11)),
+                                                ],
+                                              ),
+                                            ),
                                 ),
                               ),
                             ],

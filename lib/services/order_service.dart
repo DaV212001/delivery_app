@@ -1,6 +1,8 @@
 import '../constants/api_endpoints.dart';
 import '../models/order.dart';
+import '../models/store.dart';
 import '../utils/templates/dio_template.dart';
+import 'property_service.dart';
 
 class OrderService {
   /// Create a new order
@@ -32,6 +34,7 @@ class OrderService {
   /// Fetch active orders for a customer
   static Future<List<OrderModel>> fetchActiveOrders(dynamic customerId) async {
     final list = <OrderModel>[];
+    await PropertyService.ensurePropertiesCached();
     await DioService.dioGet(
       path: ApiEndpoints.activeOrders(customerId),
       onSuccess: (response) {
@@ -51,6 +54,7 @@ class OrderService {
   /// Fetch past orders for a customer
   static Future<List<OrderModel>> fetchPastOrders(dynamic customerId) async {
     final list = <OrderModel>[];
+    await PropertyService.ensurePropertiesCached();
     await DioService.dioGet(
       path: ApiEndpoints.pastOrders(customerId),
       onSuccess: (response) {
@@ -69,10 +73,13 @@ class OrderService {
 
   /// Fetch full order details
   static Future<OrderModel?> fetchOrderDetail(dynamic orderId) async {
+    final cleanId = orderId.toString().replaceAll(RegExp(r'[^0-9]'), '');
+    final targetId = cleanId.isNotEmpty ? cleanId : orderId.toString();
+
     OrderModel? order;
     await DioService.dioGet(
-      path: ApiEndpoints.orderDetail(orderId),
-      onSuccess: (response) {
+      path: ApiEndpoints.orderDetail(targetId),
+      onSuccess: (response) async {
         final resData = response.data;
         if (resData is Map<String, dynamic>) {
           final itemsList = resData['data'] is List ? resData['data'] as List : [];
@@ -80,9 +87,23 @@ class OrderService {
               ? resData['order_status'] as Map<String, dynamic>
               : (itemsList.isNotEmpty && itemsList.first is Map ? itemsList.first as Map<String, dynamic> : <String, dynamic>{});
 
+          final propId = statusMap['property_id']?.toString() ??
+              (itemsList.isNotEmpty && itemsList.first is Map ? itemsList.first['property_id']?.toString() : null);
+
+          Store? store;
+          if (propId != null && propId.isNotEmpty) {
+            store = PropertyService.getCachedProperty(propId);
+            if (store == null) {
+              try {
+                store = await PropertyService.resolveProperty(propId);
+              } catch (_) {}
+            }
+          }
+
           order = OrderModel.fromOrderDetailJson(
             statusJson: statusMap,
             itemsList: itemsList,
+            fallbackStore: store,
           );
         }
       },

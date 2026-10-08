@@ -6,6 +6,7 @@ import '../../constants/pages.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/order.dart';
 import '../../services/customer_socket_service.dart';
+import '../../services/order_service.dart';
 import '../../widgets/common/app_widgets.dart';
 import '../../widgets/map/gebeta_route_map.dart';
 
@@ -18,18 +19,25 @@ class OrderTrackingScreen extends StatefulWidget {
 
 class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   String? _joinedOrderId;
+  OrderModel? _orderDetail;
+  bool _isLoadingDetail = false;
 
   @override
   void initState() {
     super.initState();
+    final OrderModel? orderArg = Get.arguments is OrderModel ? Get.arguments as OrderModel : null;
+    if (orderArg != null) {
+      _orderDetail = orderArg;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _joinActiveOrder();
+      _fetchFullOrderDetail();
     });
   }
 
   void _joinActiveOrder() {
     final OrderModel? orderArg = Get.arguments is OrderModel ? Get.arguments as OrderModel : null;
-    final order = orderArg ??
+    final order = _orderDetail ?? orderArg ??
         (Get.isRegistered<OrderController>()
             ? Get.find<OrderController>().activeOrder.value
             : null);
@@ -39,6 +47,52 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       _joinedOrderId = targetId;
       if (Get.isRegistered<CustomerSocketService>()) {
         CustomerSocketService.to.joinOrder(targetId);
+      }
+    }
+  }
+
+  Future<void> _fetchFullOrderDetail() async {
+    final OrderModel? orderArg = Get.arguments is OrderModel ? Get.arguments as OrderModel : null;
+    final order = _orderDetail ?? orderArg ??
+        (Get.isRegistered<OrderController>()
+            ? Get.find<OrderController>().activeOrder.value
+            : null);
+
+    String targetId = '';
+    if (order != null) {
+      final cleanId = order.orderId.replaceAll(RegExp(r'[^0-9]'), '');
+      targetId = cleanId.isNotEmpty ? cleanId : order.orderId;
+    } else if (Get.arguments is String) {
+      final cleanId = (Get.arguments as String).replaceAll(RegExp(r'[^0-9]'), '');
+      targetId = cleanId.isNotEmpty ? cleanId : (Get.arguments as String);
+    } else if (Get.arguments is Map && Get.arguments['id'] != null) {
+      final cleanId = Get.arguments['id'].toString().replaceAll(RegExp(r'[^0-9]'), '');
+      targetId = cleanId.isNotEmpty ? cleanId : Get.arguments['id'].toString();
+    }
+
+    if (targetId.isEmpty) return;
+
+    if (mounted) setState(() => _isLoadingDetail = true);
+    try {
+      final detail = await OrderService.fetchOrderDetail(targetId);
+      if (detail != null && mounted) {
+        setState(() {
+          _orderDetail = detail;
+        });
+        if (Get.isRegistered<OrderController>()) {
+          final oc = Get.find<OrderController>();
+          if (oc.activeOrder.value == null ||
+              oc.activeOrder.value!.orderId == detail.orderId ||
+              oc.activeOrder.value!.orderId.replaceAll(RegExp(r'[^0-9]'), '') == targetId) {
+            oc.activeOrder.value = detail;
+          }
+        }
+      }
+    } catch (_) {
+      // Keep existing data on error
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingDetail = false);
       }
     }
   }
@@ -150,27 +204,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         ? Get.find<CartController>()
         : Get.put(CartController());
 
-    final OrderModel? orderArg = Get.arguments is OrderModel ? Get.arguments as OrderModel : null;
-
-    if (orderArg != null) {
-      return _buildScaffold(
-        context: context,
-        theme: theme,
-        isDark: isDark,
-        order: orderArg,
-        orderArg: orderArg,
-        cartController: cartController,
-      );
-    }
-
     return Obx(() {
-      final order = orderController.activeOrder.value;
+      final active = orderController.activeOrder.value;
+      final currentOrder = _orderDetail ?? active;
+
       return _buildScaffold(
         context: context,
         theme: theme,
         isDark: isDark,
-        order: order,
-        orderArg: null,
+        order: currentOrder,
+        orderArg: _orderDetail,
         cartController: cartController,
       );
     });
@@ -222,6 +265,18 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     final titleText = isDelivered ? 'order_details'.tr : 'track_order'.tr;
 
     if (order == null) {
+      if (_isLoadingDetail) {
+        return Scaffold(
+          backgroundColor: theme.scaffoldBackgroundColor,
+          appBar: AppBar(
+            title: Text(titleText.isNotEmpty ? titleText : 'Order Details'),
+            centerTitle: true,
+          ),
+          body: const Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
+      }
       return Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
@@ -690,13 +745,24 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'order_details'.tr,
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'order_details'.tr,
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (_isLoadingDetail)
+                                  const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                              ],
                             ),
                             const SizedBox(height: 12),
                             Row(
