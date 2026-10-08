@@ -5,7 +5,9 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../controllers/my_property_controller.dart';
 import '../../core/theme/app_colors.dart';
+import '../../services/gebeta_location_service.dart';
 import '../../widgets/common/app_widgets.dart';
+import '../../widgets/map/property_location_picker_screen.dart';
 
 class RegisterPropertyScreen extends StatefulWidget {
   const RegisterPropertyScreen({super.key});
@@ -92,6 +94,20 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
           _latController.text = pos.latitude.toStringAsFixed(6);
           _lngController.text = pos.longitude.toStringAsFixed(6);
         });
+
+        try {
+          final address = await GebetaLocationService.reverseGeocode(
+            pos.latitude,
+            pos.longitude,
+          );
+          if (address.isNotEmpty &&
+              _locationController.text.trim().isEmpty) {
+            setState(() {
+              _locationController.text = address;
+            });
+          }
+        } catch (_) {}
+
         Get.snackbar(
           'Location updated',
           'GPS coordinates retrieved successfully',
@@ -100,9 +116,38 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
         );
       }
     } catch (_) {
-      Get.snackbar('Notice', 'Using default coordinates. You can edit them manually.');
+      Get.snackbar('Notice', 'Could not get GPS position. You can pick on the map.');
     } finally {
       setState(() => _isGettingLocation = false);
+    }
+  }
+
+  Future<void> _openMapLocationPicker() async {
+    final double initialLat = double.tryParse(_latController.text) ?? 9.0209;
+    final double initialLng = double.tryParse(_lngController.text) ?? 38.7469;
+
+    final result = await Get.to<PropertyLocationResult>(
+      () => PropertyLocationPickerScreen(
+        initialLatitude: initialLat,
+        initialLongitude: initialLng,
+        initialAddress: _locationController.text.trim(),
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        _latController.text = result.latitude.toStringAsFixed(6);
+        _lngController.text = result.longitude.toStringAsFixed(6);
+        if (result.address.isNotEmpty && _locationController.text.trim().isEmpty) {
+          _locationController.text = result.address;
+        }
+      });
+      Get.snackbar(
+        'Location Selected',
+        'Pinned at ${result.latitude.toStringAsFixed(5)}, ${result.longitude.toStringAsFixed(5)}',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+      );
     }
   }
 
@@ -228,6 +273,11 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
                         labelText: 'Friendly Location / Area *',
                         hintText: 'e.g. Bole Rwanda, Addis Ababa',
                         prefixIcon: const Icon(Icons.location_on_outlined),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.map_outlined, color: AppColors.primary),
+                          tooltip: 'Pick on Map',
+                          onPressed: _openMapLocationPicker,
+                        ),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         filled: true,
                       ),
@@ -537,52 +587,140 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Section 5: Map Coordinates
+                // Section 5: Map Location Selector
                 _buildCardSection(
                   context,
-                  title: 'Location Coordinates',
-                  icon: Icons.my_location_rounded,
+                  title: 'Store Location on Map',
+                  icon: Icons.map_rounded,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _latController,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              labelText: 'Latitude',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                              filled: true,
-                            ),
-                          ),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? AppColors.darkSurfaceContainerLow
+                            : AppColors.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.25),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _lngController,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              labelText: 'Longitude',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                              filled: true,
-                            ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.pin_drop_rounded,
+                                  color: AppColors.primary,
+                                  size: 26,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Pinned Coordinates',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      _latController.text.isNotEmpty && _lngController.text.isNotEmpty
+                                          ? '${_latController.text}, ${_lngController.text}'
+                                          : 'No coordinates pinned yet',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        fontFamily: 'monospace',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton.icon(
-                        icon: _isGettingLocation
-                            ? const SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.gps_fixed_rounded, size: 16),
-                        label: const Text('Use Current GPS Position', style: TextStyle(fontSize: 12)),
-                        onPressed: _isGettingLocation ? null : _getCurrentLocation,
+                          if (_locationController.text.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? Colors.black.withValues(alpha: 0.25)
+                                    : Colors.white.withValues(alpha: 0.8),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.place_outlined, size: 14, color: Colors.grey.shade600),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      _locationController.text,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: isDark ? Colors.grey.shade300 : Colors.grey.shade800,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 14),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  icon: const Icon(Icons.map_rounded, size: 18),
+                                  label: const Text('Pick on Map'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                  onPressed: _openMapLocationPicker,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              OutlinedButton.icon(
+                                icon: _isGettingLocation
+                                    ? const SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      )
+                                    : const Icon(Icons.gps_fixed_rounded, size: 16),
+                                label: const Text('GPS Position', style: TextStyle(fontSize: 12)),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                onPressed: _isGettingLocation ? null : _getCurrentLocation,
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ],
