@@ -20,6 +20,8 @@ import 'package:delivery_app/controllers/my_property_controller.dart';
 import 'package:delivery_app/models/my_property_model.dart';
 import 'package:delivery_app/screens/property/my_properties_list_screen.dart';
 import 'package:delivery_app/screens/tracking/order_tracking_screen.dart';
+import 'package:delivery_app/screens/checkout/cart_screen.dart';
+import 'package:delivery_app/controllers/profile_controller.dart';
 import 'package:delivery_app/widgets/common/app_widgets.dart';
 
 void main() {
@@ -417,6 +419,42 @@ void main() {
 
       expect(find.byType(MyPropertiesListScreen), findsOneWidget);
       expect(find.text('Dr Tyre Auto Store & Services'), findsOneWidget);
+    });
+
+    testWidgets('CartScreen payment method section renders on narrow screen (280px width) with > 2000 ETB badge without RenderFlex overflow', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      await ConfigPreference.init();
+      Get.reset();
+      final cartController = Get.put(CartController());
+      Get.put(RestaurantController());
+      Get.put(AuthController());
+      Get.put(OrderController());
+      Get.put(ProfileController());
+
+      // Add expensive item so total > 2000 ETB and '> 2000 ETB' badge is shown
+      cartController.addItem(
+        item: MockData.ancEarbuds, // 89.99 * 25 > 2000
+        quantity: 25,
+      );
+
+      tester.view.physicalSize = const Size(280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        GetMaterialApp(
+          translations: AppTranslations(),
+          locale: const Locale('en', 'US'),
+          home: const CartScreen(),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byType(CartScreen), findsOneWidget);
+      expect(find.text('> 2000 ETB'), findsOneWidget);
     });
   });
 }

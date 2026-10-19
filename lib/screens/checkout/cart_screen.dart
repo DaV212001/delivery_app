@@ -259,12 +259,16 @@ class _CartScreenState extends State<CartScreen> {
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text(
-                                        'delivery_address'.tr,
-                                        style: theme.textTheme.titleSmall?.copyWith(
-                                          fontWeight: FontWeight.w700,
+                                      Expanded(
+                                        child: Text(
+                                          'delivery_address'.tr,
+                                          style: theme.textTheme.titleSmall?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
+                                      const SizedBox(width: 8),
                                       Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
@@ -896,7 +900,10 @@ class _CartScreenState extends State<CartScreen> {
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              Row(
+                                              Wrap(
+                                                crossAxisAlignment: WrapCrossAlignment.center,
+                                                spacing: 6,
+                                                runSpacing: 2,
                                                 children: [
                                                   Text(
                                                     'cash_on_delivery'.tr,
@@ -904,8 +911,7 @@ class _CartScreenState extends State<CartScreen> {
                                                       fontWeight: FontWeight.w600,
                                                     ),
                                                   ),
-                                                  if (!isCashAllowed) ...[
-                                                    const SizedBox(width: 6),
+                                                  if (!isCashAllowed)
                                                     Container(
                                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                                       decoration: BoxDecoration(
@@ -921,7 +927,6 @@ class _CartScreenState extends State<CartScreen> {
                                                         ),
                                                       ),
                                                     ),
-                                                  ],
                                                 ],
                                               ),
                                               Text(
@@ -1021,17 +1026,23 @@ class _CartScreenState extends State<CartScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                'total'.tr,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
+                              Expanded(
+                                child: Text(
+                                  'total'.tr,
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
-                              Text(
-                                '${cartController.total.toStringAsFixed(2)} Br',
-                                style: theme.textTheme.headlineSmall?.copyWith(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w800,
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  '${cartController.total.toStringAsFixed(2)} Br',
+                                  style: theme.textTheme.headlineSmall?.copyWith(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
@@ -1874,17 +1885,23 @@ class _SummaryRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+        Expanded(
+          child: Text(
+            label,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ),
-        Text(
-          value,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: textColor ?? theme.colorScheme.onSurface,
-            fontWeight: FontWeight.w600,
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            value,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: textColor ?? theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
