@@ -87,6 +87,9 @@ class ApiEndpoints {
   static const String courierOrder = '/courirer-order';
   static String activeCourierOrders(dynamic userId) => '/my_active_courirer_order/$userId';
   static String pastCourierOrders(dynamic userId) => '/my_past_courirer_order/$userId';
+  static const String courierDeliveryOptions = '/courirer_delivery_option';
+  static const String courierPayOnChapa = '/courirer-pay-on-chapa';
+  static const String courierPayOnWallet = '/courirer-pay-on-wallet';
 
   // Real-Time Socket Server (Render)
   static const String socketServerUrl = 'https://amn-delivery-socket-server.onrender.com';

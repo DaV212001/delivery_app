@@ -1,10 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
+import 'package:http_mock_adapter/http_mock_adapter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:delivery_app/config/dio_config.dart';
 import 'package:delivery_app/config/storage_config.dart';
+import 'package:delivery_app/constants/api_endpoints.dart';
 import 'package:delivery_app/controllers/courier_controller.dart';
 import 'package:delivery_app/models/courier_model.dart';
+import 'package:delivery_app/models/property_delivery_option.dart';
 import 'package:delivery_app/services/courier_service.dart';
 import 'package:delivery_app/utils/location_utils.dart';
 
@@ -247,6 +250,198 @@ void main() {
         ),
       );
       expect(placed, isTrue);
+    });
+
+    test('CourierOrderCreateRequest serializes payment_type correctly', () {
+      const defaultRequest = CourierOrderCreateRequest(
+        fromLatitude: 9.0,
+        fromLongitude: 38.0,
+        toLatitude: 9.1,
+        toLongitude: 38.1,
+        senderUserId: 1,
+        receiverName: 'Test',
+        receiverPhone: '+251911000000',
+        totalPrice: 100.0,
+      );
+      expect(defaultRequest.toJson()['payment_type'], '0');
+
+      const chapaRequest = CourierOrderCreateRequest(
+        fromLatitude: 9.0,
+        fromLongitude: 38.0,
+        toLatitude: 9.1,
+        toLongitude: 38.1,
+        senderUserId: 1,
+        receiverName: 'Test',
+        receiverPhone: '+251911000000',
+        totalPrice: 100.0,
+        paymentType: '1',
+      );
+      expect(chapaRequest.toJson()['payment_type'], '1');
+
+      const walletRequest = CourierOrderCreateRequest(
+        fromLatitude: 9.0,
+        fromLongitude: 38.0,
+        toLatitude: 9.1,
+        toLongitude: 38.1,
+        senderUserId: 1,
+        receiverName: 'Test',
+        receiverPhone: '+251911000000',
+        totalPrice: 100.0,
+        paymentType: '2',
+      );
+      expect(walletRequest.toJson()['payment_type'], '2');
+    });
+
+    test('CourierController handles delivery option selection and price recalculation', () async {
+      final controller = CourierController();
+      await controller.loadCourierDeliveryOptions();
+
+      expect(controller.courierDeliveryOptions, isNotEmpty);
+      expect(controller.selectedDeliveryOption.value, isNotNull);
+
+      // Set coordinates
+      controller.setLocation(
+        isPickup: true,
+        lat: 9.02497,
+        lng: 38.74689,
+        address: 'Bole',
+      );
+      controller.setLocation(
+        isPickup: false,
+        lat: 8.98060,
+        lng: 38.75780,
+        address: 'Sarbet',
+      );
+
+      final initialPrice = controller.calculatedTotalPrice.value;
+      expect(initialPrice, greaterThan(0));
+
+      // Select custom higher rate option
+      const higherRateOption = PropertyDeliveryOption(
+        id: 2,
+        image: '',
+        name: 'Car / Van',
+        kmPrice: 50.0,
+      );
+      controller.selectDeliveryOption(higherRateOption);
+
+      expect(controller.kmPrice.value, 50.0);
+      expect(controller.carTypeName.value, 'Car / Van');
+      expect(controller.carTypeId.value, 2);
+      expect(controller.calculatedTotalPrice.value, greaterThan(initialPrice));
+
+      // Test payment method selection
+      expect(controller.selectedPaymentMethod.value, 'cash');
+      controller.selectPaymentMethod('chapa');
+      expect(controller.selectedPaymentMethod.value, 'chapa');
+      controller.selectPaymentMethod('wallet');
+      expect(controller.selectedPaymentMethod.value, 'wallet');
+    });
+  });
+
+  group('Courier Service Dio HTTP Endpoint Mock Tests', () {
+    late DioAdapter dioAdapter;
+
+    setUp(() async {
+      DioConfig.isTestMode = true;
+      DioConfig.resetDio();
+      final dio = await DioConfig.dio();
+      dioAdapter = DioAdapter(dio: dio);
+    });
+
+    tearDown(() {
+      DioConfig.resetDio();
+    });
+
+    test('GET /courirer_delivery_option parses vehicle options and km_price', () async {
+      dioAdapter.onGet(
+        ApiEndpoints.courierDeliveryOptions,
+        (server) => server.reply(200, {
+          'message': 'delviery option retrieved successfully',
+          'data': [
+            {
+              'id': 10,
+              'image': 'https://api.amnplc.com/assets/images%20(78).jpeg',
+              'name': 'MoterBick',
+              'km_price': '13'
+            },
+            {
+              'id': 11,
+              'image': 'https://api.amnplc.com/assets/car.jpeg',
+              'name': 'Mini Van',
+              'km_price': '25'
+            }
+          ]
+        }),
+      );
+
+      final list = await CourierService.fetchCourierDeliveryOptions();
+      expect(list.length, 2);
+      expect(list[0].id, 10);
+      expect(list[0].name, 'MoterBick');
+      expect(list[0].kmPrice, 13.0);
+      expect(list[1].id, 11);
+      expect(list[1].name, 'Mini Van');
+      expect(list[1].kmPrice, 25.0);
+    });
+
+    test('POST /courirer-pay-on-chapa sends request and resolves checkout_url', () async {
+      dioAdapter.onPost(
+        ApiEndpoints.courierPayOnChapa,
+        (server) => server.reply(200, {
+          'message': 'Hosted Link',
+          'status': 'success',
+          'data': {
+            'checkout_url': 'https://checkout.chapa.co/checkout/payment/courier-test-999',
+          },
+        }),
+        data: {
+          'user_id': 5,
+          'amount': 350.0,
+          'date': '2026-10-19',
+          'order_id': 1,
+        },
+      );
+
+      String? retrievedUrl;
+      await CourierService.payCourierOnChapa(
+        userId: 5,
+        amount: 350.0,
+        date: '2026-10-19',
+        orderId: 1,
+        onSuccess: (url, msg) => retrievedUrl = url,
+        onFailure: (err) => fail(err),
+      );
+
+      expect(retrievedUrl, 'https://checkout.chapa.co/checkout/payment/courier-test-999');
+    });
+
+    test('POST /courirer-pay-on-wallet sends request and handles response', () async {
+      dioAdapter.onPost(
+        ApiEndpoints.courierPayOnWallet,
+        (server) => server.reply(200, {
+          'message': 'Payment successful',
+          'status': 'success',
+        }),
+        data: {
+          'user_id': 5,
+          'amount': 350.0,
+          'date': '2026-10-19',
+          'order_id': 1,
+        },
+      );
+
+      bool walletSuccess = false;
+      await CourierService.payCourierOnWallet(
+        userId: 5,
+        amount: 350.0,
+        date: '2026-10-19',
+        orderId: 1,
+        onSuccess: (data) => walletSuccess = true,
+        onFailure: (err) => fail(err),
+      );
+
+      expect(walletSuccess, isTrue);
     });
   });
 }

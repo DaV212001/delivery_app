@@ -14,6 +14,7 @@ class CourierOrderCreateRequest {
   final int carTypeId;
   final double kmPrice;
   final double totalPrice;
+  final String paymentType;
   final String? description;
   final String? fromAddress;
   final String? toAddress;
@@ -29,6 +30,7 @@ class CourierOrderCreateRequest {
     this.carTypeId = 1,
     this.kmPrice = 35.0,
     required this.totalPrice,
+    this.paymentType = '0',
     this.description,
     this.fromAddress,
     this.toAddress,
@@ -45,6 +47,7 @@ class CourierOrderCreateRequest {
         'car_type_id': carTypeId,
         'km_price': kmPrice,
         'total_price': totalPrice,
+        'payment_type': paymentType,
         if (description != null && description!.trim().isNotEmpty)
           'description': description!.trim(),
       };

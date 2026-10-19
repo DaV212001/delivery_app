@@ -236,5 +236,68 @@ void main() {
       expect(find.text('To: Kidus'), findsOneWidget);
       expect(find.text('Delivered'), findsOneWidget);
     });
+
+    testWidgets('CourierScreen renders Delivery Options and Payment Methods',
+        (tester) async {
+      await tester.pumpWidget(
+        GetMaterialApp(
+          translations: AppTranslations(),
+          locale: const Locale('en', 'US'),
+          initialRoute: AppRoutes.courier,
+          getPages: [
+            GetPage(name: AppRoutes.courier, page: () => const CourierScreen()),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Check delivery options section header
+      expect(find.text('Delivery Options'), findsOneWidget);
+      expect(find.text('Motorbike'), findsOneWidget);
+
+      // Scroll to find Payment Method section
+      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -600));
+      await tester.pumpAndSettle();
+
+      final paymentTitle = find.text('Payment Method');
+      expect(paymentTitle, findsOneWidget);
+      expect(find.text('Cash on Delivery'), findsOneWidget);
+      expect(find.text('Chapa'), findsOneWidget);
+      expect(find.text('AMN Wallet'), findsOneWidget);
+    });
+
+    testWidgets('Selecting wallet shows Wallet Balance Card with Top-up button',
+        (tester) async {
+      tester.view.physicalSize = const Size(800, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(
+        GetMaterialApp(
+          translations: AppTranslations(),
+          locale: const Locale('en', 'US'),
+          initialRoute: AppRoutes.courier,
+          getPages: [
+            GetPage(name: AppRoutes.courier, page: () => const CourierScreen()),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Initially Top up button is not shown
+      expect(find.text('Top Up'), findsNothing);
+
+      // Scroll and tap AMN Wallet
+      await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -400));
+      await tester.pumpAndSettle();
+
+      final walletOption = find.text('AMN Wallet');
+      expect(walletOption, findsOneWidget);
+      await tester.tap(walletOption);
+      await tester.pumpAndSettle();
+
+      // Wallet balance card and top up button are now visible
+      expect(find.text('Top Up'), findsOneWidget);
+    });
   });
 }

@@ -1,12 +1,22 @@
 import '../config/dio_config.dart';
 import '../constants/api_endpoints.dart';
 import '../models/courier_model.dart';
+import '../models/property_delivery_option.dart';
+import '../services/order_service.dart';
 import '../utils/templates/dio_template.dart';
 
 class CourierService {
+  static int? lastCreatedOrderId;
+
   /// Submit a new courier delivery order: POST /courirer-order
-  static Future<bool> createCourierOrder(CourierOrderCreateRequest request) async {
+  static Future<bool> createCourierOrder(
+    CourierOrderCreateRequest request, {
+    Function(Map<String, dynamic> data)? onSuccess,
+    Function(String error)? onFailure,
+  }) async {
     if (DioConfig.isTestMode) {
+      lastCreatedOrderId = 1;
+      onSuccess?.call({'message': 'Order placed successfully', 'order_id': 1, 'id': 1});
       return true;
     }
 
@@ -16,12 +26,120 @@ class CourierService {
       data: request.toJson(),
       onSuccess: (response) {
         success = true;
+        if (response.data is Map<String, dynamic>) {
+          final map = response.data as Map<String, dynamic>;
+          final idVal = map['order_id'] ?? map['id'] ?? (map['data'] is Map ? map['data']['id'] : null);
+          if (idVal != null) {
+            lastCreatedOrderId = int.tryParse(idVal.toString());
+          }
+          onSuccess?.call(map);
+        }
       },
       onFailure: (error, response) {
         success = false;
+        String msg = 'Could not place courier order';
+        if (response.data is Map<String, dynamic>) {
+          msg = response.data['message']?.toString() ?? msg;
+        }
+        onFailure?.call(msg);
       },
     );
     return success;
+  }
+
+  /// Fetch courier delivery options (vehicle types and km rates): GET /courirer_delivery_option
+  static Future<List<PropertyDeliveryOption>> fetchCourierDeliveryOptions() async {
+    final list = <PropertyDeliveryOption>[];
+    await DioService.dioGet(
+      path: ApiEndpoints.courierDeliveryOptions,
+      onSuccess: (response) {
+        final data = response.data;
+        if (data is Map<String, dynamic> && data['data'] is List) {
+          for (final item in data['data']) {
+            if (item is Map<String, dynamic>) {
+              list.add(PropertyDeliveryOption.fromJson(item));
+            }
+          }
+        }
+      },
+      onFailure: (error, response) {
+        // Fallback handled by caller
+      },
+    );
+    return list;
+  }
+
+  /// Initialize Chapa payment for courier delivery: POST /courirer-pay-on-chapa
+  static Future<void> payCourierOnChapa({
+    required int userId,
+    required double amount,
+    required String date,
+    int orderId = 1,
+    required Function(String checkoutUrl, String message) onSuccess,
+    required Function(String error) onFailure,
+  }) async {
+    await DioService.dioPost(
+      path: ApiEndpoints.courierPayOnChapa,
+      data: {
+        'user_id': userId,
+        'amount': amount,
+        'date': date,
+        'order_id': orderId,
+      },
+      onSuccess: (response) {
+        final checkoutUrl = OrderService.findCheckoutUrl(response.data);
+        if (checkoutUrl != null && checkoutUrl.isNotEmpty) {
+          String msg = 'Hosted Link';
+          if (response.data is Map<String, dynamic>) {
+            msg = response.data['message']?.toString() ?? msg;
+          }
+          onSuccess(checkoutUrl, msg);
+        } else {
+          onFailure('No checkout URL received from payment gateway');
+        }
+      },
+      onFailure: (error, response) {
+        String msg = 'Chapa payment failed';
+        if (response.data is Map<String, dynamic>) {
+          msg = response.data['message']?.toString() ?? msg;
+        }
+        onFailure(msg);
+      },
+    );
+  }
+
+  /// Pay for courier delivery using AMN Wallet: POST /courirer-pay-on-wallet
+  static Future<void> payCourierOnWallet({
+    required int userId,
+    required double amount,
+    required String date,
+    int orderId = 1,
+    required Function(Map<String, dynamic> data) onSuccess,
+    required Function(String error) onFailure,
+  }) async {
+    await DioService.dioPost(
+      path: ApiEndpoints.courierPayOnWallet,
+      data: {
+        'user_id': userId,
+        'amount': amount,
+        'date': date,
+        'order_id': orderId,
+      },
+      onSuccess: (response) {
+        if (response.data is Map<String, dynamic>) {
+          onSuccess(response.data as Map<String, dynamic>);
+        } else {
+          onSuccess({'message': 'Payment successful'});
+        }
+      },
+      onFailure: (error, response) {
+        String msg = 'Wallet payment failed';
+        if (response.data is Map<String, dynamic>) {
+          msg = response.data['message']?.toString() ?? msg;
+        }
+        onFailure(msg);
+      },
+    );
   }
 
   /// Fetch active courier delivery orders for a user: GET /my_active_courirer_order/{userId}

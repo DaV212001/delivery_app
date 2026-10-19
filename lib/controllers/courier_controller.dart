@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../config/storage_config.dart';
 import '../controllers/auth_controller.dart';
 import '../models/courier_model.dart';
+import '../models/property_delivery_option.dart';
 import '../services/courier_service.dart';
 import '../utils/api_call_status.dart';
 import '../utils/location_utils.dart';
@@ -29,6 +30,14 @@ class CourierController extends GetxController {
   final dropoffLatitude = Rxn<double>();
   final dropoffLongitude = Rxn<double>();
   final dropoffAddress = Rxn<String>();
+
+  // Delivery Options & Vehicle Selection
+  final courierDeliveryOptions = <PropertyDeliveryOption>[].obs;
+  final selectedDeliveryOption = Rxn<PropertyDeliveryOption>();
+  final isLoadingDeliveryOptions = false.obs;
+
+  // Payment Method Selection: 'cash' ('0'), 'chapa' ('1'), 'wallet' ('2')
+  final selectedPaymentMethod = 'cash'.obs;
 
   // Pricing & Distance
   final calculatedDistanceKm = 0.0.obs;
@@ -56,6 +65,71 @@ class CourierController extends GetxController {
   void onInit() {
     super.onInit();
     loadOrders();
+    loadCourierDeliveryOptions();
+  }
+
+  /// Load courier delivery options from backend: GET /courirer_delivery_option
+  Future<void> loadCourierDeliveryOptions() async {
+    isLoadingDeliveryOptions.value = true;
+    try {
+      final options = await CourierService.fetchCourierDeliveryOptions();
+      if (options.isNotEmpty) {
+        courierDeliveryOptions.assignAll(options);
+        if (selectedDeliveryOption.value == null) {
+          selectDeliveryOption(options.first);
+        } else {
+          final match = options.firstWhereOrNull(
+            (o) => (o.id != null && o.id == selectedDeliveryOption.value?.id) ||
+                o.name.toLowerCase() == selectedDeliveryOption.value?.name.toLowerCase(),
+          );
+          if (match != null) {
+            selectDeliveryOption(match);
+          }
+        }
+      } else if (courierDeliveryOptions.isEmpty) {
+        _setDefaultDeliveryOptions();
+      }
+    } catch (_) {
+      if (courierDeliveryOptions.isEmpty) {
+        _setDefaultDeliveryOptions();
+      }
+    } finally {
+      isLoadingDeliveryOptions.value = false;
+    }
+  }
+
+  void _setDefaultDeliveryOptions() {
+    final defaults = [
+      const PropertyDeliveryOption(
+        id: 1,
+        image: '',
+        name: 'Motorbike',
+        kmPrice: 35.0,
+      ),
+      const PropertyDeliveryOption(
+        id: 2,
+        image: '',
+        name: 'Car / Van',
+        kmPrice: 50.0,
+      ),
+    ];
+    courierDeliveryOptions.assignAll(defaults);
+    if (selectedDeliveryOption.value == null) {
+      selectDeliveryOption(defaults.first);
+    }
+  }
+
+  void selectDeliveryOption(PropertyDeliveryOption option) {
+    selectedDeliveryOption.value = option;
+    kmPrice.value = option.kmPrice > 0 ? option.kmPrice : 35.0;
+    carTypeName.value = option.name;
+    final parsedId = int.tryParse(option.id?.toString() ?? '1') ?? 1;
+    carTypeId.value = parsedId;
+    _recalculateDistanceAndPrice();
+  }
+
+  void selectPaymentMethod(String method) {
+    selectedPaymentMethod.value = method;
   }
 
   /// Launch interactive Gebeta Map location picker screen for coordinate selection
@@ -129,7 +203,9 @@ class CourierController extends GetxController {
       calculatedDistanceKm.value = double.parse(dist.toStringAsFixed(2));
 
       // Calculate total price: distance * kmPrice, with minimum base fee of 50 ETB
-      final rawPrice = calculatedDistanceKm.value * kmPrice.value;
+      final rate = selectedDeliveryOption.value?.kmPrice ?? kmPrice.value;
+      final effectiveRate = rate > 0 ? rate : 35.0;
+      final rawPrice = calculatedDistanceKm.value * effectiveRate;
       calculatedTotalPrice.value = math.max(50.0, rawPrice).roundToDouble();
     } else {
       calculatedDistanceKm.value = 0.0;
@@ -164,6 +240,8 @@ class CourierController extends GetxController {
     required String receiverName,
     required String receiverPhone,
     String? description,
+    String paymentType = '0',
+    Function(int? orderId)? onCreated,
   }) async {
     if (pickupLatitude.value == null || pickupLongitude.value == null) {
       Get.snackbar(
@@ -225,12 +303,20 @@ class CourierController extends GetxController {
         totalPrice: calculatedTotalPrice.value > 0
             ? calculatedTotalPrice.value
             : 50.0,
+        paymentType: paymentType,
         description: description,
         fromAddress: pickupAddress.value,
         toAddress: dropoffAddress.value,
       );
 
-      final success = await CourierService.createCourierOrder(request);
+      final success = await CourierService.createCourierOrder(
+        request,
+        onSuccess: (data) {
+          final idVal = data['order_id'] ?? data['id'] ?? (data['data'] is Map ? data['data']['id'] : null);
+          final parsedId = idVal != null ? int.tryParse(idVal.toString()) : null;
+          onCreated?.call(parsedId);
+        },
+      );
 
       if (success) {
         // Reset coordinates & form
