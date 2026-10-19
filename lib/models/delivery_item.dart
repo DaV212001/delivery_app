@@ -37,7 +37,7 @@ class DeliveryItem {
     String? fallbackStoreId,
   }) {
     final itemId = json['id']?.toString() ?? json['item_id']?.toString() ?? '';
-    final propId = json['property_id']?.toString() ?? fallbackStoreId ?? '';
+    final propId = json['property_id']?.toString() ?? json['storeId']?.toString() ?? fallbackStoreId ?? '';
     final itemName = json['item_name']?.toString() ?? json['name']?.toString() ?? '';
     final itemDesc = json['item_description']?.toString() ??
         json['desacriprion']?.toString() ??
@@ -45,13 +45,28 @@ class DeliveryItem {
         '';
     final rawPrice = json['item_price'] ?? json['price'];
     final itemPrice = double.tryParse(rawPrice?.toString() ?? '0') ?? 0.0;
-    final itemImage = json['item_image']?.toString() ?? json['image']?.toString() ?? '';
+    final itemImage = json['item_image']?.toString() ?? json['imageUrl']?.toString() ?? json['image']?.toString() ?? '';
     final itemCat = json['menu_category']?.toString() ??
         json['category']?.toString() ??
         defaultCategory;
 
     final specialOffer = json['special_offer'] == '1' || json['special_offer'] == 1;
     final discount = double.tryParse(json['discount_percent']?.toString() ?? '0') ?? 0.0;
+
+    final rawAddons = json['availableAddons'];
+    final parsedAddons = rawAddons is List
+        ? rawAddons
+            .map((a) => CustomizationAddon.fromJson(Map<String, dynamic>.from(a as Map)))
+            .toList()
+        : const <CustomizationAddon>[];
+    final rawVariants = json['availableVariants'];
+    final parsedVariants = rawVariants is List
+        ? rawVariants.map((v) => v.toString()).toList()
+        : const <String>[];
+    final rawRemovals = json['removableOptions'];
+    final parsedRemovals = rawRemovals is List
+        ? rawRemovals.map((r) => r.toString()).toList()
+        : const <String>[];
 
     return DeliveryItem(
       id: itemId,
@@ -61,10 +76,32 @@ class DeliveryItem {
       price: itemPrice,
       imageUrl: itemImage,
       category: itemCat,
+      unit: json['unit']?.toString() ?? 'each',
+      variantTitle: json['variantTitle']?.toString(),
+      availableVariants: parsedVariants,
+      availableAddons: parsedAddons,
+      removableOptions: parsedRemovals,
       isSpecialOffer: specialOffer,
       discountPercent: discount,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'storeId': storeId,
+    'name': name,
+    'description': description,
+    'price': price,
+    'imageUrl': imageUrl,
+    'category': category,
+    'unit': unit,
+    'variantTitle': variantTitle,
+    'availableVariants': availableVariants,
+    'availableAddons': availableAddons.map((a) => a.toJson()).toList(),
+    'removableOptions': removableOptions,
+    'isSpecialOffer': isSpecialOffer,
+    'discountPercent': discountPercent,
+  };
 
   // Backward-compatibility getters for existing code referencing FoodItem
   String get restaurantId => storeId;
@@ -82,6 +119,18 @@ class CustomizationAddon {
     required this.name,
     required this.price,
   });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'price': price,
+  };
+
+  factory CustomizationAddon.fromJson(Map<String, dynamic> json) => CustomizationAddon(
+    id: json['id']?.toString() ?? '',
+    name: json['name']?.toString() ?? '',
+    price: double.tryParse(json['price']?.toString() ?? '0') ?? 0.0,
+  );
 }
 
 // Backwards compatibility alias

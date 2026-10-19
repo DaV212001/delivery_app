@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../constants/pages.dart';
 import '../../controllers/cart_controller.dart';
 import '../../controllers/restaurant_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/delivery_item.dart';
 import '../../models/store.dart';
 import '../../widgets/common/app_widgets.dart';
+import '../checkout/widgets/different_property_batch_sheet.dart';
 
 class ItemCustomizationModal extends StatefulWidget {
   final DeliveryItem item;
@@ -418,6 +420,43 @@ class _ItemCustomizationModalState extends State<ItemCustomizationModal> {
                           final selectedAddonsList = widget.item.availableAddons
                               .where((a) => _selectedAddonIds.contains(a.id))
                               .toList();
+
+                          if (cartController.isDifferentProperty(widget.item)) {
+                            DifferentPropertyBatchSheet.show(
+                              context,
+                              currentStoreName: cartController.activePropertyName,
+                              newStoreName: _store?.name ?? widget.item.name,
+                              newItem: widget.item,
+                              onFinishCurrentBatch: () {
+                                Get.back();
+                                Get.back();
+                                Get.toNamed(AppRoutes.cart);
+                              },
+                              onSaveForNextBatch: () {
+                                cartController.saveCurrentBatchAndStartNew(
+                                  newItem: widget.item,
+                                  quantity: _quantity,
+                                  selectedVariant: _selectedVariant,
+                                  selectedAddons: selectedAddonsList,
+                                  removedOptions: _removedOptions.toList(),
+                                  specialInstructions: _instructionsController.text.trim().isNotEmpty
+                                      ? _instructionsController.text.trim()
+                                      : null,
+                                );
+                                Get.back();
+                                Get.back();
+                                Get.snackbar(
+                                  'batch_saved'.tr,
+                                  '${'previous_batch_saved'.tr} $_quantity x ${widget.item.name}',
+                                  backgroundColor: AppColors.primary,
+                                  colorText: Colors.white,
+                                  snackPosition: SnackPosition.TOP,
+                                  duration: const Duration(seconds: 3),
+                                );
+                              },
+                            );
+                            return;
+                          }
 
                           cartController.addItem(
                             item: widget.item,

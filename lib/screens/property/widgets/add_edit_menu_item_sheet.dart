@@ -334,11 +334,12 @@ void showAddEditMenuItemSheet({
                       controller: descCtrl,
                       maxLines: 3,
                       decoration: InputDecoration(
-                        labelText: 'description'.tr,
+                        labelText: '${'description'.tr} *',
                         hintText: 'Describe ingredients, options, or details...',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         filled: true,
                       ),
+                      validator: (v) => v == null || v.trim().isEmpty ? 'Please enter a description' : null,
                     ),
                     const SizedBox(height: 24),
 

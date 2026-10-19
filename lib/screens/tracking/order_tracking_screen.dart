@@ -9,6 +9,7 @@ import '../../services/customer_socket_service.dart';
 import '../../services/order_service.dart';
 import '../../widgets/common/app_widgets.dart';
 import '../../widgets/map/gebeta_route_map.dart';
+import '../checkout/widgets/different_property_batch_sheet.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
   const OrderTrackingScreen({super.key});
@@ -890,6 +891,39 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                 text: 'reorder'.tr,
                                 isSecondary: false,
                                 onPressed: () {
+                                  if (order.items.isEmpty) return;
+                                  final firstItem = order.items.first.item;
+                                  if (cartController.isDifferentProperty(firstItem)) {
+                                    DifferentPropertyBatchSheet.show(
+                                      context,
+                                      currentStoreName: cartController.activePropertyName,
+                                      newStoreName: order.restaurantName,
+                                      newItem: firstItem,
+                                      onFinishCurrentBatch: () {
+                                        Get.back();
+                                        Get.toNamed(AppRoutes.cart);
+                                      },
+                                      onSaveForNextBatch: () {
+                                        cartController.saveCurrentBatch();
+                                        for (final item in order.items) {
+                                          cartController.addItem(
+                                            item: item.item,
+                                            quantity: item.quantity,
+                                          );
+                                        }
+                                        Get.back();
+                                        Get.toNamed(AppRoutes.cart);
+                                        Get.snackbar(
+                                          'batch_saved'.tr,
+                                          'previous_batch_saved'.tr,
+                                          backgroundColor: AppColors.primary,
+                                          colorText: Colors.white,
+                                        );
+                                      },
+                                    );
+                                    return;
+                                  }
+
                                   for (final item in order.items) {
                                     cartController.addItem(
                                       item: item.item,

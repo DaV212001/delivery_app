@@ -49,5 +49,31 @@ class CartItem {
     }
     return parts.join(', ');
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'item': item.toJson(),
+    'quantity': quantity,
+    'selectedVariant': selectedVariant,
+    'selectedAddons': selectedAddons.map((a) => a.toJson()).toList(),
+    'removedOptions': removedOptions,
+    'specialInstructions': specialInstructions,
+  };
+
+  factory CartItem.fromJson(Map<String, dynamic> json) => CartItem(
+    id: json['id']?.toString() ?? 'cart_${DateTime.now().millisecondsSinceEpoch}',
+    item: DeliveryItem.fromJson(Map<String, dynamic>.from(json['item'] as Map)),
+    quantity: int.tryParse(json['quantity']?.toString() ?? '1') ?? 1,
+    selectedVariant: json['selectedVariant']?.toString(),
+    selectedAddons: (json['selectedAddons'] as List<dynamic>?)
+            ?.map((a) => CustomizationAddon.fromJson(Map<String, dynamic>.from(a as Map)))
+            .toList() ??
+        const [],
+    removedOptions: (json['removedOptions'] as List<dynamic>?)
+            ?.map((o) => o.toString())
+            .toList() ??
+        const [],
+    specialInstructions: json['specialInstructions']?.toString(),
+  );
 }
 

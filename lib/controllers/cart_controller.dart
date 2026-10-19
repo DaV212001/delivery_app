@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import '../config/storage_config.dart';
+import '../models/cart_batch.dart';
 import '../models/cart_item.dart';
 import '../models/delivery_item.dart';
 import '../models/property_delivery_option.dart';
@@ -8,6 +12,7 @@ import 'restaurant_controller.dart';
 
 class CartController extends GetxController {
   final items = <CartItem>[].obs;
+  final savedBatches = <CartBatch>[].obs;
   final deliveryAddress = ''.obs;
   final deliveryInstructions = ''.obs;
   final selectedPaymentMethod = 'chapa'.obs; // 'chapa', 'wallet', 'cash'
@@ -24,6 +29,61 @@ class CartController extends GetxController {
   final customerLongitude = Rxn<double>();
   final propertyLatitude = Rxn<double>();
   final propertyLongitude = Rxn<double>();
+
+  @override
+  void onInit() {
+    super.onInit();
+    loadFromLocalStorage();
+    ever(items, (_) => saveToLocalStorage());
+    ever(savedBatches, (_) => saveToLocalStorage());
+  }
+
+  void loadFromLocalStorage() {
+    try {
+      final activeJson = ConfigPreference.getActiveCartJson();
+      if (activeJson != null && activeJson.isNotEmpty) {
+        final List<dynamic> decoded = jsonDecode(activeJson);
+        final loadedItems = decoded
+            .map((e) => CartItem.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList();
+        items.assignAll(loadedItems);
+        if (items.isNotEmpty && selectedDeliveryOption.value == null) {
+          loadDeliveryOptionsForProperty(items.first.item.storeId);
+        }
+      }
+
+      final batchesJson = ConfigPreference.getSavedCartBatchesJson();
+      if (batchesJson != null && batchesJson.isNotEmpty) {
+        final List<dynamic> decoded = jsonDecode(batchesJson);
+        final loadedBatches = decoded
+            .map((e) => CartBatch.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList();
+        savedBatches.assignAll(loadedBatches);
+      }
+    } catch (e) {
+      debugPrint('Error loading cart from local storage: $e');
+    }
+  }
+
+  void saveToLocalStorage() {
+    try {
+      if (items.isEmpty) {
+        ConfigPreference.clearActiveCartJson().catchError((_) {});
+      } else {
+        final activeJson = jsonEncode(items.map((i) => i.toJson()).toList());
+        ConfigPreference.setActiveCartJson(activeJson).catchError((_) {});
+      }
+
+      if (savedBatches.isEmpty) {
+        ConfigPreference.clearSavedCartBatchesJson().catchError((_) {});
+      } else {
+        final batchesJson = jsonEncode(savedBatches.map((b) => b.toJson()).toList());
+        ConfigPreference.setSavedCartBatchesJson(batchesJson).catchError((_) {});
+      }
+    } catch (e) {
+      debugPrint('Error saving cart to local storage: $e');
+    }
+  }
 
   /// Cash payment is only available for orders under 2,000 ETB
   bool get isCashAllowed => total < 2000.0;
@@ -139,6 +199,110 @@ class CartController extends GetxController {
     }
   }
 
+  /// Current active property ID
+  String? get activePropertyId => items.isNotEmpty ? items.first.item.storeId : null;
+
+  /// Display name of the store for currently active items
+  String get activePropertyName {
+    if (items.isEmpty) return '';
+    final sId = items.first.item.storeId;
+    if (Get.isRegistered<RestaurantController>()) {
+      final rc = Get.find<RestaurantController>();
+      final store = rc.getRestaurantById(sId);
+      if (store != null && store.name.isNotEmpty) return store.name;
+    }
+    return items.first.item.name;
+  }
+
+  /// Checks if an item belongs to a different property than the active cart
+  bool isDifferentProperty(DeliveryItem item) {
+    if (items.isEmpty) return false;
+    final currentStoreId = items.first.item.storeId;
+    if (currentStoreId.isEmpty || item.storeId.isEmpty) return false;
+    return currentStoreId != item.storeId;
+  }
+
+  /// Archive current active cart items into saved batches
+  void saveCurrentBatch({String? propertyName, String? propertyImage}) {
+    if (items.isEmpty) return;
+    final sId = items.first.item.storeId;
+    String name = propertyName ?? '';
+    String? image = propertyImage;
+    if (name.isEmpty && Get.isRegistered<RestaurantController>()) {
+      final rc = Get.find<RestaurantController>();
+      final store = rc.getRestaurantById(sId);
+      if (store != null) {
+        name = store.name;
+        image ??= (store.logoUrl != null && store.logoUrl!.isNotEmpty)
+            ? store.logoUrl
+            : store.heroImageUrl;
+      }
+    }
+    if (name.isEmpty) {
+      name = items.first.item.name;
+    }
+
+    savedBatches.removeWhere((b) => b.propertyId == sId);
+    savedBatches.add(
+      CartBatch(
+        propertyId: sId,
+        propertyName: name,
+        propertyImage: image,
+        items: List<CartItem>.from(items),
+        updatedAt: DateTime.now(),
+      ),
+    );
+
+    items.clear();
+    promoDiscount.value = 0.0;
+    propertyDeliveryOptions.clear();
+    selectedDeliveryOption.value = null;
+    saveToLocalStorage();
+  }
+
+  /// Restores a saved batch to become the active cart.
+  /// If active cart has items from another store, archives them first.
+  void restoreBatch(CartBatch batch) {
+    if (items.isNotEmpty && items.first.item.storeId != batch.propertyId) {
+      saveCurrentBatch();
+    }
+    savedBatches.removeWhere((b) => b.propertyId == batch.propertyId);
+    items.assignAll(batch.items);
+    loadDeliveryOptionsForProperty(batch.propertyId);
+    saveToLocalStorage();
+  }
+
+  /// Deletes a saved batch
+  void deleteSavedBatch(String propertyId) {
+    savedBatches.removeWhere((b) => b.propertyId == propertyId);
+    saveToLocalStorage();
+  }
+
+  /// Saves current batch and starts a new batch with newItem
+  void saveCurrentBatchAndStartNew({
+    required DeliveryItem newItem,
+    int quantity = 1,
+    String? selectedVariant,
+    List<CustomizationAddon> selectedAddons = const [],
+    List<String> removedOptions = const [],
+    String? specialInstructions,
+  }) {
+    saveCurrentBatch();
+    final existingSaved = savedBatches.firstWhereOrNull((b) => b.propertyId == newItem.storeId);
+    if (existingSaved != null) {
+      restoreBatch(existingSaved);
+    }
+    addItem(
+      item: newItem,
+      quantity: quantity,
+      selectedVariant: selectedVariant,
+      selectedAddons: selectedAddons,
+      removedOptions: removedOptions,
+      specialInstructions: specialInstructions,
+    );
+    loadDeliveryOptionsForProperty(newItem.storeId);
+  }
+
   void addItem({
     DeliveryItem? item,
     FoodItem? foodItem,
@@ -226,11 +390,21 @@ class CartController extends GetxController {
       }
     }
   }
-
   void clearCart() {
     items.clear();
     promoDiscount.value = 0.0;
     propertyDeliveryOptions.clear();
     selectedDeliveryOption.value = null;
+    saveToLocalStorage();
+  }
+
+  void clearAll() {
+    items.clear();
+    savedBatches.clear();
+    promoDiscount.value = 0.0;
+    propertyDeliveryOptions.clear();
+    selectedDeliveryOption.value = null;
+    saveToLocalStorage();
   }
 }
+

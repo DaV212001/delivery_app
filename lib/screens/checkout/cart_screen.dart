@@ -190,6 +190,77 @@ class _CartScreenState extends State<CartScreen> {
       ),
       body: Obx(() {
         if (cartController.items.isEmpty) {
+          if (cartController.savedBatches.isNotEmpty) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.darkSurfaceContainerLowest : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: theme.dividerColor.withValues(alpha: 0.1),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.shopping_bag_outlined,
+                          size: 28,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'cart_empty'.tr,
+                                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'You have saved batches below ready to resume',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _buildSavedBatchesSection(context, theme, isDark, cartController, isStandalone: true),
+                  const SizedBox(height: 24),
+                  Center(
+                    child: SizedBox(
+                      width: 200,
+                      child: AppButton(
+                        isSecondary: true,
+                        text: 'start_shopping'.tr,
+                        onPressed: () {
+                          if (Get.isRegistered<MainNavigationController>()) {
+                            Get.find<MainNavigationController>().changePage(0);
+                          }
+                          if (Navigator.of(context).canPop()) {
+                            Navigator.of(context).pop();
+                          } else {
+                            Get.offAllNamed(AppRoutes.mainNav);
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -243,6 +314,73 @@ class _CartScreenState extends State<CartScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Active Batch & Store Info Header
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.storefront_rounded, color: AppColors.primary, size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'active_batch'.tr,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  cartController.activePropertyName,
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            style: IconButton.styleFrom(
+                              padding: const EdgeInsets.all(6),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            icon: const Icon(Icons.bookmark_add_outlined, size: 20, color: AppColors.primary),
+                            tooltip: 'save_for_later'.tr,
+                            onPressed: () {
+                              cartController.saveCurrentBatch();
+                              Get.snackbar(
+                                'batch_saved'.tr,
+                                'previous_batch_saved'.tr,
+                                backgroundColor: AppColors.primary,
+                                colorText: Colors.white,
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+
                     // Delivery Address Card (Tappable to pick from Gebeta current location or saved locations)
                     InkWell(
                       onTap: () => _showLocationSelectionSheet(context),
@@ -639,6 +777,9 @@ class _CartScreenState extends State<CartScreen> {
                         ],
                       );
                     }),
+
+                    // Saved Batches Section (if user has saved other store batches)
+                    Obx(() => _buildSavedBatchesSection(context, theme, isDark, cartController)),
 
                     // Promo Code Input
                     Container(
@@ -1668,6 +1809,153 @@ class _CartScreenState extends State<CartScreen> {
           ],
         );
       }),
+    );
+  }
+
+  Widget _buildSavedBatchesSection(
+    BuildContext context,
+    ThemeData theme,
+    bool isDark,
+    CartController cartController, {
+    bool isStandalone = false,
+  }) {
+    if (cartController.savedBatches.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(
+              Icons.layers_outlined,
+              size: 20,
+              color: AppColors.primary,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '${'saved_batches'.tr} (${cartController.savedBatches.length})',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ...cartController.savedBatches.map((batch) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurfaceContainerLowest : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: theme.dividerColor.withValues(alpha: 0.1),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.storefront_rounded,
+                        color: AppColors.primary,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            batch.propertyName,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${batch.totalQuantity} items • ${batch.subtotal.toStringAsFixed(2)} Br',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 20),
+                      tooltip: 'delete_batch'.tr,
+                      onPressed: () {
+                        cartController.deleteSavedBatch(batch.propertyId);
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: batch.items.take(3).map((item) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '${item.quantity}x ${item.item.name}',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: AppButton(
+                    height: 38,
+                    isSecondary: true,
+                    icon: const Icon(Icons.swap_horiz_rounded, color: AppColors.primary),
+                    text: isStandalone ? 'resume_batch'.tr : 'switch_to_batch'.tr,
+                    onPressed: () {
+                      cartController.restoreBatch(batch);
+                      _syncLocationsAndDeliveryOptions();
+                      Get.snackbar(
+                        'active_batch'.tr,
+                        '${batch.propertyName} is now your active cart',
+                        backgroundColor: AppColors.primary,
+                        colorText: Colors.white,
+                        snackPosition: SnackPosition.TOP,
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
     );
   }
 

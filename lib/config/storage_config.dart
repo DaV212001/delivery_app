@@ -158,4 +158,44 @@ class ConfigPreference {
     await sharedPreferencesInstance.remove('user_longitude');
     await sharedPreferencesInstance.remove('user_address');
   }
+
+  static bool get isInitialized {
+    try {
+      sharedPreferencesInstance;
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // Cart items & batches persistence
+  static String? getActiveCartJson() {
+    if (!isInitialized) return null;
+    return sharedPreferencesInstance.getString('active_cart_items');
+  }
+
+  static Future<void> setActiveCartJson(String json) async {
+    if (!isInitialized) return;
+    await sharedPreferencesInstance.setString('active_cart_items', json);
+  }
+
+  static Future<void> clearActiveCartJson() async {
+    if (!isInitialized) return;
+    await sharedPreferencesInstance.remove('active_cart_items');
+  }
+
+  static String? getSavedCartBatchesJson() {
+    if (!isInitialized) return null;
+    return sharedPreferencesInstance.getString('saved_cart_batches');
+  }
+
+  static Future<void> setSavedCartBatchesJson(String json) async {
+    if (!isInitialized) return;
+    await sharedPreferencesInstance.setString('saved_cart_batches', json);
+  }
+
+  static Future<void> clearSavedCartBatchesJson() async {
+    if (!isInitialized) return;
+    await sharedPreferencesInstance.remove('saved_cart_batches');
+  }
 }

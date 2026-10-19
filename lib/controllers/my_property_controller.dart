@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../config/storage_config.dart';
+import '../core/theme/app_colors.dart';
 import '../models/category_model.dart';
 import '../models/my_menu_category_model.dart';
 import '../models/my_menu_item_model.dart';
@@ -246,6 +247,18 @@ class MyPropertyController extends GetxController {
     String? imagePath,
   }) async {
     if (selectedProperty.value == null) return false;
+    if (description == null || description.trim().isEmpty) {
+      if (Get.context != null && !Get.testMode) {
+        Get.snackbar(
+          'error'.tr,
+          'Please enter a description',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.error,
+          colorText: Colors.white,
+        );
+      }
+      return false;
+    }
     isActionLoading.value = true;
 
     try {
