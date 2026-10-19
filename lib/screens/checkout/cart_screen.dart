@@ -9,10 +9,13 @@ import '../../config/storage_config.dart';
 import '../../constants/pages.dart';
 import '../../core/theme/app_colors.dart';
 import '../../services/gebeta_location_service.dart';
+import '../../services/order_service.dart';
+import '../../services/user_location_service.dart';
 import '../../utils/location_utils.dart';
 import '../../widgets/common/app_widgets.dart';
 import '../../widgets/map/property_location_picker_screen.dart';
 import '../main_navigation.dart';
+import '../wallet/payment_webview_screen.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -43,6 +46,52 @@ class _CartScreenState extends State<CartScreen> {
     if (Get.isRegistered<ProfileController>()) {
       Get.find<ProfileController>().loadAddresses();
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncLocationsAndDeliveryOptions();
+    });
+  }
+
+  void _syncLocationsAndDeliveryOptions() {
+    if (!Get.isRegistered<CartController>()) return;
+    final cartController = Get.find<CartController>();
+    if (cartController.items.isEmpty) return;
+
+    final rc = Get.isRegistered<RestaurantController>()
+        ? Get.find<RestaurantController>()
+        : Get.put(RestaurantController());
+    final profileController = Get.isRegistered<ProfileController>()
+        ? Get.find<ProfileController>()
+        : Get.put(ProfileController());
+
+    final firstItem = cartController.items.first;
+    final storeId = firstItem.item.storeId;
+    final store = rc.restaurants.firstWhereOrNull((s) => s.id == storeId);
+
+    final propLat = store?.latitude ?? LocationUtils.defaultLatitude;
+    final propLng = store?.longitude ?? LocationUtils.defaultLongitude;
+    cartController.propertyLatitude.value = propLat;
+    cartController.propertyLongitude.value = propLng;
+
+    double custLat = LocationUtils.defaultLatitude;
+    double custLng = LocationUtils.defaultLongitude;
+    if (profileController.selectedAddress.value != null) {
+      custLat = profileController.selectedAddress.value!.latitude;
+      custLng = profileController.selectedAddress.value!.longitude;
+    } else if (ConfigPreference.getUserLatitude() != null) {
+      custLat = ConfigPreference.getUserLatitude()!;
+      custLng = ConfigPreference.getUserLongitude()!;
+    } else if (Get.isRegistered<UserLocationService>()) {
+      final uLat = UserLocationService.to.currentLatitude.value;
+      final uLng = UserLocationService.to.currentLongitude.value;
+      if (uLat != null && uLat > 0 && uLng != null) {
+        custLat = uLat;
+        custLng = uLng;
+      }
+    }
+    cartController.customerLatitude.value = custLat;
+    cartController.customerLongitude.value = custLng;
+
+    cartController.loadDeliveryOptionsForProperty(storeId, propLat: propLat, propLng: propLng);
   }
 
   Future<void> _fetchCurrentLocation({bool autoSelect = false}) async {
@@ -61,6 +110,7 @@ class _CartScreenState extends State<CartScreen> {
         if (cartController.deliveryAddress.value.isEmpty || autoSelect) {
           cartController.deliveryAddress.value = addr;
         }
+        _syncLocationsAndDeliveryOptions();
         if (autoSelect && Get.isBottomSheetOpen == true) {
           Get.back();
         }
@@ -369,7 +419,173 @@ class _CartScreenState extends State<CartScreen> {
                       );
                     }),
 
-                    const SizedBox(height: 16),
+                    // Delivery Options Selector
+                    Obx(() {
+                      final options = cartController.propertyDeliveryOptions;
+                      if (options.isEmpty && !cartController.isLoadingDeliveryOptions.value) {
+                        return const SizedBox.shrink();
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'delivery_options'.tr,
+                                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                              ),
+                              if (cartController.distanceInKm > 0)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    LocationUtils.formatDistanceKm(cartController.distanceInKm),
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          if (cartController.isLoadingDeliveryOptions.value)
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: isDark ? AppColors.darkSurfaceContainerLowest : Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Center(
+                                child: SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              ),
+                            )
+                          else
+                            Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: isDark ? AppColors.darkSurfaceContainerLowest : Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.03),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                children: [
+                                  for (int i = 0; i < options.length; i++) ...[
+                                    if (i > 0) const Divider(height: 16),
+                                    Builder(
+                                      builder: (context) {
+                                        final opt = options[i];
+                                        final isSelected = cartController.selectedDeliveryOption.value?.name == opt.name ||
+                                            (cartController.selectedDeliveryOption.value == null && i == 0);
+                                        final dist = cartController.distanceInKm > 0 ? cartController.distanceInKm : 1.0;
+                                        final optTotal = double.parse((opt.kmPrice * dist).toStringAsFixed(2));
+
+                                        return InkWell(
+                                          onTap: () {
+                                            cartController.selectedDeliveryOption.value = opt;
+                                          },
+                                          borderRadius: BorderRadius.circular(12),
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(vertical: 4.0),
+                                            child: Row(
+                                              children: [
+                                                Container(
+                                                  width: 40,
+                                                  height: 40,
+                                                  padding: const EdgeInsets.all(6),
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.primary.withValues(alpha: 0.1),
+                                                    borderRadius: BorderRadius.circular(10),
+                                                  ),
+                                                  child: opt.image.isNotEmpty
+                                                      ? Image.network(
+                                                          opt.image,
+                                                          fit: BoxFit.contain,
+                                                          errorBuilder: (ctx, err, stack) => const Icon(
+                                                            Icons.two_wheeler_rounded,
+                                                            color: AppColors.primary,
+                                                            size: 22,
+                                                          ),
+                                                        )
+                                                      : const Icon(
+                                                          Icons.two_wheeler_rounded,
+                                                          color: AppColors.primary,
+                                                          size: 22,
+                                                        ),
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(
+                                                        opt.name,
+                                                        style: theme.textTheme.bodyMedium?.copyWith(
+                                                          fontWeight: FontWeight.w600,
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        '${opt.kmPrice.toStringAsFixed(0)} Br/km',
+                                                        style: theme.textTheme.bodySmall?.copyWith(
+                                                          color: theme.colorScheme.onSurfaceVariant,
+                                                          fontSize: 11,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                Text(
+                                                  '${optTotal.toStringAsFixed(2)} Br',
+                                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                                    fontWeight: FontWeight.w700,
+                                                    color: AppColors.primary,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 10),
+                                                Container(
+                                                  width: 20,
+                                                  height: 20,
+                                                  decoration: BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    border: Border.all(
+                                                      color: isSelected
+                                                          ? AppColors.primary
+                                                          : Colors.grey.shade400,
+                                                      width: isSelected ? 6 : 2,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          const SizedBox(height: 20),
+                        ],
+                      );
+                    }),
 
                     // Promo Code Input
                     Container(
@@ -695,15 +911,15 @@ class _CartScreenState extends State<CartScreen> {
                           const SizedBox(height: 10),
                           _SummaryRow(
                             label: 'delivery_fee'.tr,
-                            value: cartController.deliveryFee == 0
-                                ? 'free'.tr
-                                : '${cartController.deliveryFee.toStringAsFixed(2)} Br',
+                            value: '${cartController.deliveryFee.toStringAsFixed(2)} Br',
                           ),
-                          const SizedBox(height: 10),
-                          _SummaryRow(
-                            label: 'tax_and_fees'.tr,
-                            value: '${cartController.taxAndFees.toStringAsFixed(2)} Br',
-                          ),
+                          if (cartController.taxAndFees > 0) ...[
+                            const SizedBox(height: 10),
+                            _SummaryRow(
+                              label: 'tax_and_fees'.tr,
+                              value: '${cartController.taxAndFees.toStringAsFixed(2)} Br',
+                            ),
+                          ],
                           if (cartController.promoDiscount.value > 0) ...[
                             const SizedBox(height: 10),
                             _SummaryRow(
@@ -847,18 +1063,8 @@ class _CartScreenState extends State<CartScreen> {
                                     return;
                                   }
 
-                                  if (cartController.selectedPaymentMethod.value == 'cash' && !cartController.isCashAllowed) {
-                                    Get.snackbar(
-                                      'error'.tr,
-                                      'cash_limit_exceeded'.tr,
-                                      snackPosition: SnackPosition.BOTTOM,
-                                      backgroundColor: AppColors.error,
-                                      colorText: Colors.white,
-                                    );
-                                    return;
-                                  }
-
                                   final fItem = cartController.items.first;
+                                  final propId = int.tryParse(fItem.item.storeId) ?? 1;
                                   final menuIds = cartController.items
                                       .map((i) => int.tryParse(i.item.id) ?? 1)
                                       .toList();
@@ -866,31 +1072,195 @@ class _CartScreenState extends State<CartScreen> {
                                       cartController.items.map((i) => i.quantity).toList();
                                   final prices =
                                       cartController.items.map((i) => i.item.price).toList();
-                                  final propId = int.tryParse(fItem.item.storeId) ?? 1;
 
-                                  final success = await orderController.placeOrder(
-                                    storeName: currentStore?.name ?? fItem.item.name,
-                                    storeImageUrl: currentStore?.heroImageUrl ?? fItem.item.imageUrl,
-                                    subtotal: cartController.subtotal,
-                                    deliveryFee: cartController.deliveryFee,
-                                    taxAndFees: cartController.taxAndFees,
-                                    total: cartController.total,
-                                    deliveryAddress: cartController.deliveryAddress.value,
-                                    paymentType: cartController.selectedPaymentMethod.value,
-                                    menuIds: menuIds,
-                                    quantities: quantities,
-                                    prices: prices,
-                                    propertyId: propId,
-                                    storeLatitude: currentStore?.latitude,
-                                    storeLongitude: currentStore?.longitude,
-                                  );
+                                  final option = cartController.selectedDeliveryOption.value;
+                                  final deliveryOptionId = option?.id ?? 1;
+                                  final kmPrice = option?.kmPrice ?? 13.0;
+                                  final totalKmPrice = cartController.totalKmPrice;
+                                  final itemTotalPrice = cartController.subtotal;
+                                  final totalAmount = cartController.total;
 
-                                  if (success) {
-                                    cartController.clearCart();
-                                    Get.toNamed(
-                                      AppRoutes.tracking,
-                                      arguments: orderController.activeOrder.value,
+                                  final custLat = cartController.customerLatitude.value ?? LocationUtils.defaultLatitude;
+                                  final custLng = cartController.customerLongitude.value ?? LocationUtils.defaultLongitude;
+                                  final propLat = cartController.propertyLatitude.value ?? currentStore?.latitude ?? LocationUtils.defaultLatitude;
+                                  final propLng = cartController.propertyLongitude.value ?? currentStore?.longitude ?? LocationUtils.defaultLongitude;
+
+                                  final deliveryAddress = cartController.deliveryAddress.value.isNotEmpty
+                                      ? cartController.deliveryAddress.value
+                                      : (_currentLocationAddress ?? 'Addis Ababa');
+
+                                  final paymentMethod = cartController.selectedPaymentMethod.value; // 'cash', 'chapa', 'wallet'
+                                  final uid = ConfigPreference.getUserId() ?? 1;
+                                  final now = DateTime.now();
+                                  final ymdDate = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+                                  Future<bool> executeCreateOrder(String pType) async {
+                                    return await orderController.placeOrder(
+                                      storeName: currentStore?.name ?? fItem.item.name,
+                                      storeImageUrl: currentStore?.heroImageUrl ?? fItem.item.imageUrl,
+                                      subtotal: itemTotalPrice,
+                                      deliveryFee: totalKmPrice,
+                                      total: totalAmount,
+                                      deliveryAddress: deliveryAddress,
+                                      paymentType: pType,
+                                      menuIds: menuIds,
+                                      quantities: quantities,
+                                      prices: prices,
+                                      propertyId: propId,
+                                      customerLatitude: custLat,
+                                      customerLongitude: custLng,
+                                      propertyLatitude: propLat,
+                                      propertyLongitude: propLng,
+                                      deliveryOption: deliveryOptionId,
+                                      kmPrice: kmPrice,
+                                      totalKmPrice: totalKmPrice,
                                     );
+                                  }
+
+                                  // 1. CASH PAYMENT FLOW
+                                  if (paymentMethod == 'cash') {
+                                    if (!cartController.isCashAllowed) {
+                                      Get.snackbar(
+                                        'cash_on_delivery'.tr,
+                                        'cash_under_2k'.tr,
+                                        snackPosition: SnackPosition.BOTTOM,
+                                        backgroundColor: AppColors.error,
+                                        colorText: Colors.white,
+                                      );
+                                      return;
+                                    }
+
+                                    final success = await executeCreateOrder('0');
+                                    if (success) {
+                                      cartController.clearCart();
+                                      Get.toNamed(
+                                        AppRoutes.tracking,
+                                        arguments: orderController.activeOrder.value,
+                                      );
+                                    }
+                                    return;
+                                  }
+
+                                  // 2. CHAPA PAYMENT FLOW
+                                  if (paymentMethod == 'chapa') {
+                                    orderController.isPlacingOrder.value = true;
+                                    String? checkoutUrl;
+
+                                    await OrderService.payOnChapa(
+                                      userId: uid,
+                                      amount: totalAmount,
+                                      date: ymdDate,
+                                      orderId: 1,
+                                      onSuccess: (url, msg) {
+                                        checkoutUrl = url;
+                                      },
+                                      onFailure: (err) {
+                                        Get.snackbar(
+                                          'payment_failed'.tr,
+                                          err,
+                                          snackPosition: SnackPosition.BOTTOM,
+                                          backgroundColor: AppColors.error,
+                                          colorText: Colors.white,
+                                        );
+                                      },
+                                    );
+                                    orderController.isPlacingOrder.value = false;
+
+                                    if (checkoutUrl != null && checkoutUrl!.isNotEmpty) {
+                                      final bool? receiptVerified = await Get.to<bool>(
+                                        () => PaymentWebViewScreen(
+                                          initialUrl: checkoutUrl!,
+                                          title: 'Chapa Checkout',
+                                        ),
+                                      );
+
+                                      if (receiptVerified == true) {
+                                        final success = await executeCreateOrder('1');
+                                        if (success) {
+                                          cartController.clearCart();
+                                          Get.toNamed(
+                                            AppRoutes.tracking,
+                                            arguments: orderController.activeOrder.value,
+                                          );
+                                        }
+                                      } else {
+                                        Get.snackbar(
+                                          'payment_not_completed'.tr,
+                                          'payment_pending_receipt'.tr,
+                                          snackPosition: SnackPosition.BOTTOM,
+                                        );
+                                      }
+                                    }
+                                    return;
+                                  }
+
+                                  // 3. WALLET PAYMENT FLOW
+                                  if (paymentMethod == 'wallet') {
+                                    final profileController = Get.isRegistered<ProfileController>()
+                                        ? Get.find<ProfileController>()
+                                        : Get.put(ProfileController());
+
+                                    await profileController.loadWallet();
+                                    final currentBalance = profileController.walletBalance.value.amount;
+
+                                    if (currentBalance < totalAmount) {
+                                      Get.snackbar(
+                                        'insufficient_wallet_balance'.tr,
+                                        'please_topup_wallet'.tr,
+                                        snackPosition: SnackPosition.BOTTOM,
+                                        backgroundColor: AppColors.error,
+                                        colorText: Colors.white,
+                                      );
+                                      if (context.mounted) {
+                                        ProfileController.showTopUpDialog(
+                                          context,
+                                          suggestedAmount: totalAmount - currentBalance,
+                                        );
+                                      }
+                                      return;
+                                    }
+
+                                    orderController.isPlacingOrder.value = true;
+                                    bool walletPaid = false;
+
+                                    await OrderService.payOnWallet(
+                                      userId: uid,
+                                      amount: totalAmount,
+                                      date: ymdDate,
+                                      orderId: 1,
+                                      onSuccess: (data) {
+                                        walletPaid = true;
+                                      },
+                                      onFailure: (err) {
+                                        Get.snackbar(
+                                          'insufficient_wallet_balance'.tr,
+                                          err,
+                                          snackPosition: SnackPosition.BOTTOM,
+                                          backgroundColor: AppColors.error,
+                                          colorText: Colors.white,
+                                        );
+                                        if (context.mounted) {
+                                          ProfileController.showTopUpDialog(
+                                            context,
+                                            suggestedAmount: totalAmount,
+                                          );
+                                        }
+                                      },
+                                    );
+                                    orderController.isPlacingOrder.value = false;
+
+                                    if (walletPaid) {
+                                      final success = await executeCreateOrder('2');
+                                      if (success) {
+                                        await profileController.loadWallet();
+                                        cartController.clearCart();
+                                        Get.toNamed(
+                                          AppRoutes.tracking,
+                                          arguments: orderController.activeOrder.value,
+                                        );
+                                      }
+                                    }
+                                    return;
                                   }
                                 },
                         ),
@@ -975,6 +1345,7 @@ class _CartScreenState extends State<CartScreen> {
                         onTap: () {
                           if (_currentLocationAddress != null && _currentLocationAddress!.isNotEmpty) {
                             cartController.deliveryAddress.value = _currentLocationAddress!;
+                            _syncLocationsAndDeliveryOptions();
                             Get.back();
                           } else {
                             _fetchCurrentLocation(autoSelect: true);
@@ -1156,6 +1527,8 @@ class _CartScreenState extends State<CartScreen> {
                                 onTap: () {
                                   profileController.selectAddress(address);
                                   cartController.deliveryAddress.value = address.name;
+                                  cartController.customerLatitude.value = address.latitude;
+                                  cartController.customerLongitude.value = address.longitude;
                                   Get.back();
                                 },
                               ),

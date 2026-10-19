@@ -89,17 +89,24 @@ class OrderController extends GetxController {
     String? restaurantImageUrl,
     required double subtotal,
     required double deliveryFee,
-    required double taxAndFees,
+    double taxAndFees = 0.0,
     required double total,
     required String deliveryAddress,
     StoreType storeType = StoreType.retail,
-    String paymentType = 'cash',
+    String paymentType = '0',
     List<int>? menuIds,
     List<int>? quantities,
     List<double>? prices,
     int propertyId = 1,
-    double latitude = 9.0320,
-    double longitude = 38.7469,
+    double customerLatitude = 9.0320,
+    double customerLongitude = 38.7469,
+    double propertyLatitude = 9.0320,
+    double propertyLongitude = 38.7469,
+    dynamic deliveryOption = 1,
+    num kmPrice = 13,
+    num? totalKmPrice,
+    double? latitude,
+    double? longitude,
     double? storeLatitude,
     double? storeLongitude,
   }) async {
@@ -120,28 +127,42 @@ class OrderController extends GetxController {
       final effectiveName = storeName ?? restaurantName ?? 'Store';
       final effectiveImage = storeImageUrl ?? restaurantImageUrl ?? AppAssets.parcelBoxItem;
 
-      // Current date formatted YYYY-MM-DD
-      final now = DateTime.now();
-      final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final dateIso = DateTime.now().toUtc().toIso8601String();
+
+      final effectiveCustLat = latitude ?? customerLatitude;
+      final effectiveCustLng = longitude ?? customerLongitude;
+      final effectivePropLat = storeLatitude ?? propertyLatitude;
+      final effectivePropLng = storeLongitude ?? propertyLongitude;
+      final effectiveTotalKmPrice = totalKmPrice ?? deliveryFee;
+
+      String normalizedPaymentType = paymentType;
+      if (paymentType == 'cash') normalizedPaymentType = '0';
+      if (paymentType == 'chapa') normalizedPaymentType = '1';
+      if (paymentType == 'wallet') normalizedPaymentType = '2';
 
       final effectiveMenuIds = (menuIds != null && menuIds.isNotEmpty) ? menuIds : [1];
       final effectiveQuantities = (quantities != null && quantities.isNotEmpty) ? quantities : [1];
-      final effectivePrices = (prices != null && prices.isNotEmpty) ? prices : [total];
+      final effectivePrices = (prices != null && prices.isNotEmpty) ? prices : [subtotal];
 
       final request = OrderCreateRequest(
         customerId: uid,
-        menuIds: effectiveMenuIds,
         location: deliveryAddress,
-        date: dateStr,
-        paymentType: paymentType,
-        quantities: effectiveQuantities,
+        date: dateIso,
+        paymentType: normalizedPaymentType,
         totalQuantity: effectiveQuantities.fold(0, (s, q) => s + q),
+        menuIds: effectiveMenuIds,
+        quantities: effectiveQuantities,
         prices: effectivePrices,
-        totalPrice: total,
+        itemTotalPrice: subtotal,
         totalItem: effectiveMenuIds.length,
         propertyId: propertyId,
-        latitude: latitude,
-        longitude: longitude,
+        customerLatitude: effectiveCustLat,
+        customerLongitude: effectiveCustLng,
+        propertyLatitude: effectivePropLat,
+        propertyLongitude: effectivePropLng,
+        deliveryOption: deliveryOption,
+        kmPrice: kmPrice,
+        totalKmPrice: effectiveTotalKmPrice,
       );
 
       await OrderService.createOrder(
@@ -149,24 +170,28 @@ class OrderController extends GetxController {
         onSuccess: (data) async {
           success = true;
 
+          final resData = data['data'];
+          final orderIdNum = (resData is Map ? resData['id'] : null)?.toString() ??
+              '${1000 + DateTime.now().millisecond * 7}';
+
           final newOrder = OrderModel(
-            orderId: '#AMN-${1000 + DateTime.now().millisecond * 7}',
+            orderId: '#AMN-$orderIdNum',
             storeName: effectiveName,
             storeImageUrl: effectiveImage,
             orderDate: DateTime.now(),
             items: [],
             subtotal: subtotal,
-            deliveryFee: deliveryFee,
+            deliveryFee: effectiveTotalKmPrice.toDouble(),
             taxAndFees: taxAndFees,
             total: total,
             deliveryAddress: deliveryAddress,
             status: OrderProgressStatus.preparing,
             estimatedArrival: '25 mins',
             storeType: storeType,
-            storeLatitude: storeLatitude,
-            storeLongitude: storeLongitude,
-            deliveryLatitude: latitude,
-            deliveryLongitude: longitude,
+            storeLatitude: effectivePropLat,
+            storeLongitude: effectivePropLng,
+            deliveryLatitude: effectiveCustLat,
+            deliveryLongitude: effectiveCustLng,
             driver: const DriverInfo(
               name: 'Alex M.',
               vehicle: 'Silver Honda Civic',
@@ -179,22 +204,12 @@ class OrderController extends GetxController {
 
           activeOrder.value = newOrder;
 
-          // If payment gateway returned a checkout URL (e.g. Chapa hosted checkout), navigate user to it
-          String? checkoutUrl;
-          if (data['data'] is Map<String, dynamic>) {
-            final inner = data['data'] as Map<String, dynamic>;
-            checkoutUrl = inner['checkout_url']?.toString() ??
-                inner['payment_url']?.toString() ??
-                inner['url']?.toString();
-          }
-          checkoutUrl ??= data['checkout_url']?.toString() ??
-              data['payment_url']?.toString() ??
-              data['url']?.toString();
-
+          // If payment gateway returned a checkout URL fallback
+          String? checkoutUrl = OrderService.findCheckoutUrl(data);
           if (checkoutUrl != null && checkoutUrl.isNotEmpty) {
             await Get.to(
               () => PaymentWebViewScreen(
-                initialUrl: checkoutUrl!,
+                initialUrl: checkoutUrl,
                 title: 'Order Payment',
                 onReceiptDetected: () async {
                   final profileController = Get.isRegistered<ProfileController>()

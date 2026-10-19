@@ -141,17 +141,23 @@ void main() {
     test('OrderService creates order and fetches active orders', () async {
       final req = OrderCreateRequest(
         customerId: 1,
-        menuIds: [101],
         location: 'Bole Road, Addis Ababa',
-        date: '2026-09-18',
-        quantities: [2],
+        date: '2026-09-18T10:31:15.000000Z',
+        paymentType: '0',
         totalQuantity: 2,
+        menuIds: [101],
+        quantities: [2],
         prices: [340.0],
-        totalPrice: 680.0,
+        itemTotalPrice: 680.0,
         totalItem: 1,
         propertyId: 1,
-        latitude: 9.032,
-        longitude: 38.746,
+        customerLatitude: 9.032,
+        customerLongitude: 38.746,
+        propertyLatitude: 9.032,
+        propertyLongitude: 38.746,
+        deliveryOption: 1,
+        kmPrice: 13,
+        totalKmPrice: 130,
       );
 
       dioAdapter.onPost(
@@ -187,6 +193,104 @@ void main() {
       final activeList = await OrderService.fetchActiveOrders(1);
       expect(activeList.length, 1);
       expect(activeList.first.orderId, '#AMN-12');
+    });
+
+    test('OrderService fetches property delivery options correctly', () async {
+      dioAdapter.onGet(
+        ApiEndpoints.propertyDeliveryOptions(1),
+        (server) => server.reply(200, {
+          'message': 'delviery option retrieved successfully',
+          'data': [
+            {
+              'id': null,
+              'image': 'https://api.amnplc.com/assets/images%20(78).jpeg',
+              'name': 'MoterBick',
+              'km_price': '13',
+            },
+          ],
+        }),
+      );
+
+      final options = await OrderService.fetchPropertyDeliveryOptions(1);
+      expect(options.length, 1);
+      expect(options.first.name, 'MoterBick');
+      expect(options.first.kmPrice, 13.0);
+    });
+
+    test('OrderService payOnChapa resolves recursive checkout_url', () async {
+      dioAdapter.onPost(
+        ApiEndpoints.payOnChapa,
+        (server) => server.reply(200, {
+          'message': 'Hosted Link',
+          'status': 'success',
+          'data': {
+            'checkout_url': 'https://checkout.chapa.co/checkout/payment/test12345',
+          },
+        }),
+        data: {
+          'user_id': 1,
+          'amount': 680.0,
+          'date': '2026-03-02',
+          'order_id': 1,
+        },
+      );
+
+      String? retrievedUrl;
+      await OrderService.payOnChapa(
+        userId: 1,
+        amount: 680.0,
+        date: '2026-03-02',
+        orderId: 1,
+        onSuccess: (url, msg) => retrievedUrl = url,
+        onFailure: (err) => fail(err),
+      );
+
+      expect(retrievedUrl, 'https://checkout.chapa.co/checkout/payment/test12345');
+    });
+
+    test('OrderService payOnWallet processes wallet payment', () async {
+      dioAdapter.onPost(
+        ApiEndpoints.payOnWallet,
+        (server) => server.reply(200, {
+          'message': 'We Accept your payment succesfully',
+          'data': {'id': 1, 'customer_id': '1'},
+        }),
+        data: {
+          'user_id': 1,
+          'amount': 680.0,
+          'date': '2026-03-02',
+          'order_id': 1,
+        },
+      );
+
+      bool walletSuccess = false;
+      await OrderService.payOnWallet(
+        userId: 1,
+        amount: 680.0,
+        date: '2026-03-02',
+        orderId: 1,
+        onSuccess: (data) => walletSuccess = true,
+        onFailure: (err) => fail(err),
+      );
+
+      expect(walletSuccess, true);
+    });
+
+    test('OrderService.findCheckoutUrl finds deeply nested checkout_url', () {
+      final deeplyNested = {
+        'status': 'success',
+        'wrapper': [
+          {
+            'nested': {
+              'details': {
+                'checkout_url': 'https://chapa.co/pay/xyz',
+              },
+            },
+          },
+        ],
+      };
+      expect(OrderService.findCheckoutUrl(deeplyNested), 'https://chapa.co/pay/xyz');
+      expect(OrderService.findCheckoutUrl({'other': 123}), isNull);
     });
 
     test('ProfileService fetches wallet amount and delivery addresses', () async {

@@ -1,10 +1,134 @@
 import '../constants/api_endpoints.dart';
 import '../models/order.dart';
+import '../models/property_delivery_option.dart';
 import '../models/store.dart';
 import '../utils/templates/dio_template.dart';
 import 'property_service.dart';
 
 class OrderService {
+  /// Fetch delivery options for a property
+  static Future<List<PropertyDeliveryOption>> fetchPropertyDeliveryOptions(dynamic propertyId) async {
+    final list = <PropertyDeliveryOption>[];
+    await DioService.dioGet(
+      path: ApiEndpoints.propertyDeliveryOptions(propertyId),
+      onSuccess: (response) {
+        final data = response.data;
+        if (data is Map<String, dynamic> && data['data'] is List) {
+          for (final item in data['data']) {
+            if (item is Map<String, dynamic>) {
+              list.add(PropertyDeliveryOption.fromJson(item));
+            }
+          }
+        }
+      },
+      onFailure: (error, response) {
+        // Fallback handled by caller
+      },
+    );
+    return list;
+  }
+
+  /// Initialize Chapa payment
+  static Future<void> payOnChapa({
+    required int userId,
+    required double amount,
+    required String date,
+    int orderId = 1,
+    required Function(String checkoutUrl, String message) onSuccess,
+    required Function(String error) onFailure,
+  }) async {
+    await DioService.dioPost(
+      path: ApiEndpoints.payOnChapa,
+      data: {
+        'user_id': userId,
+        'amount': amount,
+        'date': date,
+        'order_id': orderId,
+      },
+      onSuccess: (response) {
+        final checkoutUrl = findCheckoutUrl(response.data);
+        if (checkoutUrl != null && checkoutUrl.isNotEmpty) {
+          String msg = 'Hosted Link';
+          if (response.data is Map<String, dynamic>) {
+            msg = response.data['message']?.toString() ?? msg;
+          }
+          onSuccess(checkoutUrl, msg);
+        } else {
+          onFailure('No checkout URL received from payment gateway');
+        }
+      },
+      onFailure: (error, response) {
+        String msg = 'Chapa payment failed';
+        if (response.data is Map<String, dynamic>) {
+          msg = response.data['message']?.toString() ?? msg;
+        }
+        onFailure(msg);
+      },
+    );
+  }
+
+  /// Pay using AMN Wallet
+  static Future<void> payOnWallet({
+    required int userId,
+    required double amount,
+    required String date,
+    int orderId = 1,
+    required Function(Map<String, dynamic> data) onSuccess,
+    required Function(String error) onFailure,
+  }) async {
+    await DioService.dioPost(
+      path: ApiEndpoints.payOnWallet,
+      data: {
+        'user_id': userId,
+        'amount': amount,
+        'date': date,
+        'order_id': orderId,
+      },
+      onSuccess: (response) {
+        if (response.data is Map<String, dynamic>) {
+          onSuccess(response.data as Map<String, dynamic>);
+        } else {
+          onSuccess({'message': 'Payment successful'});
+        }
+      },
+      onFailure: (error, response) {
+        String msg = 'Wallet payment failed';
+        if (response.data is Map<String, dynamic>) {
+          msg = response.data['message']?.toString() ?? msg;
+        }
+        onFailure(msg);
+      },
+    );
+  }
+
+  /// Recursively scan any nested Map or List structure to locate checkout_url
+  static String? findCheckoutUrl(dynamic data) {
+    if (data == null) return null;
+    if (data is Map) {
+      if (data.containsKey('checkout_url') &&
+          data['checkout_url'] != null &&
+          data['checkout_url'].toString().isNotEmpty) {
+        return data['checkout_url'].toString();
+      }
+      for (final entry in data.entries) {
+        final key = entry.key.toString().toLowerCase();
+        if ((key == 'checkout_url' || key == 'payment_url') &&
+            entry.value != null &&
+            entry.value.toString().isNotEmpty) {
+          return entry.value.toString();
+        }
+        final found = findCheckoutUrl(entry.value);
+        if (found != null && found.isNotEmpty) return found;
+      }
+    } else if (data is List) {
+      for (final item in data) {
+        final found = findCheckoutUrl(item);
+        if (found != null && found.isNotEmpty) return found;
+      }
+    }
+    return null;
+  }
+
   /// Create a new order
   static Future<void> createOrder({
     required OrderCreateRequest request,

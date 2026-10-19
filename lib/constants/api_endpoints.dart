@@ -49,9 +49,12 @@ class ApiEndpoints {
   static String activeOrders(dynamic customerId) => '/my_active_order/$customerId';
   static String pastOrders(dynamic customerId) => '/my_past_order/$customerId';
   static String orderDetail(dynamic orderId) => '/my_order_detail/$orderId';
+  static String propertyDeliveryOptions(dynamic propertyId) => '/property-delivery-option/$propertyId';
 
   // Payment & Wallet endpoints
   static const String walletPayment = '/wallet-payment';
+  static const String payOnChapa = '/pay-on-chapa';
+  static const String payOnWallet = '/pay-on-wallet';
 
   // Profile endpoints
   static String profile(dynamic customerId) => '/profile/$customerId';

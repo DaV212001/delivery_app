@@ -32,49 +32,64 @@ class DriverInfo {
 
 class OrderCreateRequest {
   final int customerId;
-  final List<int> menuIds;
   final String location;
   final String date;
   final String paymentType;
-  final List<int> quantities;
   final int totalQuantity;
+  final List<int> menuIds;
+  final List<int> quantities;
   final List<double> prices;
-  final double totalPrice;
+  final double itemTotalPrice;
   final int totalItem;
   final int propertyId;
-  final double latitude;
-  final double longitude;
+  final double customerLatitude;
+  final double customerLongitude;
+  final double propertyLatitude;
+  final double propertyLongitude;
+  final dynamic deliveryOption;
+  final num kmPrice;
+  final num totalKmPrice;
 
   const OrderCreateRequest({
     required this.customerId,
-    required this.menuIds,
     required this.location,
     required this.date,
-    this.paymentType = 'cash',
-    required this.quantities,
+    this.paymentType = '0',
     required this.totalQuantity,
+    required this.menuIds,
+    required this.quantities,
     required this.prices,
-    required this.totalPrice,
+    required this.itemTotalPrice,
     required this.totalItem,
     required this.propertyId,
-    required this.latitude,
-    required this.longitude,
+    required this.customerLatitude,
+    required this.customerLongitude,
+    required this.propertyLatitude,
+    required this.propertyLongitude,
+    this.deliveryOption = 1,
+    this.kmPrice = 13,
+    required this.totalKmPrice,
   });
 
   Map<String, dynamic> toJson() => {
         'customer_id': customerId,
-        'menu_id': menuIds,
         'location': location,
         'date': date,
         'payment_type': paymentType,
-        'quantity': quantities,
         'total_quantity': totalQuantity,
+        'menu_id': menuIds,
+        'quantity': quantities,
         'price': prices,
-        'total_price': totalPrice,
+        'item_total_price': itemTotalPrice,
         'total_item': totalItem,
         'property_id': propertyId,
-        'latitude': latitude,
-        'longitude': longitude,
+        'customer_latitude': customerLatitude,
+        'customer_longitude': customerLongitude,
+        'property_latitude': propertyLatitude,
+        'property_longitude': propertyLongitude,
+        'delivery_option': deliveryOption,
+        'km_price': kmPrice,
+        'total_km_price': totalKmPrice,
       };
 }
 
@@ -235,8 +250,10 @@ class OrderModel {
 
     final id = json['id']?.toString() ?? '';
     final loc = json['location']?.toString() ?? 'Addis Ababa';
-    final totalPrice = double.tryParse(json['total_price']?.toString() ?? '0') ?? 0.0;
+    final totalPrice = double.tryParse(json['payment_amount']?.toString() ?? json['total_price']?.toString() ?? '0') ?? 0.0;
     final totalItems = int.tryParse(json['total_item']?.toString() ?? '1') ?? 1;
+    final itemTotal = double.tryParse(json['item_total_price']?.toString() ?? '');
+    final kmTotal = double.tryParse(json['total_km_price']?.toString() ?? '');
 
     final propId = json['property_id']?.toString();
     final cachedStore = PropertyService.getCachedProperty(propId);
@@ -285,9 +302,11 @@ class OrderModel {
           quantity: 1,
         ),
       ),
-      subtotal: totalPrice * 0.9,
-      deliveryFee: 50.0,
-      taxAndFees: totalPrice * 0.1,
+      subtotal: itemTotal ?? (totalPrice * 0.9),
+      deliveryFee: kmTotal ?? 50.0,
+      taxAndFees: totalPrice > ((itemTotal ?? (totalPrice * 0.9)) + (kmTotal ?? 50.0))
+          ? totalPrice - ((itemTotal ?? (totalPrice * 0.9)) + (kmTotal ?? 50.0))
+          : 0.0,
       total: totalPrice,
       deliveryAddress: loc,
       status: orderStatus,
@@ -331,7 +350,7 @@ class OrderModel {
 
     final id = statusJson['id']?.toString() ?? '';
     final loc = statusJson['location']?.toString() ?? 'Addis Ababa';
-    final totalPrice = double.tryParse(statusJson['total_price']?.toString() ?? '0') ?? 0.0;
+    final totalPrice = double.tryParse(statusJson['payment_amount']?.toString() ?? statusJson['total_price']?.toString() ?? '0') ?? 0.0;
     final propId = statusJson['property_id']?.toString();
     final cachedStore = fallbackStore ?? PropertyService.getCachedProperty(propId);
 
@@ -424,8 +443,10 @@ class OrderModel {
       } catch (_) {}
     }
 
-    final subtotal = calculatedItemsSum > 0 ? calculatedItemsSum : (totalPrice * 0.9);
-    final deliveryFee = (totalPrice > subtotal) ? (totalPrice - subtotal) : 50.0;
+    final itemTotal = double.tryParse(statusJson['item_total_price']?.toString() ?? '');
+    final kmTotal = double.tryParse(statusJson['total_km_price']?.toString() ?? '');
+    final subtotal = calculatedItemsSum > 0 ? calculatedItemsSum : (itemTotal ?? (totalPrice * 0.9));
+    final deliveryFee = kmTotal ?? ((totalPrice > subtotal) ? (totalPrice - subtotal) : 50.0);
     final taxAndFees = (totalPrice - subtotal - deliveryFee) > 0 ? (totalPrice - subtotal - deliveryFee) : 0.0;
 
     DriverInfo? driverInfo;

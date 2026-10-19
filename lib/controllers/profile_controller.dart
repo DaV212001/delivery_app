@@ -154,6 +154,185 @@ class ProfileController extends GetxController {
     } catch (_) {}
   }
 
+  /// Universal Top-Up Dialog for Wallet
+  static void showTopUpDialog(BuildContext context, {double? suggestedAmount}) {
+    final profileController = Get.isRegistered<ProfileController>()
+        ? Get.find<ProfileController>()
+        : Get.put(ProfileController());
+
+    final initialVal = suggestedAmount != null && suggestedAmount > 0
+        ? suggestedAmount.ceil().toString()
+        : '100';
+
+    final amountController = TextEditingController(text: initialVal);
+    final quickAmounts = [100.0, 250.0, 500.0, 1000.0];
+
+    Get.dialog(
+      StatefulBuilder(
+        builder: (dialogCtx, setDialogState) {
+          final isDark = Theme.of(dialogCtx).brightness == Brightness.dark;
+          return AlertDialog(
+            backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.account_balance_wallet_rounded,
+                    color: AppColors.primary,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'topup_wallet'.tr,
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'topup_prompt'.tr,
+                    style: TextStyle(
+                      color: isDark ? AppColors.darkOnSurfaceVariant : AppColors.onSurfaceVariant,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: quickAmounts.map((amt) {
+                      final isSelected = amountController.text == amt.toStringAsFixed(0);
+                      return InkWell(
+                        onTap: () {
+                          setDialogState(() {
+                            amountController.text = amt.toStringAsFixed(0);
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.primary
+                                : (isDark
+                                    ? AppColors.darkSurfaceContainerLow
+                                    : AppColors.surfaceContainerLow),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelected ? AppColors.primary : Colors.transparent,
+                            ),
+                          ),
+                          child: Text(
+                            '+${amt.toStringAsFixed(0)} Br',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: isSelected
+                                  ? Colors.white
+                                  : (isDark
+                                      ? AppColors.darkOnSurface
+                                      : AppColors.onSurface),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: amountController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'custom_amount'.tr,
+                      suffixText: 'Br',
+                      prefixIcon: const Icon(Icons.payments_outlined, size: 20),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      filled: true,
+                      fillColor: isDark ? AppColors.darkInputBg : AppColors.inputBg,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      const Icon(Icons.lock_outline, size: 14, color: Colors.green),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'secured_chapa'.tr,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? AppColors.darkOnSurfaceVariant : AppColors.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Get.back(),
+                child: Text('cancel'.tr),
+              ),
+              Obx(() {
+                if (profileController.isSaving.value) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    child: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                    ),
+                  );
+                }
+                return ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  ),
+                  onPressed: () {
+                    final val = double.tryParse(amountController.text.trim()) ?? 0;
+                    if (val <= 0) {
+                      Get.snackbar(
+                        'invalid_amount'.tr,
+                        'enter_valid_amount'.tr,
+                        snackPosition: SnackPosition.BOTTOM,
+                      );
+                      return;
+                    }
+                    profileController.topupWallet(val);
+                  },
+                  child: Text(
+                    'proceed_to_pay'.tr,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                );
+              }),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> topupWallet(double amount) async {
     final uid = customerId;
     if (uid == null) {
