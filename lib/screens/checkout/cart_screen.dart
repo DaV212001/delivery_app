@@ -492,95 +492,113 @@ class _CartScreenState extends State<CartScreen> {
                                 children: [
                                   for (int i = 0; i < options.length; i++) ...[
                                     if (i > 0) const Divider(height: 16),
-                                    Builder(
-                                      builder: (context) {
-                                        final opt = options[i];
-                                        final isSelected = cartController.selectedDeliveryOption.value?.name == opt.name ||
-                                            (cartController.selectedDeliveryOption.value == null && i == 0);
-                                        final dist = cartController.distanceInKm > 0 ? cartController.distanceInKm : 1.0;
-                                        final optTotal = double.parse((opt.kmPrice * dist).toStringAsFixed(2));
+                                    Obx(() {
+                                      final opt = options[i];
+                                      final isSelected = cartController.selectedDeliveryOption.value?.name == opt.name ||
+                                          (cartController.selectedDeliveryOption.value == null && i == 0);
+                                      final dist = cartController.distanceInKm > 0 ? cartController.distanceInKm : 1.0;
+                                      final optTotal = double.parse((opt.kmPrice * dist).toStringAsFixed(2));
 
-                                        return InkWell(
-                                          onTap: () {
-                                            cartController.selectedDeliveryOption.value = opt;
-                                          },
-                                          borderRadius: BorderRadius.circular(12),
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(vertical: 4.0),
-                                            child: Row(
-                                              children: [
-                                                Container(
-                                                  width: 40,
-                                                  height: 40,
-                                                  padding: const EdgeInsets.all(6),
-                                                  decoration: BoxDecoration(
-                                                    color: AppColors.primary.withValues(alpha: 0.1),
-                                                    borderRadius: BorderRadius.circular(10),
-                                                  ),
-                                                  child: opt.image.isNotEmpty
-                                                      ? Image.network(
-                                                          opt.image,
-                                                          fit: BoxFit.contain,
-                                                          errorBuilder: (ctx, err, stack) => const Icon(
-                                                            Icons.two_wheeler_rounded,
-                                                            color: AppColors.primary,
-                                                            size: 22,
-                                                          ),
-                                                        )
-                                                      : const Icon(
+                                      return InkWell(
+                                        onTap: () {
+                                          cartController.selectedDeliveryOption.value = opt;
+                                        },
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: AnimatedContainer(
+                                          duration: const Duration(milliseconds: 200),
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6.0),
+                                          decoration: BoxDecoration(
+                                            color: isSelected
+                                                ? AppColors.primary.withValues(alpha: isDark ? 0.12 : 0.06)
+                                                : Colors.transparent,
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                width: 40,
+                                                height: 40,
+                                                padding: const EdgeInsets.all(6),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                                  borderRadius: BorderRadius.circular(10),
+                                                ),
+                                                child: opt.image.isNotEmpty
+                                                    ? Image.network(
+                                                        opt.image,
+                                                        fit: BoxFit.contain,
+                                                        errorBuilder: (ctx, err, stack) => const Icon(
                                                           Icons.two_wheeler_rounded,
                                                           color: AppColors.primary,
                                                           size: 22,
                                                         ),
-                                                ),
-                                                const SizedBox(width: 12),
-                                                Expanded(
-                                                  child: Column(
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                                    children: [
-                                                      Text(
-                                                        opt.name,
-                                                        style: theme.textTheme.bodyMedium?.copyWith(
-                                                          fontWeight: FontWeight.w600,
-                                                        ),
+                                                      )
+                                                    : const Icon(
+                                                        Icons.two_wheeler_rounded,
+                                                        color: AppColors.primary,
+                                                        size: 22,
                                                       ),
-                                                      Text(
-                                                        '${opt.kmPrice.toStringAsFixed(0)} Br/km',
-                                                        style: theme.textTheme.bodySmall?.copyWith(
-                                                          color: theme.colorScheme.onSurfaceVariant,
-                                                          fontSize: 11,
-                                                        ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      opt.name,
+                                                      style: theme.textTheme.bodyMedium?.copyWith(
+                                                        fontWeight: FontWeight.w600,
                                                       ),
-                                                    ],
-                                                  ),
-                                                ),
-                                                Text(
-                                                  '${optTotal.toStringAsFixed(2)} Br',
-                                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                                    fontWeight: FontWeight.w700,
-                                                    color: AppColors.primary,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 10),
-                                                Container(
-                                                  width: 20,
-                                                  height: 20,
-                                                  decoration: BoxDecoration(
-                                                    shape: BoxShape.circle,
-                                                    border: Border.all(
-                                                      color: isSelected
-                                                          ? AppColors.primary
-                                                          : Colors.grey.shade400,
-                                                      width: isSelected ? 6 : 2,
                                                     ),
+                                                    Text(
+                                                      '${opt.kmPrice.toStringAsFixed(0)} Br/km',
+                                                      style: theme.textTheme.bodySmall?.copyWith(
+                                                        color: theme.colorScheme.onSurfaceVariant,
+                                                        fontSize: 11,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Text(
+                                                '${optTotal.toStringAsFixed(2)} Br',
+                                                style: theme.textTheme.bodyMedium?.copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                  color: AppColors.primary,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              AnimatedContainer(
+                                                duration: const Duration(milliseconds: 200),
+                                                width: 22,
+                                                height: 22,
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(
+                                                    color: isSelected
+                                                        ? AppColors.primary
+                                                        : Colors.grey.shade400,
+                                                    width: isSelected ? 2 : 1.5,
                                                   ),
                                                 ),
-                                              ],
-                                            ),
+                                                child: isSelected
+                                                    ? Center(
+                                                        child: Container(
+                                                          width: 12,
+                                                          height: 12,
+                                                          decoration: const BoxDecoration(
+                                                            shape: BoxShape.circle,
+                                                            color: AppColors.primary,
+                                                          ),
+                                                        ),
+                                                      )
+                                                    : null,
+                                              ),
+                                            ],
                                           ),
-                                        );
-                                      },
-                                    ),
+                                        ),
+                                      );
+                                    }),
                                   ],
                                 ],
                               ),
@@ -635,16 +653,21 @@ class _CartScreenState extends State<CartScreen> {
                       style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 12),
-                    Builder(
-                      builder: (context) {
+                    Obx(
+                      () {
                         final isCashAllowed = cartController.isCashAllowed;
-                        if (!isCashAllowed && cartController.selectedPaymentMethod.value == 'cash') {
+                        final selectedMethod = cartController.selectedPaymentMethod.value;
+                        if (!isCashAllowed && selectedMethod == 'cash') {
                           WidgetsBinding.instance.addPostFrameCallback((_) {
                             if (cartController.selectedPaymentMethod.value == 'cash') {
                               cartController.selectedPaymentMethod.value = 'chapa';
                             }
                           });
                         }
+
+                        final isChapa = selectedMethod == 'chapa';
+                        final isWallet = selectedMethod == 'wallet';
+                        final isCash = isCashAllowed && selectedMethod == 'cash';
 
                         return Container(
                           padding: const EdgeInsets.all(16),
@@ -665,8 +688,15 @@ class _CartScreenState extends State<CartScreen> {
                               InkWell(
                                 onTap: () => cartController.selectedPaymentMethod.value = 'chapa',
                                 borderRadius: BorderRadius.circular(12),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 6.0),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8.0),
+                                  decoration: BoxDecoration(
+                                    color: isChapa
+                                        ? AppColors.primary.withValues(alpha: isDark ? 0.12 : 0.06)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                   child: Row(
                                     children: [
                                       Container(
@@ -708,18 +738,31 @@ class _CartScreenState extends State<CartScreen> {
                                           ],
                                         ),
                                       ),
-                                      Container(
+                                      AnimatedContainer(
+                                        duration: const Duration(milliseconds: 200),
                                         width: 22,
                                         height: 22,
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
                                           border: Border.all(
-                                            color: cartController.selectedPaymentMethod.value == 'chapa'
+                                            color: isChapa
                                                 ? AppColors.primary
                                                 : Colors.grey.shade400,
-                                            width: cartController.selectedPaymentMethod.value == 'chapa' ? 6 : 2,
+                                            width: isChapa ? 2 : 1.5,
                                           ),
                                         ),
+                                        child: isChapa
+                                            ? Center(
+                                                child: Container(
+                                                  width: 12,
+                                                  height: 12,
+                                                  decoration: const BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    color: AppColors.primary,
+                                                  ),
+                                                ),
+                                              )
+                                            : null,
                                       ),
                                     ],
                                   ),
@@ -731,8 +774,15 @@ class _CartScreenState extends State<CartScreen> {
                               InkWell(
                                 onTap: () => cartController.selectedPaymentMethod.value = 'wallet',
                                 borderRadius: BorderRadius.circular(12),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 6.0),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8.0),
+                                  decoration: BoxDecoration(
+                                    color: isWallet
+                                        ? AppColors.primary.withValues(alpha: isDark ? 0.12 : 0.06)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                   child: Row(
                                     children: [
                                       Container(
@@ -769,18 +819,31 @@ class _CartScreenState extends State<CartScreen> {
                                           ],
                                         ),
                                       ),
-                                      Container(
+                                      AnimatedContainer(
+                                        duration: const Duration(milliseconds: 200),
                                         width: 22,
                                         height: 22,
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
                                           border: Border.all(
-                                            color: cartController.selectedPaymentMethod.value == 'wallet'
+                                            color: isWallet
                                                 ? AppColors.primary
                                                 : Colors.grey.shade400,
-                                            width: cartController.selectedPaymentMethod.value == 'wallet' ? 6 : 2,
+                                            width: isWallet ? 2 : 1.5,
                                           ),
                                         ),
+                                        child: isWallet
+                                            ? Center(
+                                                child: Container(
+                                                  width: 12,
+                                                  height: 12,
+                                                  decoration: const BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    color: AppColors.primary,
+                                                  ),
+                                                ),
+                                              )
+                                            : null,
                                       ),
                                     ],
                                   ),
@@ -804,8 +867,15 @@ class _CartScreenState extends State<CartScreen> {
                                 borderRadius: BorderRadius.circular(12),
                                 child: Opacity(
                                   opacity: isCashAllowed ? 1.0 : 0.45,
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 6.0),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8.0),
+                                    decoration: BoxDecoration(
+                                      color: isCash
+                                          ? AppColors.primary.withValues(alpha: isDark ? 0.12 : 0.06)
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                     child: Row(
                                       children: [
                                         Container(
@@ -868,18 +938,31 @@ class _CartScreenState extends State<CartScreen> {
                                             ],
                                           ),
                                         ),
-                                        Container(
+                                        AnimatedContainer(
+                                          duration: const Duration(milliseconds: 200),
                                           width: 22,
                                           height: 22,
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
                                             border: Border.all(
-                                              color: isCashAllowed && cartController.selectedPaymentMethod.value == 'cash'
+                                              color: isCash
                                                   ? AppColors.primary
                                                   : Colors.grey.shade400,
-                                              width: isCashAllowed && cartController.selectedPaymentMethod.value == 'cash' ? 6 : 2,
+                                              width: isCash ? 2 : 1.5,
                                             ),
                                           ),
+                                          child: isCash
+                                              ? Center(
+                                                  child: Container(
+                                                    width: 12,
+                                                    height: 12,
+                                                    decoration: const BoxDecoration(
+                                                      shape: BoxShape.circle,
+                                                      color: AppColors.primary,
+                                                    ),
+                                                  ),
+                                                )
+                                              : null,
                                         ),
                                       ],
                                     ),

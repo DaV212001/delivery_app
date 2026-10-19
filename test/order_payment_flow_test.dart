@@ -1,10 +1,20 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:delivery_app/config/storage_config.dart';
 import 'package:delivery_app/models/order.dart';
 import 'package:delivery_app/models/property_delivery_option.dart';
 import 'package:delivery_app/controllers/cart_controller.dart';
+import 'package:delivery_app/controllers/restaurant_controller.dart';
+import 'package:delivery_app/controllers/order_controller.dart';
+import 'package:delivery_app/controllers/auth_controller.dart';
+import 'package:delivery_app/controllers/profile_controller.dart';
+import 'package:delivery_app/screens/checkout/cart_screen.dart';
 import 'package:delivery_app/screens/wallet/payment_webview_screen.dart';
 import 'package:delivery_app/utils/location_utils.dart';
 import 'package:delivery_app/data/mock_data.dart';
+import 'package:delivery_app/config/translations.dart';
 
 void main() {
   group('Order & Payment Flow New Specifications Tests', () {
@@ -150,6 +160,73 @@ void main() {
 
       cart.selectedPaymentMethod.value = 'wallet';
       expect(cart.paymentTypeNumeric, '2');
+    });
+
+    testWidgets('CartScreen payment method selection reacts immediately when tapped', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      await ConfigPreference.init();
+      Get.reset();
+      final cartController = Get.put(CartController());
+      Get.put(RestaurantController());
+      Get.put(AuthController());
+      Get.put(OrderController());
+      Get.put(ProfileController());
+
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      cartController.addItem(
+        item: MockData.freshStrawberries,
+        quantity: 1,
+      );
+
+      await tester.pumpWidget(
+        GetMaterialApp(
+          translations: AppTranslations(),
+          locale: const Locale('en', 'US'),
+          home: const CartScreen(),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Initially Chapa is selected
+      expect(cartController.selectedPaymentMethod.value, 'chapa');
+
+      // Tap AMN Wallet
+      final walletOption = find.text('AMN Wallet');
+      expect(walletOption, findsOneWidget);
+      await tester.ensureVisible(walletOption);
+      await tester.tap(walletOption);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Verify controller reacted and updated to wallet
+      expect(cartController.selectedPaymentMethod.value, 'wallet');
+
+      // Tap Cash on Delivery
+      final cashOption = find.text('Cash on Delivery');
+      expect(cashOption, findsOneWidget);
+      await tester.ensureVisible(cashOption);
+      await tester.tap(cashOption);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Verify controller updated to cash
+      expect(cartController.selectedPaymentMethod.value, 'cash');
+
+      // Tap Chapa again
+      final chapaOption = find.text('Chapa');
+      expect(chapaOption, findsOneWidget);
+      await tester.ensureVisible(chapaOption);
+      await tester.tap(chapaOption);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Verify controller updated back to chapa
+      expect(cartController.selectedPaymentMethod.value, 'chapa');
     });
   });
 }
