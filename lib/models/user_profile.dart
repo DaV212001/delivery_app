@@ -13,6 +13,10 @@ class UserProfile {
   final int totalOrders;
   final String defaultAddress;
   final double walletAmount;
+  final String type;
+  final String haveProperty;
+  final String companyId;
+  final String branchId;
 
   const UserProfile({
     required this.id,
@@ -27,7 +31,22 @@ class UserProfile {
     required this.totalOrders,
     required this.defaultAddress,
     this.walletAmount = 0.0,
+    this.type = '0',
+    this.haveProperty = '0',
+    this.companyId = '0',
+    this.branchId = '0',
   });
+
+  bool get isCorporateUser {
+    final t = type.trim();
+    final c = companyId.trim();
+    final b = branchId.trim();
+    return t == '1' &&
+        c.isNotEmpty &&
+        c != '0' &&
+        b.isNotEmpty &&
+        b != '0';
+  }
 
   factory UserProfile.fromJson(Map<String, dynamic> rawJson) {
     final json = (rawJson['user'] is Map<String, dynamic>)
@@ -72,6 +91,11 @@ class UserProfile {
         rawJson['user_id']?.toString() ??
         '';
 
+    final type = json['type']?.toString() ?? rawJson['type']?.toString() ?? '0';
+    final haveProperty = json['have_property']?.toString() ?? rawJson['have_property']?.toString() ?? '0';
+    final companyId = json['company_id']?.toString() ?? rawJson['company_id']?.toString() ?? '0';
+    final branchId = json['branch_id']?.toString() ?? rawJson['branch_id']?.toString() ?? '0';
+
     return UserProfile(
       id: id,
       name: fullName,
@@ -85,6 +109,10 @@ class UserProfile {
       totalOrders: int.tryParse(json['total_orders']?.toString() ?? '0') ?? 0,
       defaultAddress: json['default_address']?.toString() ?? 'Addis Ababa, Ethiopia',
       walletAmount: wallet,
+      type: type,
+      haveProperty: haveProperty,
+      companyId: companyId,
+      branchId: branchId,
     );
   }
 
@@ -101,6 +129,10 @@ class UserProfile {
     int? totalOrders,
     String? defaultAddress,
     double? walletAmount,
+    String? type,
+    String? haveProperty,
+    String? companyId,
+    String? branchId,
   }) {
     return UserProfile(
       id: id ?? this.id,
@@ -115,6 +147,10 @@ class UserProfile {
       totalOrders: totalOrders ?? this.totalOrders,
       defaultAddress: defaultAddress ?? this.defaultAddress,
       walletAmount: walletAmount ?? this.walletAmount,
+      type: type ?? this.type,
+      haveProperty: haveProperty ?? this.haveProperty,
+      companyId: companyId ?? this.companyId,
+      branchId: branchId ?? this.branchId,
     );
   }
 }

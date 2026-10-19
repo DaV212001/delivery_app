@@ -135,10 +135,15 @@ class MyPropertyScreen extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'manage_categories'.tr,
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    Expanded(
+                      child: Text(
+                        'manage_categories'.tr,
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     TextButton.icon(
                       icon: const Icon(Icons.add_rounded, size: 18),
                       label: Text('add_category'.tr),
@@ -869,54 +874,45 @@ class MyPropertyScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'menu_categories'.tr,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              Expanded(
+                child: Text(
+                  'menu_categories'.tr,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  InkWell(
-                    onTap: () => _showManageCategoriesSheet(context, controller),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.tune_rounded, size: 15, color: AppColors.primary),
-                          const SizedBox(width: 4),
-                          Text(
-                            'manage_categories'.tr,
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary),
-                          ),
-                        ],
+              const SizedBox(width: 8),
+              InkWell(
+                onTap: () => _showManageCategoriesSheet(context, controller),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.tune_rounded, size: 15, color: AppColors.primary),
+                      const SizedBox(width: 4),
+                      Text(
+                        'manage_categories'.tr,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary),
                       ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  InkWell(
-                    onTap: () => showAddEditCategoryDialog(
-                      context: context,
-                      controller: controller,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.add_circle_outline, size: 15, color: AppColors.primary),
-                          const SizedBox(width: 4),
-                          Text(
-                            'add_category'.tr,
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+                ),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.all(4),
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                icon: const Icon(Icons.add_circle_outline, size: 18, color: AppColors.primary),
+                tooltip: 'add_category'.tr,
+                onPressed: () => showAddEditCategoryDialog(
+                  context: context,
+                  controller: controller,
+                ),
               ),
             ],
           ),
@@ -994,6 +990,42 @@ class MyPropertyScreen extends StatelessWidget {
                     ),
                   );
                 }),
+                // Quick Add Category Chip
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => showAddEditCategoryDialog(
+                      context: context,
+                      controller: controller,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.4),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.add_rounded, size: 15, color: AppColors.primary),
+                          const SizedBox(width: 4),
+                          Text(
+                            'add_category'.tr,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),

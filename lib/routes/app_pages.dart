@@ -5,6 +5,9 @@ import '../screens/auth/forgot_password_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/otp_screen.dart';
 import '../screens/checkout/cart_screen.dart';
+import '../screens/corporate/corporate_dashboard_screen.dart';
+import '../screens/corporate/create_corporate_delivery_screen.dart';
+import '../screens/courier/courier_history_screen.dart';
 import '../screens/courier/courier_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/main_navigation.dart';
@@ -93,6 +96,10 @@ class AppPages {
       page: () => const CourierScreen(),
     ),
     GetPage(
+      name: AppRoutes.courierHistory,
+      page: () => const CourierHistoryScreen(),
+    ),
+    GetPage(
       name: AppRoutes.myProperty,
       page: () => const MyPropertiesListScreen(),
     ),
@@ -107,6 +114,14 @@ class AppPages {
     GetPage(
       name: AppRoutes.editProperty,
       page: () => const RegisterPropertyScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.corporateDashboard,
+      page: () => const CorporateDashboardScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.createCorporateOrder,
+      page: () => const CreateCorporateDeliveryScreen(),
     ),
   ];
 }

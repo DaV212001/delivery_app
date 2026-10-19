@@ -7,7 +7,9 @@ import 'package:delivery_app/config/storage_config.dart';
 import 'package:delivery_app/config/translations.dart';
 import 'package:delivery_app/constants/pages.dart';
 import 'package:delivery_app/controllers/auth_controller.dart';
+import 'package:delivery_app/controllers/courier_controller.dart';
 import 'package:delivery_app/controllers/profile_controller.dart';
+import 'package:delivery_app/screens/courier/courier_history_screen.dart';
 import 'package:delivery_app/screens/courier/courier_screen.dart';
 import 'package:delivery_app/screens/home/widgets/home_courier_section.dart';
 
@@ -130,6 +132,109 @@ void main() {
       expect(find.text('Please specify pick-up address'), findsOneWidget);
       await tester.pump(const Duration(seconds: 4));
       await tester.pumpAndSettle();
+    });
+
+    testWidgets('CourierScreen displays Map selection badges on address cards',
+        (tester) async {
+      await tester.pumpWidget(
+        GetMaterialApp(
+          translations: AppTranslations(),
+          locale: const Locale('en', 'US'),
+          initialRoute: AppRoutes.courier,
+          getPages: [
+            GetPage(name: AppRoutes.courier, page: () => const CourierScreen()),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Check map badges on pick-up and drop-off cards
+      expect(find.text('Map'), findsNWidgets(2));
+      expect(find.byIcon(Icons.map_rounded), findsNWidgets(2));
+    });
+
+    testWidgets('CourierScreen displays distance & fare container when coordinates are set',
+        (tester) async {
+      await tester.pumpWidget(
+        GetMaterialApp(
+          translations: AppTranslations(),
+          locale: const Locale('en', 'US'),
+          initialRoute: AppRoutes.courier,
+          getPages: [
+            GetPage(name: AppRoutes.courier, page: () => const CourierScreen()),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Programmatically set coordinates via CourierController
+      final controller = Get.find<CourierController>();
+      controller.setLocation(
+        isPickup: true,
+        lat: 9.02497,
+        lng: 38.74689,
+        address: 'Bole Medhanialem',
+      );
+      controller.setLocation(
+        isPickup: false,
+        lat: 8.98060,
+        lng: 38.75780,
+        address: 'Sarbet',
+      );
+
+      await tester.pumpAndSettle();
+
+      // Check route calculation bar appeared
+      expect(find.byIcon(Icons.route_rounded), findsOneWidget);
+      expect(find.textContaining('km'), findsWidgets);
+      expect(find.textContaining('ETB'), findsWidgets);
+    });
+
+    testWidgets('CourierScreen has History AppBar action that opens tabbed CourierHistoryScreen',
+        (tester) async {
+      await tester.pumpWidget(
+        GetMaterialApp(
+          translations: AppTranslations(),
+          locale: const Locale('en', 'US'),
+          initialRoute: AppRoutes.courier,
+          getPages: [
+            GetPage(name: AppRoutes.courier, page: () => const CourierScreen()),
+            GetPage(name: AppRoutes.courierHistory, page: () => const CourierHistoryScreen()),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Find AppBar history icon
+      final historyIcon = find.byIcon(Icons.history_rounded);
+      expect(historyIcon, findsOneWidget);
+
+      // Verify active badge counter shows up
+      expect(find.text('1'), findsWidgets);
+
+      // Tap history icon to navigate to CourierHistoryScreen
+      await tester.tap(historyIcon);
+      await tester.pumpAndSettle();
+
+      // Verify on CourierHistoryScreen
+      expect(find.text('My Deliveries'), findsOneWidget);
+
+      // Verify tabs exist: "Active" and "Past Deliveries"
+      expect(find.widgetWithText(Tab, 'Past Deliveries'), findsOneWidget);
+
+      // In test mode, active order #CR-1 is loaded in Active tab
+      expect(find.text('#CR-1'), findsOneWidget);
+      expect(find.text('To: Bluye'), findsOneWidget);
+
+      // Tap on "Past Deliveries" tab
+      final pastTab = find.widgetWithText(Tab, 'Past Deliveries');
+      await tester.tap(pastTab);
+      await tester.pumpAndSettle();
+
+      // Verify past order #CR-99 is loaded
+      expect(find.text('#CR-99'), findsOneWidget);
+      expect(find.text('To: Kidus'), findsOneWidget);
+      expect(find.text('Delivered'), findsOneWidget);
     });
   });
 }

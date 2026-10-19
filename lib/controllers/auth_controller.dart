@@ -1,16 +1,27 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../config/storage_config.dart';
 import '../constants/pages.dart';
+import '../controllers/cart_controller.dart';
+import '../controllers/corporate_controller.dart';
+import '../controllers/my_property_controller.dart';
+import '../controllers/order_controller.dart';
 import '../controllers/profile_controller.dart';
+import '../controllers/restaurant_controller.dart';
 import '../models/user_profile.dart';
 import '../services/auth_service.dart';
+import '../services/customer_socket_service.dart';
 import '../services/profile_service.dart';
+import '../services/user_location_service.dart';
 import '../utils/api_call_status.dart';
 
 class AuthController extends GetxController {
+  static bool get isInTest =>
+      Get.testMode || Platform.environment.containsKey('FLUTTER_TEST');
+
   final _isLoggedIn = false.obs;
   bool get isLoggedIn => _isLoggedIn.value;
   bool get isGuest => !_isLoggedIn.value;
@@ -80,6 +91,10 @@ class AuthController extends GetxController {
           lastName = parts.sublist(1).join(' ');
         }
       }
+      final savedType = ConfigPreference.getUserType() ?? '0';
+      final savedCompanyId = ConfigPreference.getUserCompanyId() ?? '0';
+      final savedBranchId = ConfigPreference.getUserBranchId() ?? '0';
+
       _user.value = UserProfile(
         id: savedUserId?.toString() ?? '',
         name: savedName ?? 'Customer',
@@ -93,6 +108,9 @@ class AuthController extends GetxController {
         totalOrders: 0,
         defaultAddress: 'Addis Ababa, Ethiopia',
         walletAmount: 0.0,
+        type: savedType,
+        companyId: savedCompanyId,
+        branchId: savedBranchId,
       );
       refreshUserProfile();
     } else {
@@ -110,7 +128,51 @@ class AuthController extends GetxController {
         if (p.avatarUrl.isNotEmpty) {
           await ConfigPreference.setUserAvatar(p.avatarUrl);
         }
+        await ConfigPreference.setUserType(p.type);
+        await ConfigPreference.setUserCompanyId(p.companyId);
+        await ConfigPreference.setUserBranchId(p.branchId);
+        if (p.isCorporateUser && Get.isRegistered<CorporateController>()) {
+          Get.find<CorporateController>().loadDashboard();
+        }
       }
+    }
+  }
+
+  /// Triggers loading and hydration of all data domains upon successful authentication.
+  Future<void> onLoginSuccess() async {
+    // 1. Refresh user profile details
+    refreshUserProfile();
+
+    // 2. Refresh profile data if already active
+    if (Get.isRegistered<ProfileController>() && !Get.isPrepared<ProfileController>()) {
+      Get.find<ProfileController>().loadProfileData();
+    }
+
+    // 3. Connect real-time tracking socket if already active
+    if (Get.isRegistered<CustomerSocketService>() && !Get.isPrepared<CustomerSocketService>()) {
+      CustomerSocketService.to.connect();
+    }
+
+    // 4. Load user orders if already active
+    if (Get.isRegistered<OrderController>() && !Get.isPrepared<OrderController>()) {
+      Get.find<OrderController>().loadOrders();
+    }
+
+    // 5. Reload catalog & location distances if already active
+    if (Get.isRegistered<RestaurantController>() && !Get.isPrepared<RestaurantController>()) {
+      final rc = Get.find<RestaurantController>();
+      rc.loadRestaurants();
+      rc.requestLocationAndCalculateDistances();
+    }
+
+    // 6. Reload properties if merchant controller is already active
+    if (Get.isRegistered<MyPropertyController>() && !Get.isPrepared<MyPropertyController>()) {
+      Get.find<MyPropertyController>().loadProperties(forceRefresh: true);
+    }
+
+    // 7. Update live location
+    if (Get.isRegistered<UserLocationService>()) {
+      Get.find<UserLocationService>().updateLocation();
     }
   }
 
@@ -165,21 +227,20 @@ class AuthController extends GetxController {
         final profile = UserProfile.fromJson(data);
         _user.value = profile;
 
-        // Refresh wallet, addresses, and full profile in background
-        refreshUserProfile();
-        if (Get.isRegistered<ProfileController>()) {
-          Get.find<ProfileController>().loadProfileData();
-        }
+        // Hydrate all data across all controllers & services before/during navigation
+        await onLoginSuccess();
 
-        Get.offAllNamed(AppRoutes.mainNav);
-        Get.snackbar(
-          'welcome_back'.tr,
-          '${'success'.tr}: ${_user.value.name}',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.green.withValues(alpha: 0.8),
-          colorText: Colors.white,
-          duration: const Duration(seconds: 2),
-        );
+        if (!isInTest) {
+          Get.offAllNamed(AppRoutes.mainNav);
+          Get.snackbar(
+            'welcome_back'.tr,
+            '${'success'.tr}: ${_user.value.name}',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green.withValues(alpha: 0.8),
+            colorText: Colors.white,
+            duration: const Duration(seconds: 2),
+          );
+        }
       },
       onFailure: (error) {
         isLoading.value = false;
@@ -317,20 +378,19 @@ class AuthController extends GetxController {
 
         _isLoggedIn.value = true;
 
-        // Refresh profile data now that we have a real user
-        refreshUserProfile();
-        if (Get.isRegistered<ProfileController>()) {
-          Get.find<ProfileController>().loadProfileData();
-        }
+        // Hydrate all data across all controllers & services before/during navigation
+        await onLoginSuccess();
 
-        Get.offAllNamed(AppRoutes.mainNav);
-        Get.snackbar(
-          'account_verified'.tr,
-          '${'welcome_back'.tr}, $name!',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.green.withValues(alpha: 0.8),
-          colorText: Colors.white,
-        );
+        if (!isInTest) {
+          Get.offAllNamed(AppRoutes.mainNav);
+          Get.snackbar(
+            'account_verified'.tr,
+            '${'welcome_back'.tr}, $name!',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green.withValues(alpha: 0.8),
+            colorText: Colors.white,
+          );
+        }
       },
       onFailure: (error) {
         Get.snackbar(
@@ -607,6 +667,36 @@ class AuthController extends GetxController {
     _isLoggedIn.value = false;
     await ConfigPreference.clearTokens();
     _user.value = emptyUser;
-    Get.offAllNamed(AppRoutes.login);
+
+    // Disconnect real-time tracking socket
+    if (Get.isRegistered<CustomerSocketService>() && !Get.isPrepared<CustomerSocketService>()) {
+      CustomerSocketService.to.disconnect();
+    }
+
+    // Clear user orders
+    if (Get.isRegistered<OrderController>() && !Get.isPrepared<OrderController>()) {
+      Get.find<OrderController>().clear();
+    }
+
+    // Reset profile data
+    if (Get.isRegistered<ProfileController>() && !Get.isPrepared<ProfileController>()) {
+      Get.find<ProfileController>().clear();
+    }
+
+    // Clear cart
+    if (Get.isRegistered<CartController>()) {
+      final cc = Get.find<CartController>();
+      cc.clearCart();
+      cc.deliveryAddress.value = '';
+    }
+
+    // Clear merchant properties if loaded
+    if (Get.isRegistered<MyPropertyController>() && !Get.isPrepared<MyPropertyController>()) {
+      Get.find<MyPropertyController>().clear();
+    }
+
+    if (!isInTest) {
+      Get.offAllNamed(AppRoutes.login);
+    }
   }
 }

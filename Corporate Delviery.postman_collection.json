@@ -1,0 +1,194 @@
+{
+  "info": {
+    "_postman_id": "af11bdd2-0dad-4ee1-94ef-644ffa35d274",
+    "name": "Corporate Delviery",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "12394693",
+    "_collection_link": "https://go.postman.co/collection/12394693-af11bdd2-0dad-4ee1-94ef-644ffa35d274?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "My Company",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.amnplc.com/api/my-company/1",
+          "protocol": "https",
+          "host": [
+            "api",
+            "amnplc",
+            "com"
+          ],
+          "path": [
+            "api",
+            "my-company",
+            "1"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Branch by Company ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.amnplc.com/api/branch-by-company-id/1",
+          "protocol": "https",
+          "host": [
+            "api",
+            "amnplc",
+            "com"
+          ],
+          "path": [
+            "api",
+            "branch-by-company-id",
+            "1"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Item List",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.amnplc.com/api/item-list",
+          "protocol": "https",
+          "host": [
+            "api",
+            "amnplc",
+            "com"
+          ],
+          "path": [
+            "api",
+            "item-list"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Delivery Options",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.amnplc.com/api/company-delivery-options-by-company-id/1",
+          "protocol": "https",
+          "host": [
+            "api",
+            "amnplc",
+            "com"
+          ],
+          "path": [
+            "api",
+            "company-delivery-options-by-company-id",
+            "1"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Company Order",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"reciver_branch_id\": 2,\n    \"item_id\": 105,\n    \"sender_user_id\": 12,\n    \"driver_id\": 3,\n    \"car_type_id\": 4,\n    \"km_price\": 25.50,\n    \"total_km\": 12.4,\n    \"total_price\": 316.20,\n    \"satus\": 0,\n    \"remark\": \"Fragile items, please handle with care\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://api.amnplc.com/api/company-order",
+          "protocol": "https",
+          "host": [
+            "api",
+            "amnplc",
+            "com"
+          ],
+          "path": [
+            "api",
+            "company-order"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Pending Order",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.amnplc.com/api/pending-company-order/12",
+          "protocol": "https",
+          "host": [
+            "api",
+            "amnplc",
+            "com"
+          ],
+          "path": [
+            "api",
+            "pending-company-order",
+            "12"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Finished Order",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.amnplc.com/api/finihsed-company-order/12",
+          "protocol": "https",
+          "host": [
+            "api",
+            "amnplc",
+            "com"
+          ],
+          "path": [
+            "api",
+            "finihsed-company-order",
+            "12"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Branch By User Id",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.amnplc.com/api/branch-by-user-id/1",
+          "protocol": "https",
+          "host": [
+            "api",
+            "amnplc",
+            "com"
+          ],
+          "path": [
+            "api",
+            "branch-by-user-id",
+            "1"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

@@ -438,4 +438,12 @@ class MyPropertyController extends GetxController {
     }
     return false;
   }
+
+  /// Reset all merchant property and catalog state (called on logout)
+  void clear() {
+    properties.clear();
+    selectedProperty.value = null;
+    categories.clear();
+    menuItems.clear();
+  }
 }

@@ -5,6 +5,7 @@ import '../../controllers/cart_controller.dart';
 import '../../controllers/order_controller.dart';
 import '../../controllers/profile_controller.dart';
 import '../../controllers/restaurant_controller.dart';
+import '../../config/storage_config.dart';
 import '../../constants/pages.dart';
 import '../../core/theme/app_colors.dart';
 import '../../services/gebeta_location_service.dart';
@@ -28,6 +29,16 @@ class _CartScreenState extends State<CartScreen> {
   @override
   void initState() {
     super.initState();
+    final cached = ConfigPreference.getUserAddress();
+    if (cached != null && cached.isNotEmpty) {
+      _currentLocationAddress = cached;
+      if (Get.isRegistered<CartController>()) {
+        final cart = Get.find<CartController>();
+        if (cart.deliveryAddress.value.isEmpty) {
+          cart.deliveryAddress.value = cached;
+        }
+      }
+    }
     _fetchCurrentLocation();
     if (Get.isRegistered<ProfileController>()) {
       Get.find<ProfileController>().loadAddresses();

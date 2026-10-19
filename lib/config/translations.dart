@@ -343,6 +343,23 @@ class AppTranslations extends Translations {
           'courier_request_success': 'Courier Request Placed!',
           'courier_request_success_sub': 'A courier rider is being assigned to your delivery request.',
 
+          // Corporate Service & Delivery
+          'corporate_service': 'Corporate Service',
+          'corporate_delivery': 'Corporate Delivery',
+          'corporate_dashboard': 'Corporate Service',
+          'new_corporate_delivery': 'New Corporate Delivery',
+          'origin_sender_branch': 'ORIGIN (SENDER BRANCH)',
+          'destination_receiver_branch': 'DESTINATION (RECEIVER BRANCH)',
+          'item_to_dispatch': 'ITEM TO DISPATCH',
+          'delivery_option_vehicle': 'DELIVERY OPTION / VEHICLE',
+          'remarks_optional': 'REMARKS / SPECIAL INSTRUCTIONS (OPTIONAL)',
+          'distance_haversine': 'Distance (Haversine)',
+          'rate_per_km': 'Rate per km',
+          'estimated_total': 'Estimated Total',
+          'confirm_dispatch_delivery': 'Confirm & Dispatch Delivery',
+          'no_pending_corporate_orders': 'No pending corporate orders',
+          'no_finished_corporate_orders': 'No finished corporate orders',
+
           // Merchant & Property Management
           'my_property': 'My Property',
           'my_properties': 'My Properties',

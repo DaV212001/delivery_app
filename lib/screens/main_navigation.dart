@@ -9,9 +9,13 @@ import 'profile/profile_screen.dart';
 
 class MainNavigationController extends GetxController {
   final currentIndex = 0.obs;
+  final visitedTabs = <int>{0}.obs;
+
+  bool isTabVisited(int index) => visitedTabs.contains(index);
 
   void changePage(int index) {
     currentIndex.value = index;
+    visitedTabs.add(index);
   }
 }
 
@@ -20,23 +24,28 @@ class MainNavigationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final nav = Get.put(MainNavigationController());
-    final cartController = Get.find<CartController>();
+    final nav = Get.isRegistered<MainNavigationController>()
+        ? Get.find<MainNavigationController>()
+        : Get.put(MainNavigationController());
+    final cartController = Get.isRegistered<CartController>()
+        ? Get.find<CartController>()
+        : Get.put(CartController());
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final pages = const [
-      HomeScreen(),
-      CartScreen(),
-      OrderHistoryScreen(),
-      ProfileScreen(),
-    ];
-
     return Scaffold(
-      body: Obx(() => IndexedStack(
-            index: nav.currentIndex.value,
-            children: pages,
-          )),
+      body: Obx(() {
+        final current = nav.currentIndex.value;
+        return IndexedStack(
+          index: current,
+          children: [
+            const HomeScreen(),
+            nav.isTabVisited(1) ? const CartScreen() : const SizedBox.shrink(),
+            nav.isTabVisited(2) ? const OrderHistoryScreen() : const SizedBox.shrink(),
+            nav.isTabVisited(3) ? const ProfileScreen() : const SizedBox.shrink(),
+          ],
+        );
+      }),
       bottomNavigationBar: Obx(() {
         final current = nav.currentIndex.value;
         final cartCount = cartController.totalItemCount;

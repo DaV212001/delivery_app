@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../controllers/auth_controller.dart';
 import '../../controllers/restaurant_controller.dart';
 import '../../constants/pages.dart';
 import '../../core/theme/app_colors.dart';
@@ -7,6 +8,7 @@ import '../../utils/api_call_status.dart';
 import '../../utils/templates/loaded_widgets_template.dart';
 import '../../widgets/skeletons/skeleton_loaders.dart';
 import 'widgets/circular_categories_bar.dart';
+import 'widgets/home_corporate_section.dart';
 import 'widgets/home_courier_section.dart';
 import 'widgets/home_filter_bottom_sheet.dart';
 import 'widgets/promotional_carousel_section.dart';
@@ -25,11 +27,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (Get.isRegistered<RestaurantController>()) {
-        Get.find<RestaurantController>().requestLocationAndCalculateDistances();
-      }
-    });
   }
 
   @override
@@ -157,6 +154,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                     // 3. Courier Delivery Banner ("Thinking of sending anything?")
                     const HomeCourierSection(),
+
+                    // Corporate Service Card (displayed under courier service card if type is 1 and company & branch id != 0)
+                    Obx(() {
+                      if (!Get.isRegistered<AuthController>()) {
+                        return const SizedBox.shrink();
+                      }
+                      final auth = Get.find<AuthController>();
+                      if (!auth.user.isCorporateUser) {
+                        return const SizedBox.shrink();
+                      }
+                      return const HomeCorporateSection();
+                    }),
 
                     const SizedBox(height: 24),
 

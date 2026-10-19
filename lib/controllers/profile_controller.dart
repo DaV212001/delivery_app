@@ -62,6 +62,15 @@ class ProfileController extends GetxController {
     status.value = ApiCallStatus.success;
   }
 
+  /// Reset all user-specific profile state (called on logout)
+  void clear() {
+    walletBalance.value = const WalletBalance(amount: 0.0);
+    transactions.clear();
+    addresses.clear();
+    selectedAddress.value = null;
+    status.value = ApiCallStatus.holding;
+  }
+
   Future<void> loadWallet() async {
     final uid = customerId;
     if (uid == null) {

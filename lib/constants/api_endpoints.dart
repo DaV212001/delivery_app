@@ -66,6 +66,21 @@ class ApiEndpoints {
   static const String termsAndConditions = '/term_and_condition';
   static const String faq = '/faq';
 
+  // Corporate endpoints
+  static String myCompany(dynamic companyId) => '/my-company/$companyId';
+  static String branchByCompanyId(dynamic companyId) => '/branch-by-company-id/$companyId';
+  static const String itemList = '/item-list';
+  static String companyDeliveryOptions(dynamic companyId) => '/company-delivery-options-by-company-id/$companyId';
+  static const String companyOrder = '/company-order';
+  static String pendingCompanyOrders(dynamic userId) => '/pending-company-order/$userId';
+  static String finishedCompanyOrders(dynamic userId) => '/finihsed-company-order/$userId';
+  static String branchByUserId(dynamic userId) => '/branch-by-user-id/$userId';
+
+  // Courier endpoints
+  static const String courierOrder = '/courirer-order';
+  static String activeCourierOrders(dynamic userId) => '/my_active_courirer_order/$userId';
+  static String pastCourierOrders(dynamic userId) => '/my_past_courirer_order/$userId';
+
   // Real-Time Socket Server (Render)
   static const String socketServerUrl = 'https://amn-delivery-socket-server.onrender.com';
 }

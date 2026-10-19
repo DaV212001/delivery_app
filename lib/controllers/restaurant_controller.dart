@@ -11,6 +11,7 @@ import '../models/store.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/gebeta_location_service.dart';
 import '../services/property_service.dart';
+import '../services/user_location_service.dart';
 import '../utils/api_call_status.dart';
 import '../utils/location_utils.dart';
 import 'profile_controller.dart';
@@ -55,6 +56,7 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
     super.onInit();
     WidgetsBinding.instance.addObserver(this);
     _loadFavorites();
+    _loadCachedLocation();
     if (DioConfig.isTestMode) {
       restaurants.assignAll(MockData.restaurants);
       promotions.assignAll(MockData.promotions);
@@ -64,6 +66,17 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
       loadRestaurants();
       requestLocationAndCalculateDistances();
     }
+  }
+
+  void _loadCachedLocation() {
+    try {
+      final savedLat = ConfigPreference.getUserLatitude();
+      final savedLng = ConfigPreference.getUserLongitude();
+      if (savedLat != null && savedLng != null) {
+        userLat.value = savedLat;
+        userLng.value = savedLng;
+      }
+    } catch (_) {}
   }
 
   @override
@@ -91,15 +104,23 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
 
     isLocationLoading.value = true;
     try {
-      final pos = await GebetaLocationService.getCurrentPosition(
-        promptIfDeniedForever: promptIfDeniedForever,
-      );
+      Position? pos;
+      if (Get.isRegistered<UserLocationService>()) {
+        pos = await Get.find<UserLocationService>().updateLocation(
+          promptIfDeniedForever: promptIfDeniedForever,
+        );
+      } else {
+        pos = await GebetaLocationService.getCurrentPosition(
+          promptIfDeniedForever: promptIfDeniedForever,
+        );
+      }
 
       if (pos != null) {
         userLat.value = pos.latitude;
         userLng.value = pos.longitude;
         locationPermissionDenied.value = false;
         locationServiceDisabled.value = false;
+        await ConfigPreference.setUserLocation(pos.latitude, pos.longitude);
         recalculateStoreDistances();
       } else {
         final recheckService = await Geolocator.isLocationServiceEnabled();
@@ -169,6 +190,11 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
   void updateUserLocation(double lat, double lng) {
     userLat.value = lat;
     userLng.value = lng;
+    ConfigPreference.setUserLocation(lat, lng);
+    if (Get.isRegistered<UserLocationService>()) {
+      Get.find<UserLocationService>().currentLatitude.value = lat;
+      Get.find<UserLocationService>().currentLongitude.value = lng;
+    }
     recalculateStoreDistances();
   }
 
@@ -372,9 +398,10 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
     if (sortBy.value == 'rating') {
       list.sort((a, b) => b.rating.compareTo(a.rating));
     } else if (sortBy.value == 'fastest') {
-      final profileController = Get.isRegistered<ProfileController>()
-          ? Get.find<ProfileController>()
-          : null;
+      final profileController =
+          Get.isRegistered<ProfileController>() && !Get.isPrepared<ProfileController>()
+              ? Get.find<ProfileController>()
+              : null;
       final uLat = userLat.value ?? profileController?.activeLatitude;
       final uLng = userLng.value ?? profileController?.activeLongitude;
       list.sort((a, b) {
@@ -476,9 +503,10 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
     if (sortBy.value == 'rating') {
       list.sort((a, b) => b.rating.compareTo(a.rating));
     } else if (sortBy.value == 'fastest') {
-      final profileController = Get.isRegistered<ProfileController>()
-          ? Get.find<ProfileController>()
-          : null;
+      final profileController =
+          Get.isRegistered<ProfileController>() && !Get.isPrepared<ProfileController>()
+              ? Get.find<ProfileController>()
+              : null;
       final uLat = userLat.value ?? profileController?.activeLatitude;
       final uLng = userLng.value ?? profileController?.activeLongitude;
       list.sort((a, b) {

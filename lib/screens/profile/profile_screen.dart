@@ -555,9 +555,13 @@ class ProfileScreen extends StatelessWidget {
         centerTitle: false,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-          child: Obx(() {
+        child: RefreshIndicator(
+          color: AppColors.primary,
+          onRefresh: () => profileController.loadProfileData(),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+            child: Obx(() {
             final isLoggedIn = authController.isLoggedIn;
 
             // GUEST MODE: Show guest header, sign in button, and support/preferences
@@ -914,7 +918,8 @@ class ProfileScreen extends StatelessWidget {
           }),
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildPreferencesGroup(

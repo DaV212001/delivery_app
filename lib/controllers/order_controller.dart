@@ -302,5 +302,12 @@ class OrderController extends GetxController {
   void cancelOrder() {
     activeOrder.value = null;
   }
+
+  /// Reset all order state (called on logout)
+  void clear() {
+    activeOrder.value = null;
+    pastOrders.clear();
+    status.value = ApiCallStatus.success;
+  }
 }
 

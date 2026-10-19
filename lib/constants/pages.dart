@@ -16,10 +16,13 @@ class AppRoutes {
   static const String forgotPassword = '/forgot-password';
   static const String editProfile = '/edit-profile';
   static const String courier = '/courier';
+  static const String courierHistory = '/courier-history';
   static const String myProperty = '/my-property';
   static const String manageProperty = '/manage-property';
   static const String registerProperty = '/register-property';
   static const String editProperty = '/edit-property';
+  static const String corporateDashboard = '/corporate-dashboard';
+  static const String createCorporateOrder = '/create-corporate-order';
 
   // Compatible alias required by SKILL.md AuthInterceptor
   static const String loginRoute = login;
