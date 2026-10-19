@@ -15,6 +15,7 @@ import 'package:delivery_app/screens/wallet/payment_webview_screen.dart';
 import 'package:delivery_app/utils/location_utils.dart';
 import 'package:delivery_app/data/mock_data.dart';
 import 'package:delivery_app/config/translations.dart';
+import 'package:delivery_app/models/wallet_model.dart';
 
 void main() {
   group('Order & Payment Flow New Specifications Tests', () {
@@ -227,6 +228,69 @@ void main() {
 
       // Verify controller updated back to chapa
       expect(cartController.selectedPaymentMethod.value, 'chapa');
+    });
+
+    testWidgets('CartScreen shows wallet card when wallet is selected and validates insufficient balance on place order', (tester) async {
+      SharedPreferences.setMockInitialValues({'user_id': 1});
+      await ConfigPreference.init();
+      Get.reset();
+      final cartController = Get.put(CartController());
+      Get.put(RestaurantController());
+      final authController = Get.put(AuthController());
+      authController.user = authController.user.copyWith(id: '1');
+      Get.put(OrderController());
+      final profileController = Get.put(ProfileController());
+      profileController.walletBalance.value = const WalletBalance(amount: 5.0);
+
+      tester.view.physicalSize = const Size(800, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      cartController.addItem(
+        item: MockData.freshStrawberries,
+        quantity: 1,
+      );
+
+      await tester.pumpWidget(
+        GetMaterialApp(
+          translations: AppTranslations(),
+          locale: const Locale('en', 'US'),
+          home: const CartScreen(),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Wallet card button should not be visible when Chapa is selected
+      expect(cartController.selectedPaymentMethod.value, 'chapa');
+      expect(find.byKey(const ValueKey('wallet_top_up_button')), findsNothing);
+
+      // Select Wallet
+      final walletOption = find.text('AMN Wallet');
+      await tester.ensureVisible(walletOption);
+      await tester.tap(walletOption);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(cartController.selectedPaymentMethod.value, 'wallet');
+      // Wallet card with top up button is now visible
+      expect(find.byKey(const ValueKey('wallet_top_up_button')), findsOneWidget);
+
+      // Attempt to place order with insufficient balance (15.0 < cart total)
+      final placeOrderButton = find.textContaining('Place Order');
+      expect(placeOrderButton, findsOneWidget);
+      await tester.ensureVisible(placeOrderButton);
+      await tester.tap(placeOrderButton);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Check snackbar message appears
+      expect(find.text("You don't have enough balance in your wallet, please topup and try again"), findsOneWidget);
+
+      // Advance timers so highlight timer and snackbar dismiss cleanly
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pump(const Duration(seconds: 1));
     });
   });
 }

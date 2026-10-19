@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/auth_controller.dart';
@@ -31,6 +32,30 @@ class _CartScreenState extends State<CartScreen> {
   final _promoController = TextEditingController();
   String? _currentLocationAddress;
   bool _isLoadingCurrentLocation = false;
+  final GlobalKey _walletCardKey = GlobalKey();
+  final RxBool _isTopUpHighlighted = false.obs;
+  Timer? _highlightTimer;
+
+  void _scrollToWalletCard() {
+    if (_walletCardKey.currentContext != null) {
+      Scrollable.ensureVisible(
+        _walletCardKey.currentContext!,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOutCubic,
+        alignment: 0.1,
+      );
+    }
+  }
+
+  void _highlightTopUpButton() {
+    _isTopUpHighlighted.value = true;
+    _highlightTimer?.cancel();
+    _highlightTimer = Timer(const Duration(milliseconds: 1400), () {
+      if (mounted) {
+        _isTopUpHighlighted.value = false;
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -46,9 +71,11 @@ class _CartScreenState extends State<CartScreen> {
       }
     }
     _fetchCurrentLocation();
-    if (Get.isRegistered<ProfileController>()) {
-      Get.find<ProfileController>().loadAddresses();
-    }
+    final profileCtrl = Get.isRegistered<ProfileController>()
+        ? Get.find<ProfileController>()
+        : Get.put(ProfileController());
+    profileCtrl.loadAddresses();
+    profileCtrl.loadWallet();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _syncLocationsAndDeliveryOptions();
     });
@@ -130,6 +157,7 @@ class _CartScreenState extends State<CartScreen> {
 
   @override
   void dispose() {
+    _highlightTimer?.cancel();
     _promoController.dispose();
     super.dispose();
   }
@@ -651,6 +679,182 @@ class _CartScreenState extends State<CartScreen> {
 
                     const SizedBox(height: 24),
 
+                    // Wallet Balance Card (visible when AMN Wallet is selected)
+                    Obx(() {
+                      if (cartController.selectedPaymentMethod.value != 'wallet') {
+                        return const SizedBox.shrink();
+                      }
+                      final profileController = Get.isRegistered<ProfileController>()
+                          ? Get.find<ProfileController>()
+                          : Get.put(ProfileController());
+                      final walletBalance = profileController.walletBalance.value.amount;
+                      final orderTotal = cartController.total;
+                      final isInsufficient = walletBalance < orderTotal;
+                      final diff = orderTotal - walletBalance;
+
+                      return Container(
+                        key: _walletCardKey,
+                        margin: const EdgeInsets.only(bottom: 20),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: isDark ? AppColors.darkSurfaceContainerLowest : Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isInsufficient
+                                ? AppColors.error.withValues(alpha: 0.5)
+                                : AppColors.primary.withValues(alpha: 0.35),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (isInsufficient ? AppColors.error : AppColors.primary)
+                                  .withValues(alpha: 0.08),
+                              blurRadius: 12,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: (isInsufficient ? AppColors.error : AppColors.primary)
+                                        .withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(
+                                    Icons.account_balance_wallet_rounded,
+                                    color: isInsufficient ? AppColors.error : AppColors.primary,
+                                    size: 22,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'wallet_balance'.tr,
+                                        style: theme.textTheme.bodyMedium?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        isInsufficient
+                                            ? '${'insufficient_wallet_balance'.tr} (-${diff.toStringAsFixed(2)} Br)'
+                                            : 'ready_to_pay'.tr,
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          color: isInsufficient
+                                              ? AppColors.error
+                                              : Colors.green.shade600,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 11.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (profileController.isLoadingWallet.value)
+                                  const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                else
+                                  Text(
+                                    '${walletBalance.toStringAsFixed(2)} Br',
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      color: isInsufficient ? AppColors.error : AppColors.primary,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            Divider(
+                              height: 1,
+                              color: isDark ? AppColors.darkOutline.withValues(alpha: 0.3) : Colors.grey.shade200,
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    isInsufficient
+                                        ? 'please_topup_wallet'.tr
+                                        : 'wallet_subtitle'.tr,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Obx(() {
+                                  final isHighlighted = _isTopUpHighlighted.value;
+                                  return AnimatedScale(
+                                    scale: isHighlighted ? 1.08 : 1.0,
+                                    duration: const Duration(milliseconds: 300),
+                                    curve: Curves.easeInOutBack,
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 300),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(10),
+                                        boxShadow: isHighlighted
+                                            ? [
+                                                BoxShadow(
+                                                  color: (isInsufficient ? AppColors.error : AppColors.primary)
+                                                      .withValues(alpha: 0.7),
+                                                  blurRadius: 16,
+                                                  spreadRadius: 3,
+                                                ),
+                                              ]
+                                            : [],
+                                      ),
+                                      child: ElevatedButton.icon(
+                                        key: const ValueKey('wallet_top_up_button'),
+                                        onPressed: () {
+                                          ProfileController.showTopUpDialog(
+                                            context,
+                                            suggestedAmount: isInsufficient ? diff : null,
+                                          );
+                                        },
+                                        icon: const Icon(Icons.add_circle_outline_rounded, size: 16),
+                                        label: Text(
+                                          'topup'.tr,
+                                          style: const TextStyle(fontWeight: FontWeight.w700),
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: isInsufficient ? AppColors.error : AppColors.primary,
+                                          foregroundColor: Colors.white,
+                                          side: isHighlighted
+                                              ? const BorderSide(color: Colors.white, width: 2)
+                                              : null,
+                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                          minimumSize: Size.zero,
+                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          elevation: isHighlighted ? 8 : 1,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+
                     // Payment Method Selector
                     Text(
                       'payment_method'.tr,
@@ -776,7 +980,12 @@ class _CartScreenState extends State<CartScreen> {
 
                               // 2. AMN Wallet
                               InkWell(
-                                onTap: () => cartController.selectedPaymentMethod.value = 'wallet',
+                                onTap: () {
+                                  cartController.selectedPaymentMethod.value = 'wallet';
+                                  if (Get.isRegistered<ProfileController>()) {
+                                    Get.find<ProfileController>().loadWallet();
+                                  }
+                                },
                                 borderRadius: BorderRadius.circular(12),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
@@ -1259,6 +1468,27 @@ class _CartScreenState extends State<CartScreen> {
                                       : (_currentLocationAddress ?? 'Addis Ababa');
 
                                   final paymentMethod = cartController.selectedPaymentMethod.value; // 'cash', 'chapa', 'wallet'
+
+                                  if (paymentMethod == 'wallet') {
+                                    final profileController = Get.isRegistered<ProfileController>()
+                                        ? Get.find<ProfileController>()
+                                        : Get.put(ProfileController());
+                                    if (profileController.walletBalance.value.amount < totalAmount) {
+                                      _scrollToWalletCard();
+                                      Get.snackbar(
+                                        'insufficient_wallet_balance'.tr,
+                                        'wallet_insufficient_msg'.tr,
+                                        snackPosition: SnackPosition.TOP,
+                                        backgroundColor: AppColors.error,
+                                        colorText: Colors.white,
+                                        duration: const Duration(seconds: 4),
+                                        icon: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white),
+                                      );
+                                      _highlightTopUpButton();
+                                      return;
+                                    }
+                                  }
+
                                   final uid = ConfigPreference.getUserId() ?? 1;
                                   final now = DateTime.now();
                                   final ymdDate = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -1373,19 +1603,17 @@ class _CartScreenState extends State<CartScreen> {
                                     final currentBalance = profileController.walletBalance.value.amount;
 
                                     if (currentBalance < totalAmount) {
+                                      _scrollToWalletCard();
                                       Get.snackbar(
                                         'insufficient_wallet_balance'.tr,
-                                        'please_topup_wallet'.tr,
-                                        snackPosition: SnackPosition.BOTTOM,
+                                        'wallet_insufficient_msg'.tr,
+                                        snackPosition: SnackPosition.TOP,
                                         backgroundColor: AppColors.error,
                                         colorText: Colors.white,
+                                        duration: const Duration(seconds: 4),
+                                        icon: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white),
                                       );
-                                      if (context.mounted) {
-                                        ProfileController.showTopUpDialog(
-                                          context,
-                                          suggestedAmount: totalAmount - currentBalance,
-                                        );
-                                      }
+                                      _highlightTopUpButton();
                                       return;
                                     }
 
@@ -1401,19 +1629,17 @@ class _CartScreenState extends State<CartScreen> {
                                         walletPaid = true;
                                       },
                                       onFailure: (err) {
+                                        _scrollToWalletCard();
                                         Get.snackbar(
                                           'insufficient_wallet_balance'.tr,
-                                          err,
-                                          snackPosition: SnackPosition.BOTTOM,
+                                          err.isNotEmpty ? err : 'wallet_insufficient_msg'.tr,
+                                          snackPosition: SnackPosition.TOP,
                                           backgroundColor: AppColors.error,
                                           colorText: Colors.white,
+                                          duration: const Duration(seconds: 4),
+                                          icon: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white),
                                         );
-                                        if (context.mounted) {
-                                          ProfileController.showTopUpDialog(
-                                            context,
-                                            suggestedAmount: totalAmount,
-                                          );
-                                        }
+                                        _highlightTopUpButton();
                                       },
                                     );
                                     orderController.isPlacingOrder.value = false;
