@@ -155,24 +155,29 @@ class RestaurantListItem extends StatelessWidget {
                         ),
                       ],
 
-                      // Opening and closing time
-                      if (store.formattedOperatingHours.isNotEmpty) ...[
+                      // Operating / Schedule status
+                      if (store.openStatusText.isNotEmpty) ...[
                         const SizedBox(height: 2),
                         Row(
                           children: [
                             Icon(
                               Icons.access_time_rounded,
                               size: 13,
-                              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.85),
+                              color: store.isPastClosingTime
+                                  ? const Color(0xFFDC2626)
+                                  : const Color(0xFF16A34A),
                             ),
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
-                                store.formattedOperatingHours,
+                                store.openStatusText,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
+                                  color: store.isPastClosingTime
+                                      ? const Color(0xFFDC2626)
+                                      : theme.colorScheme.onSurfaceVariant,
+                                  fontWeight: store.isPastClosingTime ? FontWeight.w600 : FontWeight.normal,
                                   fontSize: 12,
                                 ),
                               ),

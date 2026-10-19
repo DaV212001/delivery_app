@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import '../utils/location_utils.dart';
 import 'delivery_item.dart';
 import 'multilingual_string.dart';
+import 'today_schedule.dart';
 
 enum StoreType {
   grocery,
@@ -36,6 +37,7 @@ class Store {
   final double? longitude;
   final String? openingTime;
   final String? closingTime;
+  final TodaySchedule? todaySchedule;
   final List<String> categories;
   final List<DeliveryItem> items;
 
@@ -62,6 +64,7 @@ class Store {
     this.longitude,
     this.openingTime,
     this.closingTime,
+    this.todaySchedule,
     this.categories = const [],
     this.items = const [],
   });
@@ -136,6 +139,10 @@ class Store {
       );
     }
 
+    final todaySched = json['today_schedule'] != null
+        ? TodaySchedule.fromJson(json['today_schedule'])
+        : null;
+
     return Store(
       id: json['id']?.toString() ?? '',
       name: json['property_name']?.toString() ?? json['name']?.toString() ?? 'Store',
@@ -159,6 +166,7 @@ class Store {
       longitude: lng,
       openingTime: json['openning_tiem']?.toString() ?? json['opening_time']?.toString(),
       closingTime: json['closing_time']?.toString(),
+      todaySchedule: todaySched,
       categories: [catDesc],
       items: items,
     );
@@ -187,6 +195,7 @@ class Store {
     double? longitude,
     String? openingTime,
     String? closingTime,
+    TodaySchedule? todaySchedule,
     List<String>? categories,
     List<DeliveryItem>? items,
   }) {
@@ -223,6 +232,7 @@ class Store {
       longitude: longitude ?? this.longitude,
       openingTime: openingTime ?? this.openingTime,
       closingTime: closingTime ?? this.closingTime,
+      todaySchedule: todaySchedule ?? this.todaySchedule,
       categories: categories ?? this.categories,
       items: newItems,
     );
@@ -298,8 +308,11 @@ class Store {
     return open.isNotEmpty ? open : close;
   }
 
-  /// Returns true if the store is currently closed (past closing time or before opening time)
+  /// Returns true if the store is currently closed (past closing time, before opening time, or scheduled closed)
   bool get isPastClosingTime {
+    if (todaySchedule != null) {
+      return !todaySchedule!.isOpenNow;
+    }
     if (closingTime == null || closingTime!.trim().isEmpty) return false;
     try {
       final now = DateTime.now();
@@ -337,6 +350,53 @@ class Store {
   }
 
   bool get isOpen => !isPastClosingTime;
+  bool get isCurrentlyOpen => isOpen;
+
+  /// User friendly schedule status message
+  String get openStatusText {
+    if (todaySchedule != null) {
+      return todaySchedule!.statusMessage;
+    }
+    if (isPastClosingTime) {
+      final open = _formatTime(openingTime);
+      return open.isNotEmpty
+          ? '${'store_closed_opens_at'.tr} $open'
+          : 'store_currently_closed'.tr;
+    }
+    final close = _formatTime(closingTime);
+    return close.isNotEmpty
+        ? '${'open_until'.tr} $close'
+        : 'store_open'.tr;
+  }
+
+  /// Calculates next DateTime when store opens
+  DateTime get nextOpenDateTime {
+    if (todaySchedule != null) {
+      return todaySchedule!.nextOpenDateTime;
+    }
+    final now = DateTime.now();
+    int openHour = 8;
+    int openMinute = 30;
+    if (openingTime != null && openingTime!.trim().isNotEmpty) {
+      final parts = openingTime!.trim().split(':');
+      if (parts.length >= 2) {
+        openHour = int.tryParse(parts[0]) ?? 8;
+        openMinute = int.tryParse(parts[1]) ?? 30;
+      }
+    }
+    final todayOpen = DateTime(now.year, now.month, now.day, openHour, openMinute);
+    if (now.isBefore(todayOpen)) return todayOpen;
+    return todayOpen.add(const Duration(days: 1));
+  }
+
+  /// Formatted next open time string e.g. "08:30 AM"
+  String get formattedNextOpenTime {
+    if (todaySchedule != null && todaySchedule!.formattedOpenTime != null) {
+      return todaySchedule!.formattedOpenTime!;
+    }
+    final open = _formatTime(openingTime);
+    return open.isNotEmpty ? open : '08:30 AM';
+  }
 
   static String _formatTime(String? timeStr) {
     if (timeStr == null || timeStr.trim().isEmpty) return '';

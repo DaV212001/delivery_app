@@ -14,6 +14,9 @@ import '../../services/user_location_service.dart';
 import '../../utils/location_utils.dart';
 import '../../widgets/common/app_widgets.dart';
 import '../../widgets/map/property_location_picker_screen.dart';
+import '../../models/saved_order.dart';
+import '../../services/saved_order_service.dart';
+import 'widgets/closed_store_order_modal.dart';
 import '../main_navigation.dart';
 import '../wallet/payment_webview_screen.dart';
 
@@ -996,21 +999,21 @@ class _CartScreenState extends State<CartScreen> {
                           margin: const EdgeInsets.only(bottom: 12),
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
-                            color: AppColors.error.withValues(alpha: 0.1),
+                            color: const Color(0xFFFEF3C7),
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                            border: Border.all(color: const Color(0xFFFCD34D)),
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.access_time_rounded, color: AppColors.error, size: 18),
+                              const Icon(Icons.schedule_rounded, color: Color(0xFFB45309), size: 18),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  '${currentStore.name} ${'restaurant_is_closed_msg'.tr}',
+                                  '${currentStore.name} • ${'store_closed_opens_at'.tr} ${currentStore.formattedNextOpenTime}',
                                   style: const TextStyle(
-                                    color: AppColors.error,
+                                    color: Color(0xFF92400E),
                                     fontSize: 12,
-                                    fontWeight: FontWeight.w600,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                               ),
@@ -1021,22 +1024,94 @@ class _CartScreenState extends State<CartScreen> {
                       Obx(
                         () => AppButton(
                           text: isStoreClosed
-                              ? 'closed_for_ordering'.tr
+                              ? 'save_order_for_later'.tr
                               : '${'place_order'.tr} • ${cartController.total.toStringAsFixed(2)} Br',
                           isLoading: orderController.isPlacingOrder.value,
-                          onPressed: (isStoreClosed || orderController.isPlacingOrder.value)
-                              ? (isStoreClosed
-                                  ? () {
-                                      Get.snackbar(
-                                        'closed_ordering_disabled'.tr,
-                                        '${currentStore.name} ${'restaurant_is_closed_msg'.tr}',
-                                        snackPosition: SnackPosition.BOTTOM,
-                                        backgroundColor: AppColors.error,
-                                        colorText: Colors.white,
-                                      );
-                                    }
-                                  : null)
+                          onPressed: (orderController.isPlacingOrder.value)
+                              ? null
                               : () async {
+                                  if (isStoreClosed) {
+                                    await ClosedStoreOrderModal.show(
+                                      context,
+                                      store: currentStore,
+                                      totalAmount: cartController.total,
+                                      itemCount: cartController.totalItemCount,
+                                      onSaveForLater: () async {
+                                        final fItem = cartController.items.first;
+                                        final propId = int.tryParse(fItem.item.storeId) ?? 1;
+                                        final menuIds = cartController.items
+                                            .map((i) => int.tryParse(i.item.id) ?? 1)
+                                            .toList();
+                                        final quantities =
+                                            cartController.items.map((i) => i.quantity).toList();
+                                        final prices =
+                                            cartController.items.map((i) => i.item.price).toList();
+                                        final itemNames =
+                                            cartController.items.map((i) => i.item.name).toList();
+
+                                        final option = cartController.selectedDeliveryOption.value;
+                                        final deliveryOptionId = option?.id ?? 1;
+                                        final kmPrice = option?.kmPrice ?? 13.0;
+                                        final totalKmPrice = cartController.totalKmPrice;
+                                        final itemTotalPrice = cartController.subtotal;
+                                        final totalAmount = cartController.total;
+
+                                        final custLat = cartController.customerLatitude.value ?? LocationUtils.defaultLatitude;
+                                        final custLng = cartController.customerLongitude.value ?? LocationUtils.defaultLongitude;
+                                        final propLat = cartController.propertyLatitude.value ?? currentStore.latitude ?? LocationUtils.defaultLatitude;
+                                        final propLng = cartController.propertyLongitude.value ?? currentStore.longitude ?? LocationUtils.defaultLongitude;
+
+                                        final deliveryAddress = cartController.deliveryAddress.value.isNotEmpty
+                                            ? cartController.deliveryAddress.value
+                                            : (_currentLocationAddress ?? 'Addis Ababa');
+
+                                        final paymentMethod = cartController.selectedPaymentMethod.value;
+                                        String pType = '0';
+                                        if (paymentMethod == 'chapa') pType = '1';
+                                        if (paymentMethod == 'wallet') pType = '2';
+
+                                        final savedOrder = SavedOrder(
+                                          id: 'saved_${DateTime.now().millisecondsSinceEpoch}',
+                                          storeId: propId.toString(),
+                                          storeName: currentStore.name,
+                                          storeImageUrl: currentStore.heroImageUrl,
+                                          openTime: currentStore.openingTime,
+                                          scheduledOpenDateTime: currentStore.nextOpenDateTime,
+                                          createdAt: DateTime.now(),
+                                          deliveryAddress: deliveryAddress,
+                                          paymentType: pType,
+                                          menuIds: menuIds,
+                                          quantities: quantities,
+                                          prices: prices,
+                                          subtotal: itemTotalPrice,
+                                          totalKmPrice: totalKmPrice,
+                                          total: totalAmount,
+                                          deliveryOption: deliveryOptionId,
+                                          kmPrice: kmPrice,
+                                          customerLatitude: custLat,
+                                          customerLongitude: custLng,
+                                          propertyLatitude: propLat,
+                                          propertyLongitude: propLng,
+                                          itemNames: itemNames,
+                                        );
+
+                                        await SavedOrderService.saveOrder(savedOrder);
+                                        cartController.clearCart();
+
+                                        Get.snackbar(
+                                          'save_order_success'.tr,
+                                          '${'save_order_auto_submit_msg'.tr} ${currentStore.name} (${savedOrder.formattedScheduledTime})',
+                                          snackPosition: SnackPosition.TOP,
+                                          backgroundColor: Colors.green.shade700,
+                                          colorText: Colors.white,
+                                          duration: const Duration(seconds: 4),
+                                          icon: const Icon(Icons.alarm_on_rounded, color: Colors.white),
+                                        );
+                                      },
+                                    );
+                                    return;
+                                  }
+
                                   final authController = Get.isRegistered<AuthController>()
                                       ? Get.find<AuthController>()
                                       : Get.put(AuthController());

@@ -5,6 +5,7 @@ import '../models/delivery_item.dart';
 import '../models/my_menu_category_model.dart';
 import '../models/my_menu_item_model.dart';
 import '../models/my_property_model.dart';
+import '../models/paginated_properties.dart';
 import '../models/property_schedule.dart';
 import '../models/store.dart';
 import '../utils/templates/dio_template.dart';
@@ -235,6 +236,40 @@ class PropertyService {
     return list;
   }
 
+  /// Fetch paginated nearby properties based on user coordinates
+  static Future<PaginatedProperties> fetchNearbyProperties({
+    required double latitude,
+    required double longitude,
+    int page = 1,
+  }) async {
+    PaginatedProperties result = const PaginatedProperties(properties: []);
+
+    await DioService.dioGet(
+      path: ApiEndpoints.nearbyProperties(latitude, longitude, page: page),
+      onSuccess: (response) {
+        final resData = response.data;
+        if (resData is Map<String, dynamic> && resData['data'] is Map<String, dynamic>) {
+          result = PaginatedProperties.fromJson(resData['data'] as Map<String, dynamic>);
+          cacheStores(result.properties);
+        } else if (resData is Map<String, dynamic> && resData['data'] is List) {
+          final list = (resData['data'] as List)
+              .whereType<Map<String, dynamic>>()
+              .map((e) => Store.fromJson(e))
+              .toList();
+          result = PaginatedProperties(
+            properties: list,
+            currentPage: page,
+            lastPage: page,
+            total: list.length,
+          );
+          cacheStores(result.properties);
+        }
+      },
+    );
+
+    return result;
+  }
+
   /// Fetch single property detail with menus and menu categories
   static Future<Store?> fetchPropertyDetail(dynamic propertyId) async {
     Store? store;
@@ -244,9 +279,13 @@ class PropertyService {
         final resData = response.data;
         if (resData is Map<String, dynamic> && resData['data'] is Map<String, dynamic>) {
           final data = resData['data'] as Map<String, dynamic>;
-          final propJson = data['property'] is Map<String, dynamic>
+          final rawProp = data['property'] is Map<String, dynamic>
               ? data['property'] as Map<String, dynamic>
               : <String, dynamic>{};
+          final propJson = Map<String, dynamic>.from(rawProp);
+          if (propJson['today_schedule'] == null && data['today_schedule'] != null) {
+            propJson['today_schedule'] = data['today_schedule'];
+          }
 
           final categories = <String>[];
           final categoryMap = <String, String>{};

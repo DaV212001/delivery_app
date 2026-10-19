@@ -171,6 +171,11 @@ class _SpecialOfferCardState extends State<_SpecialOfferCard>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final offer = widget.offer;
+    final restaurantController = Get.isRegistered<RestaurantController>()
+        ? Get.find<RestaurantController>()
+        : null;
+    final store = restaurantController?.getRestaurantById(offer.storeId);
+    final isStoreClosed = store?.isPastClosingTime ?? false;
 
     return GestureDetector(
       onTap: widget.onTap,
@@ -238,6 +243,36 @@ class _SpecialOfferCardState extends State<_SpecialOfferCard>
                     ),
                   ),
                 ),
+                if (isStoreClosed)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.72),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.schedule_rounded, size: 10, color: Color(0xFFFBBF24)),
+                          const SizedBox(width: 3),
+                          Text(
+                            'closed'.tr,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
 

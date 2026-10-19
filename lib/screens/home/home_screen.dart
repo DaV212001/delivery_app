@@ -23,14 +23,29 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.hasClients &&
+        _scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 250) {
+      if (Get.isRegistered<RestaurantController>()) {
+        Get.find<RestaurantController>().loadMoreNearbyProperties();
+      }
+    }
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -59,6 +74,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           await restaurantController.requestLocationAndCalculateDistances();
         },
         child: ListView(
+          controller: _scrollController,
           padding: EdgeInsets.zero,
           children: [
             // 1. Promotional Carousel Slider Section (Full-width edge-to-edge with frosted translucent header pill)
@@ -409,6 +425,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         );
                       }),
                     ),
+
+                    // Infinite Scroll Loading Indicator
+                    Obx(() {
+                      if (restaurantController.isLoadingMoreNearby.value) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 18),
+                          child: Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    }),
 
                     const SizedBox(height: 32),
                   ],

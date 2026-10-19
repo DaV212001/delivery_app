@@ -5,6 +5,7 @@ import '../config/storage_config.dart';
 import '../data/mock_data.dart';
 import '../models/category_model.dart';
 import '../models/delivery_item.dart';
+import '../models/paginated_properties.dart';
 import '../models/promotion.dart';
 import '../models/special_offer.dart';
 import '../models/store.dart';
@@ -24,6 +25,12 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
   final circularCategories = <CircularCategory>[].obs;
   final selectedCircularCategory = ''.obs;
   final favorites = <String>{}.obs;
+
+  // Pagination state for nearby properties
+  final nearbyCurrentPage = 1.obs;
+  final nearbyLastPage = 1.obs;
+  final isLoadingMoreNearby = false.obs;
+  final hasMoreNearby = true.obs;
 
   // User's live GPS coordinates from current location
   final userLat = Rx<double?>(null);
@@ -209,8 +216,12 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
 
   Future<void> loadRestaurants() async {
     status.value = ApiCallStatus.loading;
+    nearbyCurrentPage.value = 1;
 
     try {
+      final effectiveLat = userLat.value ?? ConfigPreference.getUserLatitude() ?? LocationUtils.defaultLatitude;
+      final effectiveLng = userLng.value ?? ConfigPreference.getUserLongitude() ?? LocationUtils.defaultLongitude;
+
       // Fetch in parallel from live APIs
       final results = await Future.wait([
         PropertyService.fetchCategories(),
@@ -218,6 +229,7 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
         PropertyService.fetchSpecialOffers(),
         PropertyService.fetchProperties(),
         PropertyService.fetchFeaturedStores(),
+        PropertyService.fetchNearbyProperties(latitude: effectiveLat, longitude: effectiveLng, page: 1),
       ]);
 
       final apiCategories = results[0] as List<CategoryModel>;
@@ -225,6 +237,11 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
       final apiOffers = results[2] as List<DeliveryItem>;
       final apiProperties = results[3] as List<Store>;
       final apiFeatured = results[4] as List<Store>;
+      final apiNearby = results[5] as PaginatedProperties;
+
+      nearbyCurrentPage.value = apiNearby.currentPage;
+      nearbyLastPage.value = apiNearby.lastPage;
+      hasMoreNearby.value = apiNearby.hasMore;
 
       // 1. Categories
       if (apiCategories.isNotEmpty) {
@@ -311,7 +328,7 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
       final combinedStores = <Store>[];
       final seenIds = <String>{};
 
-      for (final s in [...apiFeatured, ...apiProperties]) {
+      for (final s in [...apiFeatured, ...apiNearby.properties, ...apiProperties]) {
         if (!seenIds.contains(s.id)) {
           seenIds.add(s.id);
           combinedStores.add(s);
@@ -433,9 +450,49 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
     return restaurants.where((r) => favorites.contains(r.id)).toList();
   }
 
+  /// Load the next page of nearby properties for infinite scroll
+  Future<void> loadMoreNearbyProperties() async {
+    if (isLoadingMoreNearby.value || !hasMoreNearby.value) return;
+    if (status.value == ApiCallStatus.loading) return;
+
+    isLoadingMoreNearby.value = true;
+    try {
+      final nextPage = nearbyCurrentPage.value + 1;
+      final effectiveLat = userLat.value ?? ConfigPreference.getUserLatitude() ?? LocationUtils.defaultLatitude;
+      final effectiveLng = userLng.value ?? ConfigPreference.getUserLongitude() ?? LocationUtils.defaultLongitude;
+
+      final res = await PropertyService.fetchNearbyProperties(
+        latitude: effectiveLat,
+        longitude: effectiveLng,
+        page: nextPage,
+      );
+
+      if (res.properties.isNotEmpty) {
+        final existingIds = restaurants.map((s) => s.id).toSet();
+        final newStores = res.properties.where((s) => !existingIds.contains(s.id)).toList();
+        if (newStores.isNotEmpty) {
+          restaurants.addAll(newStores);
+          if (userLat.value != null && userLng.value != null) {
+            recalculateStoreDistances();
+          }
+        }
+      }
+
+      nearbyCurrentPage.value = res.currentPage;
+      nearbyLastPage.value = res.lastPage;
+      hasMoreNearby.value = res.hasMore;
+    } catch (_) {
+      // Keep existing list on transient errors
+    } finally {
+      isLoadingMoreNearby.value = false;
+    }
+  }
+
   Store? getRestaurantById(String id) {
     try {
-      return restaurants.firstWhere((r) => r.id == id);
+      final store = restaurants.firstWhereOrNull((r) => r.id == id);
+      if (store != null) return store;
+      return PropertyService.getCachedProperty(id);
     } catch (_) {
       return null;
     }

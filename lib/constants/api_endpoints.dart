@@ -32,6 +32,8 @@ class ApiEndpoints {
 
   // Property endpoints
   static const String properties = '/property';
+  static String nearbyProperties(dynamic lat, dynamic lng, {int page = 1}) =>
+      '/nearby-property/$lat/$lng?page=$page';
   static String propertyDetail(dynamic id) => '/property/$id';
   static const String searchGlobal = '/search';
   static String searchProperty(dynamic id) => '/property/$id/search';

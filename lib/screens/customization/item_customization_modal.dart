@@ -4,6 +4,7 @@ import '../../controllers/cart_controller.dart';
 import '../../controllers/restaurant_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/delivery_item.dart';
+import '../../models/store.dart';
 import '../../widgets/common/app_widgets.dart';
 
 class ItemCustomizationModal extends StatefulWidget {
@@ -57,16 +58,15 @@ class _ItemCustomizationModalState extends State<ItemCustomizationModal> {
 
   double get _currentTotalPrice => _currentUnitPrice * _quantity;
 
-  bool get _isStoreClosed {
+  Store? get _store {
     if (Get.isRegistered<RestaurantController>()) {
       final rc = Get.find<RestaurantController>();
-      final store = rc.getRestaurantById(widget.item.storeId);
-      if (store != null) {
-        return store.isPastClosingTime;
-      }
+      return rc.getRestaurantById(widget.item.storeId);
     }
-    return false;
+    return null;
   }
+
+  bool get _isStoreClosed => _store?.isPastClosingTime ?? false;
 
   @override
   Widget build(BuildContext context) {
@@ -386,7 +386,7 @@ class _ItemCustomizationModalState extends State<ItemCustomizationModal> {
                         children: [
                           IconButton(
                             icon: const Icon(Icons.remove_rounded, size: 20),
-                            onPressed: _quantity > 1 && !_isStoreClosed
+                            onPressed: _quantity > 1
                                 ? () => setState(() => _quantity--)
                                 : null,
                           ),
@@ -401,47 +401,58 @@ class _ItemCustomizationModalState extends State<ItemCustomizationModal> {
                           ),
                           IconButton(
                             icon: const Icon(Icons.add_rounded, size: 20),
-                            onPressed: !_isStoreClosed ? () => setState(() => _quantity++) : null,
+                            onPressed: () => setState(() => _quantity++),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(width: 16),
 
-                    // Add to Cart Button
+                    // Add to Cart / Save for Later Button
                     Expanded(
                       child: AppButton(
                         text: _isStoreClosed
-                            ? 'closed_for_ordering'.tr
+                            ? '${'save_order_for_later'.tr} • ${_currentTotalPrice.toStringAsFixed(2)} Br'
                             : '${'add_to_cart'.tr} • ${_currentTotalPrice.toStringAsFixed(2)} Br',
-                        onPressed: _isStoreClosed
-                            ? null
-                            : () {
-                                final selectedAddonsList = widget.item.availableAddons
-                                    .where((a) => _selectedAddonIds.contains(a.id))
-                                    .toList();
+                        onPressed: () {
+                          final selectedAddonsList = widget.item.availableAddons
+                              .where((a) => _selectedAddonIds.contains(a.id))
+                              .toList();
 
-                                cartController.addItem(
-                                  item: widget.item,
-                                  quantity: _quantity,
-                                  selectedVariant: _selectedVariant,
-                                  selectedAddons: selectedAddonsList,
-                                  removedOptions: _removedOptions.toList(),
-                                  specialInstructions: _instructionsController.text.trim().isNotEmpty
-                                      ? _instructionsController.text.trim()
-                                      : null,
-                                );
+                          cartController.addItem(
+                            item: widget.item,
+                            quantity: _quantity,
+                            selectedVariant: _selectedVariant,
+                            selectedAddons: selectedAddonsList,
+                            removedOptions: _removedOptions.toList(),
+                            specialInstructions: _instructionsController.text.trim().isNotEmpty
+                                ? _instructionsController.text.trim()
+                                : null,
+                          );
 
-                                Get.back();
-                                Get.snackbar(
-                                  'add_to_cart'.tr,
-                                  '$_quantity x ${widget.item.name}',
-                                  backgroundColor: AppColors.primary,
-                                  colorText: Colors.white,
-                                  snackPosition: SnackPosition.TOP,
-                                  duration: const Duration(seconds: 2),
-                                );
-                              },
+                          Get.back();
+                          if (_isStoreClosed) {
+                            final nextOpen = _store?.formattedNextOpenTime ?? '08:30 AM';
+                            Get.snackbar(
+                              'item_added'.tr,
+                              '${widget.item.name} ${'added_store_closed_tip'.tr} $nextOpen',
+                              backgroundColor: const Color(0xFFB45309),
+                              colorText: Colors.white,
+                              snackPosition: SnackPosition.TOP,
+                              duration: const Duration(seconds: 4),
+                              icon: const Icon(Icons.schedule_rounded, color: Colors.white),
+                            );
+                          } else {
+                            Get.snackbar(
+                              'add_to_cart'.tr,
+                              '$_quantity x ${widget.item.name}',
+                              backgroundColor: AppColors.primary,
+                              colorText: Colors.white,
+                              snackPosition: SnackPosition.TOP,
+                              duration: const Duration(seconds: 2),
+                            );
+                          }
+                        },
                       ),
                     ),
                   ],
