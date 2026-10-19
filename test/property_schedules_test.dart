@@ -8,6 +8,7 @@ import 'package:delivery_app/controllers/property_schedule_controller.dart';
 import 'package:delivery_app/models/property_schedule.dart';
 import 'package:delivery_app/services/property_service.dart';
 import 'package:delivery_app/config/translations.dart';
+import 'package:delivery_app/screens/property/property_schedules_screen.dart';
 import 'package:delivery_app/screens/property/widgets/select_time_modal.dart';
 
 void main() {
@@ -100,13 +101,23 @@ void main() {
   });
 
   group('PropertyScheduleController Logic Tests', () {
-    test('initializes 7 days in order Monday to Sunday', () {
+    test('initializes 7 days in order Sunday (0) to Saturday (6)', () {
       final controller = PropertyScheduleController();
       expect(controller.days.length, 7);
-      expect(controller.days[0].dayOfWeek, 1); // Mon
-      expect(controller.days[0].dayName, 'Monday');
-      expect(controller.days[5].dayOfWeek, 6); // Sat
-      expect(controller.days[6].dayOfWeek, 0); // Sun
+      expect(controller.days[0].dayOfWeek, 0); // Sun
+      expect(controller.days[0].dayName, 'Sunday');
+      expect(controller.days[1].dayOfWeek, 1); // Mon
+      expect(controller.days[1].dayName, 'Monday');
+      expect(controller.days[2].dayOfWeek, 2); // Tue
+      expect(controller.days[2].dayName, 'Tuesday');
+      expect(controller.days[3].dayOfWeek, 3); // Wed
+      expect(controller.days[3].dayName, 'Wednesday');
+      expect(controller.days[4].dayOfWeek, 4); // Thu
+      expect(controller.days[4].dayName, 'Thursday');
+      expect(controller.days[5].dayOfWeek, 5); // Fri
+      expect(controller.days[5].dayName, 'Friday');
+      expect(controller.days[6].dayOfWeek, 6); // Sat
+      expect(controller.days[6].dayName, 'Saturday');
     });
 
     test('toggle24Hours sets all days to open and 00:00 - 23:59', () {
@@ -321,6 +332,45 @@ void main() {
 
       expect(selectedStart, '08:30');
       expect(selectedEnd, '17:30');
+    });
+  });
+
+  group('PropertySchedulesScreen Widget Tests', () {
+    testWidgets('renders days in order Sunday (0) to Saturday (6)', (tester) async {
+      dioAdapter.onGet(
+        ApiEndpoints.propertySchedules(3),
+        (server) => server.reply(200, {'data': []}),
+      );
+
+      Get.reset();
+      final controller = Get.put(
+        PropertyScheduleController(propertyId: 3),
+        tag: 'property_schedule_3',
+      );
+
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        GetMaterialApp(
+          translations: AppTranslations(),
+          locale: const Locale('en', 'US'),
+          home: const PropertySchedulesScreen(propertyId: 3),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(controller.days.first.dayOfWeek, 0);
+      expect(controller.days.first.dayName, 'Sunday');
+      expect(controller.days.last.dayOfWeek, 6);
+      expect(controller.days.last.dayName, 'Saturday');
+
+      expect(find.text('Sunday'), findsOneWidget);
+      expect(find.text('Monday'), findsOneWidget);
+      expect(find.text('Saturday'), findsOneWidget);
     });
   });
 }

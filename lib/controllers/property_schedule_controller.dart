@@ -15,7 +15,7 @@ class ScheduleInterval {
 }
 
 class DayScheduleState {
-  final int dayOfWeek; // 1 = Mon, 2 = Tue, 3 = Wed, 4 = Thu, 5 = Fri, 6 = Sat, 0 = Sun
+  final int dayOfWeek; // 0 = Sun, 1 = Mon, 2 = Tue, 3 = Wed, 4 = Thu, 5 = Fri, 6 = Sat
   final String dayName;
   final String dayKey;
   final RxBool isClosed;
@@ -67,6 +67,13 @@ class PropertyScheduleController extends GetxController {
   void _initializeDayStructure() {
     days.assignAll([
       DayScheduleState(
+        dayOfWeek: 0,
+        dayName: 'Sunday',
+        dayKey: 'sunday',
+        isClosed: true,
+        intervals: [ScheduleInterval(startTime: '09:00', endTime: '17:00')],
+      ),
+      DayScheduleState(
         dayOfWeek: 1,
         dayName: 'Monday',
         dayKey: 'monday',
@@ -105,13 +112,6 @@ class PropertyScheduleController extends GetxController {
         dayOfWeek: 6,
         dayName: 'Saturday',
         dayKey: 'saturday',
-        isClosed: true,
-        intervals: [ScheduleInterval(startTime: '09:00', endTime: '17:00')],
-      ),
-      DayScheduleState(
-        dayOfWeek: 0,
-        dayName: 'Sunday',
-        dayKey: 'sunday',
         isClosed: true,
         intervals: [ScheduleInterval(startTime: '09:00', endTime: '17:00')],
       ),

@@ -118,7 +118,7 @@ class _PropertySchedulesScreenState extends State<PropertySchedulesScreen> {
               ),
               const SizedBox(height: 12),
 
-              // 4. Days List (Monday to Sunday)
+              // 4. Days List (Sunday to Saturday: 0 is Sunday, 6 is Saturday)
               ..._controller.days.map((day) => _buildDayCard(context, day, isDark)),
 
               const SizedBox(height: 24),
