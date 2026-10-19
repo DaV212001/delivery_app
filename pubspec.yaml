@@ -63,6 +63,9 @@ dev_dependencies:
   googleapis: ^17.0.0
   googleapis_auth: ^2.3.3
 
+dependency_overrides:
+  path_provider_foundation: 2.4.1
+
 
 flutter_launcher_icons:
   android: true
