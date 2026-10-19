@@ -43,6 +43,8 @@ class ApiEndpoints {
   static const String myMenu = '/my-menu';
   static String myMenuDetail(dynamic id) => '/my-menu/$id';
   static const String updateMenuStatus = '/update-menu-status';
+  static String propertySchedules(dynamic propertyId) => '/property/$propertyId/schedules';
+  static String propertySchedulesSync(dynamic propertyId) => '/property/$propertyId/schedules/sync';
 
   // Order endpoints
   static const String order = '/order';

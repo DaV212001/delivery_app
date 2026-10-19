@@ -5,6 +5,7 @@ import '../models/delivery_item.dart';
 import '../models/my_menu_category_model.dart';
 import '../models/my_menu_item_model.dart';
 import '../models/my_property_model.dart';
+import '../models/property_schedule.dart';
 import '../models/store.dart';
 import '../utils/templates/dio_template.dart';
 
@@ -757,6 +758,50 @@ class PropertyService {
     await DioService.dioUpload(
       path: ApiEndpoints.propertyDetail(propertyId),
       formData: formData,
+      onSuccess: (response) {
+        ok = true;
+      },
+    );
+
+    return ok;
+  }
+
+  /// Fetch all schedules for a property
+  static Future<List<PropertyScheduleItem>> fetchPropertySchedules(dynamic propertyId) async {
+    final list = <PropertyScheduleItem>[];
+    await DioService.dioGet(
+      path: ApiEndpoints.propertySchedules(propertyId),
+      onSuccess: (response) {
+        final resData = response.data;
+        final rawList = resData is Map<String, dynamic>
+            ? (resData['data'] is List ? resData['data'] : null)
+            : (resData is List ? resData : null);
+
+        if (rawList is List) {
+          for (final item in rawList) {
+            if (item is Map<String, dynamic>) {
+              list.add(PropertyScheduleItem.fromJson(item));
+            }
+          }
+        }
+      },
+    );
+    return list;
+  }
+
+  /// Synchronize/save schedules for a property
+  static Future<bool> syncPropertySchedules(
+    dynamic propertyId,
+    List<PropertyScheduleItem> schedules,
+  ) async {
+    bool ok = false;
+    final payload = {
+      'schedules': schedules.map((s) => s.toJson()).toList(),
+    };
+
+    await DioService.dioPost(
+      path: ApiEndpoints.propertySchedulesSync(propertyId),
+      data: payload,
       onSuccess: (response) {
         ok = true;
       },

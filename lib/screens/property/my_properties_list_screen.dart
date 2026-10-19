@@ -214,6 +214,19 @@ class MyPropertiesListScreen extends StatelessWidget {
 
                 const SizedBox(width: 4),
 
+                // Compact Quick Schedules Button
+                InkWell(
+                  onTap: () {
+                    Get.toNamed(AppRoutes.propertySchedules, arguments: property);
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: const Padding(
+                    padding: EdgeInsets.all(6),
+                    child: Icon(Icons.schedule_rounded, size: 18, color: AppColors.primary),
+                  ),
+                ),
+                const SizedBox(width: 4),
+
                 // Compact Quick Edit Button
                 InkWell(
                   onTap: () {

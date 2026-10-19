@@ -261,12 +261,24 @@ class MyPropertyScreen extends StatelessWidget {
           Obx(() {
             final prop = controller.selectedProperty.value;
             if (prop != null) {
-              return IconButton(
-                tooltip: 'edit_property'.tr,
-                icon: const Icon(Icons.edit_outlined),
-                onPressed: () {
-                  Get.toNamed(AppRoutes.editProperty, arguments: prop);
-                },
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'schedules'.tr,
+                    icon: const Icon(Icons.schedule_rounded),
+                    onPressed: () {
+                      Get.toNamed(AppRoutes.propertySchedules, arguments: prop);
+                    },
+                  ),
+                  IconButton(
+                    tooltip: 'edit_property'.tr,
+                    icon: const Icon(Icons.edit_outlined),
+                    onPressed: () {
+                      Get.toNamed(AppRoutes.editProperty, arguments: prop);
+                    },
+                  ),
+                ],
               );
             }
             return const SizedBox.shrink();
@@ -791,10 +803,14 @@ class MyPropertyScreen extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildMetricItem(
-                        icon: Icons.schedule_rounded,
-                        label: 'Hours',
-                        value: '${property.openingTime.substring(0, property.openingTime.length >= 5 ? 5 : property.openingTime.length)} - ${property.closingTime.substring(0, property.closingTime.length >= 5 ? 5 : property.closingTime.length)}',
+                      InkWell(
+                        onTap: () => Get.toNamed(AppRoutes.propertySchedules, arguments: property),
+                        borderRadius: BorderRadius.circular(8),
+                        child: _buildMetricItem(
+                          icon: Icons.schedule_rounded,
+                          label: 'Hours',
+                          value: '${property.openingTime.substring(0, property.openingTime.length >= 5 ? 5 : property.openingTime.length)} - ${property.closingTime.substring(0, property.closingTime.length >= 5 ? 5 : property.closingTime.length)}',
+                        ),
                       ),
                       Container(width: 1, height: 24, color: Colors.grey.withValues(alpha: 0.2)),
                       _buildMetricItem(
@@ -814,22 +830,42 @@ class MyPropertyScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: BorderSide(color: AppColors.primary.withValues(alpha: 0.4)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: BorderSide(color: AppColors.primary.withValues(alpha: 0.4)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                        ),
+                        icon: const Icon(Icons.schedule_rounded, size: 16),
+                        label: Text(
+                          'schedules'.tr,
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                        ),
+                        onPressed: () => Get.toNamed(AppRoutes.propertySchedules, arguments: property),
+                      ),
                     ),
-                    icon: const Icon(Icons.edit_outlined, size: 16),
-                    label: Text(
-                      'edit_property'.tr,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: BorderSide(color: AppColors.primary.withValues(alpha: 0.4)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                        ),
+                        icon: const Icon(Icons.edit_outlined, size: 16),
+                        label: Text(
+                          'edit_property'.tr,
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                        ),
+                        onPressed: () => Get.toNamed(AppRoutes.editProperty, arguments: property),
+                      ),
                     ),
-                    onPressed: () => Get.toNamed(AppRoutes.editProperty, arguments: property),
-                  ),
+                  ],
                 ),
                 const SizedBox(height: 14),
               ],

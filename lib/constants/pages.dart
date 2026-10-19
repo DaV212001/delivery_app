@@ -21,6 +21,7 @@ class AppRoutes {
   static const String manageProperty = '/manage-property';
   static const String registerProperty = '/register-property';
   static const String editProperty = '/edit-property';
+  static const String propertySchedules = '/property-schedules';
   static const String corporateDashboard = '/corporate-dashboard';
   static const String createCorporateOrder = '/create-corporate-order';
 

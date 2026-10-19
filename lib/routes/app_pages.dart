@@ -16,6 +16,7 @@ import '../screens/profile/edit_profile_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/property/my_properties_list_screen.dart';
 import '../screens/property/my_property_screen.dart';
+import '../screens/property/property_schedules_screen.dart';
 import '../screens/property/register_property_screen.dart';
 import '../screens/search/search_screen.dart';
 import '../screens/splash/splash_screen.dart';
@@ -114,6 +115,10 @@ class AppPages {
     GetPage(
       name: AppRoutes.editProperty,
       page: () => const RegisterPropertyScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.propertySchedules,
+      page: () => const PropertySchedulesScreen(),
     ),
     GetPage(
       name: AppRoutes.corporateDashboard,
