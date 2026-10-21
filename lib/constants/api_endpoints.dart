@@ -91,6 +91,9 @@ class ApiEndpoints {
   static const String courierPayOnChapa = '/courirer-pay-on-chapa';
   static const String courierPayOnWallet = '/courirer-pay-on-wallet';
 
+  // App Version
+  static const String appVersion = '/app_version';
+
   // Real-Time Socket Server (Render)
   static const String socketServerUrl = 'https://amn-delivery-socket-server.onrender.com';
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/cart_controller.dart';
 import '../../core/theme/app_colors.dart';
+import '../../utils/update_enforcer.dart';
 import 'checkout/cart_screen.dart';
 import 'home/home_screen.dart';
 import 'orders/order_history_screen.dart';
@@ -10,6 +11,14 @@ import 'profile/profile_screen.dart';
 class MainNavigationController extends GetxController {
   final currentIndex = 0.obs;
   final visitedTabs = <int>{0}.obs;
+
+  @override
+  void onReady() {
+    super.onReady();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateChecker().checkForUpdates(fromStartUp: true);
+    });
+  }
 
   bool isTabVisited(int index) => visitedTabs.contains(index);
 

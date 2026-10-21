@@ -7,6 +7,7 @@ import '../../controllers/restaurant_controller.dart';
 import '../../constants/pages.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/theme_controller.dart';
+import '../../utils/update_enforcer.dart';
 import '../../widgets/common/app_widgets.dart';
 import '../../widgets/map/property_location_picker_screen.dart';
 import '../home/widgets/restaurant_list_item.dart';
@@ -992,6 +993,12 @@ class ProfileScreen extends StatelessWidget {
           title: 'terms_and_conditions'.tr,
           subtitle: 'terms_sub'.tr,
           onTap: () => _showTermsDialog(context, profileController),
+        ),
+        _SettingsTile(
+          icon: Icons.system_security_update_rounded,
+          title: 'check_for_updates'.tr,
+          subtitle: 'check_for_updates_sub'.tr,
+          onTap: () => UpdateChecker().checkForUpdates(fromStartUp: false),
         ),
       ],
     );

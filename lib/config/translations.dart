@@ -465,6 +465,12 @@ class AppTranslations extends Translations {
           'store_closed_title': 'Store is Currently Closed',
           'today': 'Today',
           'tomorrow': 'Tomorrow',
+          'update_check': 'Update Check',
+          'debug_update_bypassed': 'Debug build: Update check is bypassed.',
+          'app_up_to_date': 'App is up to date',
+          'unable_to_check_updates': 'Unable to check for updates right now.',
+          'check_for_updates': 'Check for Updates',
+          'check_for_updates_sub': 'Check if a newer version is available',
         },
 
         // ---------------------------------------------------------------------
@@ -913,6 +919,12 @@ class AppTranslations extends Translations {
           'store_closed_title': 'መደብሩ በአሁኑ ጊዜ ዝግ ነው',
           'today': 'ዛሬ',
           'tomorrow': 'ነገ',
+          'update_check': 'የስሪት ምርመራ',
+          'debug_update_bypassed': 'የዲበግ ስሪት፡ የስሪት ምርመራ ታግዷል።',
+          'app_up_to_date': 'መተግበሪያው አዳዲስ ስሪት ላይ ነው',
+          'unable_to_check_updates': 'በአሁኑ ጊዜ አዳዲስ ስሪት መፈተሽ አልተቻለም።',
+          'check_for_updates': 'አዳዲስ ስሪት ፈትሽ',
+          'check_for_updates_sub': 'አዲስ ስሪት መኖሩን ይፈትሹ',
         },
 
         // ---------------------------------------------------------------------
@@ -1361,6 +1373,12 @@ class AppTranslations extends Translations {
           'store_closed_title': 'Suuqichi Yeroo Ammaa Cufaadha',
           'today': 'Har\'a',
           'tomorrow': 'Boru',
+          'update_check': 'Haaromsa Mirkaneessi',
+          'debug_update_bypassed': 'Ijaarsa diibaagii: Haaromsi darbeera.',
+          'app_up_to_date': 'Appilikeeshiniin haaromeera',
+          'unable_to_check_updates': 'Yeroo ammaa haaromsa mirkaneessuun hin danda\'amne.',
+          'check_for_updates': 'Haaromsa Mirkaneessi',
+          'check_for_updates_sub': 'Gara haaromsa haaraatti fooyyessuuf mirkaneessi',
         },
 
         // ---------------------------------------------------------------------
@@ -1809,6 +1827,12 @@ class AppTranslations extends Translations {
           'store_closed_title': 'እቲ ድኳን ኣብዚ እዋን ዕጹው እዩ',
           'today': 'ሎሚ',
           'tomorrow': 'ጽባሕ',
+          'update_check': 'ናይ ስሪት ምፍታሽ',
+          'debug_update_bypassed': 'ናይ ዲባግ ስሪት፡ ምፍታሽ ተሓሊፉ ኣሎ።',
+          'app_up_to_date': 'መተግበሪ ኣብ ሓዱሽ ስሪት ኣሎ',
+          'unable_to_check_updates': 'ኣብዚ እዋን ሓድሽ ስሪት ምፍታሽ ኣይተኻእለን።',
+          'check_for_updates': 'ሓዱሽ ስሪት ፈትሽ',
+          'check_for_updates_sub': 'ሓድሽ ስሪት ምህላዉ ፈትሽ',
         },
 
         // ---------------------------------------------------------------------
@@ -2257,6 +2281,12 @@ class AppTranslations extends Translations {
           'store_closed_title': 'Dukaanku Hadda Wuu Xidhan Yahay',
           'today': 'Maanta',
           'tomorrow': 'Berri',
+          'update_check': 'Hubinta Cusboonaysiinta',
+          'debug_update_bypassed': 'Nooca debug: Cusbooneysiinta waa laga booday.',
+          'app_up_to_date': 'App-ku waa kii ugu dambeeyay',
+          'unable_to_check_updates': 'Lama hubin karo cusboonaysiinta hadda.',
+          'check_for_updates': 'Hubi Cusboonaysiinta',
+          'check_for_updates_sub': 'Hubi haddii nooc cusub la heli karo',
         },
       };
 }

@@ -4,6 +4,7 @@ import '../../constants/app_assets.dart';
 import '../../constants/pages.dart';
 import '../../controllers/auth_controller.dart';
 import '../../core/theme/app_colors.dart';
+import '../../utils/update_enforcer.dart';
 import '../../widgets/common/app_widgets.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -18,6 +19,9 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
     _checkAuth();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateChecker().checkForUpdates(fromStartUp: true);
+    });
   }
 
   void _checkAuth() {
