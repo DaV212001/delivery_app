@@ -19,6 +19,7 @@ class _OtpScreenState extends State<OtpScreen> {
 
   late final AuthController _authController;
   late final String _phone;
+  late final String _email;
   late final int _userId;
 
   final _isVerifying = false.obs;
@@ -31,7 +32,8 @@ class _OtpScreenState extends State<OtpScreen> {
     _authController = Get.find<AuthController>();
 
     final args = Get.arguments as Map<String, dynamic>? ?? {};
-    _phone = args['phone']?.toString() ?? '';
+    _phone = args['phone']?.toString() ?? _authController.pendingPhone ?? '';
+    _email = args['email']?.toString() ?? _authController.pendingEmail ?? '';
     _userId = args['userId'] is int
         ? args['userId'] as int
         : int.tryParse(args['userId']?.toString() ?? '0') ?? 0;
@@ -104,27 +106,114 @@ class _OtpScreenState extends State<OtpScreen> {
         ),
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 12),
+              // Dual channel icon header
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.mark_email_read_outlined,
+                  color: AppColors.primary,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 16),
               Text(
                 'verify_your_number'.tr,
                 style: theme.textTheme.headlineLarge?.copyWith(
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text(
-                '${'enter_code_sent_to'.tr}\n$_phone',
+                'enter_code_sent_to'.tr,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
-                  height: 1.5,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 8),
+              if (_phone.isNotEmpty || _email.isNotEmpty)
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    if (_phone.isNotEmpty)
+                      Chip(
+                        avatar: const Icon(Icons.phone_android_rounded,
+                            size: 16, color: AppColors.primary),
+                        label: Text(_phone,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600, fontSize: 13)),
+                        backgroundColor:
+                            AppColors.primary.withValues(alpha: 0.08),
+                        side: BorderSide.none,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        materialTapTargetSize:
+                            MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    if (_email.isNotEmpty)
+                      Chip(
+                        avatar: const Icon(Icons.email_outlined,
+                            size: 16, color: AppColors.primary),
+                        label: Text(_email,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600, fontSize: 13)),
+                        backgroundColor:
+                            AppColors.primary.withValues(alpha: 0.08),
+                        side: BorderSide.none,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        materialTapTargetSize:
+                            MaterialTapTargetSize.shrinkWrap,
+                      ),
+                  ],
+                ),
+              const SizedBox(height: 14),
+              // Prominent Instruction Card informing the user to check phone or email
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.info_outline_rounded,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'check_phone_or_email_instructions'.tr,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface,
+                          fontWeight: FontWeight.w500,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
 
               // OTP digit boxes
               Row(

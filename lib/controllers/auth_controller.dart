@@ -65,6 +65,8 @@ class AuthController extends GetxController {
 
   bool get isResetOtpVerified => _resetOtpVerified;
   String? get resetPhone => _resetPhone;
+  String? get pendingEmail => _pendingEmail;
+  String? get pendingPhone => _pendingPhone;
 
   int? get currentUserId => ConfigPreference.getUserId();
 
@@ -305,6 +307,7 @@ class AuthController extends GetxController {
           Get.toNamed(AppRoutes.otp, arguments: {
             'userId': uid,
             'phone': cleanPhone,
+            'email': email,
           });
         }
       },
