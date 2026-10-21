@@ -6,7 +6,9 @@ import '../../constants/app_assets.dart';
 import '../../controllers/auth_controller.dart';
 import '../../constants/pages.dart';
 import '../../core/theme/app_colors.dart';
+import '../../models/country_code.dart';
 import '../../widgets/common/app_widgets.dart';
+import '../../widgets/common/country_code_bottom_sheet.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,6 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
 
+  CountryCode _selectedCountry = CountryCode.defaultCountry;
   bool _obscurePassword = true;
   bool _isSignUp = false;
 
@@ -32,9 +35,21 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       savedPhone = ConfigPreference.getUserPhone();
     } catch (_) {}
-    _phoneController = TextEditingController(
-      text: savedPhone?.isNotEmpty == true ? savedPhone : '',
-    );
+
+    if (savedPhone != null && savedPhone.isNotEmpty) {
+      final detected = CountryCode.findByPhoneNumber(savedPhone);
+      if (detected != null) {
+        _selectedCountry = detected;
+        final dialDigits = detected.dialCode.replaceAll(RegExp(r'[^0-9]'), '');
+        final clean = savedPhone.replaceAll(RegExp(r'[^0-9]'), '');
+        final local = clean.startsWith(dialDigits) ? clean.substring(dialDigits.length) : clean;
+        _phoneController = TextEditingController(text: local);
+      } else {
+        _phoneController = TextEditingController(text: savedPhone);
+      }
+    } else {
+      _phoneController = TextEditingController();
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (Get.isRegistered<AuthController>()) {
@@ -44,6 +59,17 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
     });
+  }
+
+  void _onPhoneChanged(String val) {
+    if (val.trim().startsWith('+')) {
+      final detected = CountryCode.findByPhoneNumber(val);
+      if (detected != null && detected != _selectedCountry) {
+        setState(() {
+          _selectedCountry = detected;
+        });
+      }
+    }
   }
 
   @override
@@ -57,11 +83,24 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showForgotPasswordDialog() async {
+    final cleanPhone = AuthController.sanitizePhone(
+      _phoneController.text.trim(),
+      _selectedCountry.dialCode,
+    );
     final result = await Get.toNamed(AppRoutes.forgotPassword, arguments: {
-      'phone': _phoneController.text.trim(),
+      'phone': cleanPhone,
     });
     if (result is String && result.isNotEmpty) {
-      _phoneController.text = result;
+      final detected = CountryCode.findByPhoneNumber(result);
+      if (detected != null) {
+        _selectedCountry = detected;
+        final dialDigits = detected.dialCode.replaceAll(RegExp(r'[^0-9]'), '');
+        final clean = result.replaceAll(RegExp(r'[^0-9]'), '');
+        final local = clean.startsWith(dialDigits) ? clean.substring(dialDigits.length) : clean;
+        _phoneController.text = local;
+      } else {
+        _phoneController.text = result;
+      }
     }
   }
 
@@ -240,9 +279,56 @@ class _LoginScreenState extends State<LoginScreen> {
               TextFormField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  hintText: '251911058179 or 0911058179',
-                  prefixIcon: Icon(Icons.phone_android_rounded),
+                onChanged: _onPhoneChanged,
+                decoration: InputDecoration(
+                  hintText: _selectedCountry.dialCode == '+251'
+                      ? '911058179 or 0911058179'
+                      : 'enter_phone_number'.tr,
+                  prefixIcon: InkWell(
+                    onTap: () => showCountryPickerBottomSheet(
+                      context,
+                      selectedCountry: _selectedCountry,
+                      onSelect: (country) {
+                        setState(() {
+                          _selectedCountry = country;
+                        });
+                      },
+                    ),
+                    borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _selectedCountry.flag,
+                            style: const TextStyle(fontSize: 20),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _selectedCountry.dialCode,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          Icon(
+                            Icons.arrow_drop_down_rounded,
+                            size: 20,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            height: 24,
+                            width: 1,
+                            color: theme.dividerColor.withValues(alpha: 0.3),
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -307,16 +393,52 @@ class _LoginScreenState extends State<LoginScreen> {
                   text: _isSignUp ? 'create_account'.tr : 'log_in'.tr,
                   isLoading: authController.isLoading.value,
                   onPressed: () {
+                    final phoneText = _phoneController.text.trim();
+                    if (phoneText.isEmpty) {
+                      Get.snackbar(
+                        'error'.tr,
+                        'enter_valid_phone'.tr,
+                        snackPosition: SnackPosition.BOTTOM,
+                        backgroundColor: Colors.red.withValues(alpha: 0.8),
+                        colorText: Colors.white,
+                      );
+                      return;
+                    }
+                    if (_passwordController.text.length < 4) {
+                      Get.snackbar(
+                        'error'.tr,
+                        'four_digit_pin'.tr,
+                        snackPosition: SnackPosition.BOTTOM,
+                        backgroundColor: Colors.red.withValues(alpha: 0.8),
+                        colorText: Colors.white,
+                      );
+                      return;
+                    }
                     if (_isSignUp) {
+                      if (_firstNameController.text.trim().isEmpty) {
+                        Get.snackbar(
+                          'error'.tr,
+                          'fill_all_fields'.tr,
+                          snackPosition: SnackPosition.BOTTOM,
+                          backgroundColor: Colors.red.withValues(alpha: 0.8),
+                          colorText: Colors.white,
+                        );
+                        return;
+                      }
                       authController.register(
                         firstName: _firstNameController.text.trim(),
                         lastName: _lastNameController.text.trim(),
-                        phone: _phoneController.text.trim(),
+                        phone: phoneText,
                         email: _emailController.text.trim(),
                         password: _passwordController.text,
+                        countryCode: _selectedCountry.dialCode,
                       );
                     } else {
-                      authController.login(_phoneController.text.trim(), _passwordController.text);
+                      authController.login(
+                        phoneText,
+                        _passwordController.text,
+                        countryCode: _selectedCountry.dialCode,
+                      );
                     }
                   },
                 ),

@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../controllers/auth_controller.dart';
 import '../../core/theme/app_colors.dart';
+import '../../models/country_code.dart';
 import '../../widgets/common/app_widgets.dart';
+import '../../widgets/common/country_code_bottom_sheet.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -15,6 +17,7 @@ class ForgotPasswordScreen extends StatefulWidget {
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   int _currentStep = 0; // 0: Phone, 1: OTP, 2: New Password
 
+  CountryCode _selectedCountry = CountryCode.defaultCountry;
   late final TextEditingController _phoneController;
   final List<TextEditingController> _otpControllers =
       List.generate(4, (_) => TextEditingController());
@@ -34,9 +37,17 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     _authController = Get.find<AuthController>();
 
     final args = Get.arguments as Map<String, dynamic>? ?? {};
-    _phoneController = TextEditingController(
-      text: args['phone']?.toString() ?? '',
-    );
+    final initialPhone = args['phone']?.toString() ?? '';
+    final detected = CountryCode.findByPhoneNumber(initialPhone);
+    if (detected != null) {
+      _selectedCountry = detected;
+      final dialDigits = detected.dialCode.replaceAll(RegExp(r'[^0-9]'), '');
+      final clean = initialPhone.replaceAll(RegExp(r'[^0-9]'), '');
+      final local = clean.startsWith(dialDigits) ? clean.substring(dialDigits.length) : clean;
+      _phoneController = TextEditingController(text: local);
+    } else {
+      _phoneController = TextEditingController(text: initialPhone);
+    }
   }
 
   @override
@@ -98,7 +109,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       return;
     }
 
-    final ok = await _authController.sendPasswordResetOtp(phone);
+    final ok = await _authController.sendPasswordResetOtp(
+      phone,
+      countryCode: _selectedCountry.dialCode,
+    );
     if (ok && mounted) {
       setState(() => _currentStep = 1);
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -315,12 +329,55 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         TextFormField(
           controller: _phoneController,
           keyboardType: TextInputType.phone,
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
-          ],
-          decoration: const InputDecoration(
-            hintText: '251911058179 or 0911058179',
-            prefixIcon: Icon(Icons.phone_android_rounded),
+          decoration: InputDecoration(
+            hintText: _selectedCountry.dialCode == '+251'
+                ? '911058179 or 0911058179'
+                : 'enter_phone_number'.tr,
+            prefixIcon: InkWell(
+              onTap: () => showCountryPickerBottomSheet(
+                context,
+                selectedCountry: _selectedCountry,
+                onSelect: (country) {
+                  setState(() {
+                    _selectedCountry = country;
+                  });
+                },
+              ),
+              borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _selectedCountry.flag,
+                      style: const TextStyle(fontSize: 20),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _selectedCountry.dialCode,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    Icon(
+                      Icons.arrow_drop_down_rounded,
+                      size: 20,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      height: 24,
+                      width: 1,
+                      color: theme.dividerColor.withValues(alpha: 0.3),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
         const SizedBox(height: 28),

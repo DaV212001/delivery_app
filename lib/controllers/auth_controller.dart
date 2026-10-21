@@ -176,17 +176,11 @@ class AuthController extends GetxController {
     }
   }
 
-  Future<void> login(String phoneOrEmail, String password) async {
+  Future<void> login(String phoneOrEmail, String password, {String? countryCode}) async {
     isLoading.value = true;
     status.value = ApiCallStatus.loading;
 
-    // Sanitize phone number (strip spaces, symbols; if starting with 09, convert to 2519)
-    String cleanPhone = phoneOrEmail.replaceAll(RegExp(r'[^0-9]'), '');
-    if (cleanPhone.startsWith('09')) {
-      cleanPhone = '251${cleanPhone.substring(1)}';
-    } else if (cleanPhone.startsWith('9') && cleanPhone.length == 9) {
-      cleanPhone = '251$cleanPhone';
-    }
+    final cleanPhone = sanitizePhone(phoneOrEmail, countryCode);
 
     await AuthService.customerLogin(
       phone: cleanPhone,
@@ -262,16 +256,12 @@ class AuthController extends GetxController {
     required String phone,
     required String email,
     required String password,
+    String? countryCode,
   }) async {
     isLoading.value = true;
     status.value = ApiCallStatus.loading;
 
-    String cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
-    if (cleanPhone.startsWith('09')) {
-      cleanPhone = '251${cleanPhone.substring(1)}';
-    } else if (cleanPhone.startsWith('9') && cleanPhone.length == 9) {
-      cleanPhone = '251$cleanPhone';
-    }
+    final cleanPhone = sanitizePhone(phone, countryCode);
 
     await AuthService.customerRegister(
       firstName: firstName,
@@ -311,21 +301,25 @@ class AuthController extends GetxController {
           onFailure: (_) {},
         );
 
-        Get.toNamed(AppRoutes.otp, arguments: {
-          'userId': uid,
-          'phone': cleanPhone,
-        });
+        if (!isInTest) {
+          Get.toNamed(AppRoutes.otp, arguments: {
+            'userId': uid,
+            'phone': cleanPhone,
+          });
+        }
       },
       onFailure: (error) {
         isLoading.value = false;
         status.value = ApiCallStatus.error;
-        Get.snackbar(
-          'registration_failed'.tr,
-          error,
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red.withValues(alpha: 0.8),
-          colorText: Colors.white,
-        );
+        if (!isInTest) {
+          Get.snackbar(
+            'registration_failed'.tr,
+            error,
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red.withValues(alpha: 0.8),
+            colorText: Colors.white,
+          );
+        }
       },
     );
   }
@@ -429,9 +423,26 @@ class AuthController extends GetxController {
     );
   }
 
-  /// Sanitize phone number (strip non-digits, ensure 251 prefix)
-  static String sanitizePhone(String phone) {
-    String cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+  /// Sanitize phone number (strip non-digits, attach dial code if specified, default to 251 prefix for local Ethiopian numbers)
+  static String sanitizePhone(String phone, [String? dialCode]) {
+    final trimmed = phone.trim();
+    if (dialCode != null && dialCode.isNotEmpty) {
+      final cleanDial = dialCode.replaceAll(RegExp(r'[^0-9]'), '');
+      String cleanPhone = trimmed.replaceAll(RegExp(r'[^0-9]'), '');
+      if (cleanPhone.startsWith(cleanDial)) {
+        return cleanPhone;
+      }
+      if (cleanPhone.startsWith('0')) {
+        cleanPhone = cleanPhone.substring(1);
+      }
+      return '$cleanDial$cleanPhone';
+    }
+
+    if (trimmed.startsWith('+')) {
+      return trimmed.replaceAll(RegExp(r'[^0-9]'), '');
+    }
+
+    String cleanPhone = trimmed.replaceAll(RegExp(r'[^0-9]'), '');
     if (cleanPhone.startsWith('09')) {
       cleanPhone = '251${cleanPhone.substring(1)}';
     } else if (cleanPhone.startsWith('9') && cleanPhone.length == 9) {
@@ -463,8 +474,8 @@ class AuthController extends GetxController {
   }
 
   /// Request OTP for forgot password flow
-  Future<bool> sendPasswordResetOtp(String phone) async {
-    final cleanPhone = sanitizePhone(phone);
+  Future<bool> sendPasswordResetOtp(String phone, {String? countryCode}) async {
+    final cleanPhone = sanitizePhone(phone, countryCode);
     if (cleanPhone.length < 9) {
       _showSnackbar(
         'error'.tr,
