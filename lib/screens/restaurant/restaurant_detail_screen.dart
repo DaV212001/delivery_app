@@ -501,7 +501,7 @@ class _MenuItemCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    '${item.price.toStringAsFixed(0)} Br',
+                    item.formattedPrice,
                     style: theme.textTheme.titleSmall?.copyWith(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w700,

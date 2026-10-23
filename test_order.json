@@ -1,0 +1,20 @@
+{
+  "customer_id": 1,
+  "location": "Bole Atlas, Addis Ababa",
+  "date": "2026-10-23 12:50:00",
+  "payment_type": "0",
+  "total_quantity": 1,
+  "menu_id": [78],
+  "quantity": [1],
+  "price": [500.0],
+  "item_total_price": 500.0,
+  "total_item": 1,
+  "property_id": 60,
+  "customer_latitude": 9.0054,
+  "customer_longitude": 38.7636,
+  "property_latitude": 8.996878,
+  "property_longitude": 38.772777,
+  "delivery_option": 1,
+  "km_price": 13,
+  "total_km_price": 65.0
+}

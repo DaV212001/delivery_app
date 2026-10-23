@@ -34,6 +34,7 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
 
   int? _selectedCategoryId;
   int? _selectedTypeId;
+  int? _selectedCurrencyId;
 
   String? _logoPath;
   String? _coverPath;
@@ -77,6 +78,7 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
         final m = int.tryParse(parts[1]) ?? 0;
         _closeTime = TimeOfDay(hour: h, minute: m);
       }
+      _selectedCurrencyId = _controller.getCurrencyIdForProperty(p);
     }
 
     _controller.loadRegistrationDropdowns();
@@ -217,6 +219,12 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
       _selectedTypeId = _controller.deliveryTypes.first.id;
     }
 
+    final effectiveCurrencyId = _selectedCurrencyId ??
+        (_propertyToEdit != null ? _controller.getCurrencyIdForProperty(_propertyToEdit) : null) ??
+        (_controller.currencies.any((c) => c.code.toUpperCase() == 'ETB')
+            ? _controller.currencies.firstWhere((c) => c.code.toUpperCase() == 'ETB').id
+            : (_controller.currencies.isNotEmpty ? _controller.currencies.first.id : 2));
+
     if (_isEditing) {
       _controller.updateExistingProperty(
         propertyId: _propertyToEdit!.id,
@@ -235,6 +243,7 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
         coverImagePath: _coverPath,
         tinCertificatePath: _tinCertPath,
         tradeLicensePath: _tradeLicensePath,
+        currencyId: effectiveCurrencyId,
       );
     } else {
       _controller.registerNewProperty(
@@ -253,6 +262,7 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
         coverImagePath: _coverPath,
         tinCertificatePath: _tinCertPath,
         tradeLicensePath: _tradeLicensePath,
+        currencyId: effectiveCurrencyId,
       );
     }
   }
@@ -395,6 +405,41 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
                           ),
                         )).toList(),
                         onChanged: (val) => setState(() => _selectedTypeId = val),
+                      );
+                    }),
+                    const SizedBox(height: 12),
+                    Obx(() {
+                      final currencies = _controller.currencies;
+                      if (currencies.isEmpty && _controller.isLoadingDropdowns.value) {
+                        return const SizedBox.shrink();
+                      }
+                      final selectedCurrency = currencies.any((c) => c.id == _selectedCurrencyId)
+                          ? _selectedCurrencyId
+                          : (_propertyToEdit != null && _controller.getCurrencyIdForProperty(_propertyToEdit) != null && currencies.any((c) => c.id == _controller.getCurrencyIdForProperty(_propertyToEdit))
+                              ? _controller.getCurrencyIdForProperty(_propertyToEdit)
+                              : (currencies.any((c) => c.code.toUpperCase() == 'ETB')
+                                  ? currencies.firstWhere((c) => c.code.toUpperCase() == 'ETB').id
+                                  : (currencies.isNotEmpty ? currencies.first.id : null)));
+                      return DropdownButtonFormField<int>(
+                        isExpanded: true,
+                        initialValue: selectedCurrency,
+                        decoration: InputDecoration(
+                          labelText: 'Currency *',
+                          hintText: 'Select store currency',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          filled: true,
+                          prefixIcon: const Icon(Icons.monetization_on_outlined),
+                        ),
+                        items: currencies.map((c) => DropdownMenuItem(
+                          value: c.id,
+                          child: Text(
+                            '${c.code} (${c.symbol})',
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        )).toList(),
+                        onChanged: (val) => setState(() => _selectedCurrencyId = val),
+                        validator: (val) => val == null ? 'Please select a currency' : null,
                       );
                     }),
                     const SizedBox(height: 12),

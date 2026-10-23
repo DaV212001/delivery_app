@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/country_code.dart';
+import 'country_flag.dart';
 
 Future<CountryCode?> showCountryPickerBottomSheet(
   BuildContext context, {
@@ -172,9 +173,11 @@ class _CountryPickerContentState extends State<_CountryPickerContent> {
                             horizontal: 20,
                             vertical: 2,
                           ),
-                          leading: Text(
-                            country.flag,
-                            style: const TextStyle(fontSize: 26),
+                          leading: CountryFlag(
+                            country: country,
+                            width: 32,
+                            height: 22,
+                            borderRadius: 4,
                           ),
                           title: Text(
                             country.name,

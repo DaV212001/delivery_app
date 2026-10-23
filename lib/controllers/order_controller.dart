@@ -8,6 +8,7 @@ import '../data/mock_data.dart';
 import '../models/order.dart';
 import '../models/store.dart';
 import '../screens/wallet/payment_webview_screen.dart';
+import '../services/gebeta_location_service.dart';
 import '../services/order_service.dart';
 import '../utils/api_call_status.dart';
 import 'profile_controller.dart';
@@ -109,6 +110,7 @@ class OrderController extends GetxController {
     double? longitude,
     double? storeLatitude,
     double? storeLongitude,
+    String? destinationFriendlyLocation,
   }) async {
     final uid = currentCustomerId;
     if (uid == null) {
@@ -134,6 +136,27 @@ class OrderController extends GetxController {
       final effectivePropLat = storeLatitude ?? propertyLatitude;
       final effectivePropLng = storeLongitude ?? propertyLongitude;
       final effectiveTotalKmPrice = totalKmPrice ?? deliveryFee;
+
+      // Reverse geocode destination coordinates (effectiveCustLat, effectiveCustLng)
+      String resolvedDestinationFriendly =
+          (destinationFriendlyLocation != null && destinationFriendlyLocation.trim().isNotEmpty)
+              ? destinationFriendlyLocation.trim()
+              : '';
+
+      if (resolvedDestinationFriendly.isEmpty) {
+        try {
+          resolvedDestinationFriendly = await GebetaLocationService.reverseGeocode(
+            effectiveCustLat,
+            effectiveCustLng,
+          );
+        } catch (_) {}
+      }
+
+      if (resolvedDestinationFriendly.isEmpty) {
+        resolvedDestinationFriendly = deliveryAddress.trim().isNotEmpty
+            ? deliveryAddress
+            : 'Addis Ababa';
+      }
 
       String normalizedPaymentType = paymentType;
       if (paymentType == 'cash') normalizedPaymentType = '0';
@@ -163,6 +186,7 @@ class OrderController extends GetxController {
         deliveryOption: deliveryOption,
         kmPrice: kmPrice,
         totalKmPrice: effectiveTotalKmPrice,
+        destinationFriendlyLocation: resolvedDestinationFriendly,
       );
 
       await OrderService.createOrder(
@@ -185,7 +209,8 @@ class OrderController extends GetxController {
             taxAndFees: taxAndFees,
             total: total,
             deliveryAddress: deliveryAddress,
-            status: OrderProgressStatus.preparing,
+            destinationFriendlyLocation: resolvedDestinationFriendly,
+            status: OrderProgressStatus.accepted,
             estimatedArrival: '25 mins',
             storeType: storeType,
             storeLatitude: effectivePropLat,
@@ -247,7 +272,8 @@ class OrderController extends GetxController {
               taxAndFees: taxAndFees,
               total: total,
               deliveryAddress: deliveryAddress,
-              status: OrderProgressStatus.preparing,
+              destinationFriendlyLocation: resolvedDestinationFriendly,
+              status: OrderProgressStatus.accepted,
               estimatedArrival: '25 mins',
               storeType: storeType,
             );

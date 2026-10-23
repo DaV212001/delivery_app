@@ -12,6 +12,7 @@ class SpecialOffer {
   final String imageUrl;
   final String storeId;
   final DeliveryItem? deliveryItem;
+  final String? currency;
 
   const SpecialOffer({
     required this.id,
@@ -24,12 +25,14 @@ class SpecialOffer {
     required this.imageUrl,
     required this.storeId,
     this.deliveryItem,
+    this.currency,
   });
 
+  String get displayCurrency => (currency != null && currency!.trim().isNotEmpty) ? currency!.trim() : 'Br';
   String get storeWithBranch => '$storeName | $branchName';
   String get formattedDiscountPercent => '${discountPercent.toStringAsFixed(1)}% OFF';
-  String get formattedDiscountedPrice => '${discountedPrice.toStringAsFixed(1)} Br';
-  String get formattedOriginalPrice => '${originalPrice.toStringAsFixed(2)} Br';
+  String get formattedDiscountedPrice => '${discountedPrice.toStringAsFixed(1)} $displayCurrency';
+  String get formattedOriginalPrice => '${originalPrice.toStringAsFixed(2)} $displayCurrency';
 
   DeliveryItem toDeliveryItem() {
     if (deliveryItem != null) return deliveryItem!;
@@ -43,6 +46,7 @@ class SpecialOffer {
       category: 'Special Offers',
       isSpecialOffer: true,
       discountPercent: discountPercent,
+      currency: currency,
     );
   }
 }

@@ -94,6 +94,9 @@ class ApiEndpoints {
   // App Version
   static const String appVersion = '/app_version';
 
+  // Currency
+  static const String currency = '/currency';
+
   // Real-Time Socket Server (Render)
   static const String socketServerUrl = 'https://amn-delivery-socket-server.onrender.com';
 }

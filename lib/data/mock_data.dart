@@ -631,7 +631,7 @@ class MockData {
     taxAndFees: 12.20,
     total: 134.17,
     deliveryAddress: 'Bole Olympia, Addis Ababa',
-    status: OrderProgressStatus.onTheWay,
+    status: OrderProgressStatus.driverToYou,
     estimatedArrival: '12 mins',
     storeLatitude: 9.0210,
     storeLongitude: 38.7850,

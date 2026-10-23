@@ -61,6 +61,35 @@ void main() {
       expect(json['delivery_option'], 1);
       expect(json['km_price'], 13);
       expect(json['total_km_price'], 130);
+      expect(json['destination_friendly_location'], 'Bole Road, Addis Ababa');
+    });
+
+    test('OrderCreateRequest serializes with reverse geocoded destination_friendly_location', () {
+      const request = OrderCreateRequest(
+        customerId: 1,
+        location: 'Home',
+        date: '2026-10-19T10:31:15.000000Z',
+        paymentType: '0',
+        totalQuantity: 1,
+        menuIds: [101],
+        quantities: [1],
+        prices: [150.00],
+        itemTotalPrice: 150.00,
+        totalItem: 1,
+        propertyId: 1,
+        customerLatitude: 9.0320,
+        customerLongitude: 38.7469,
+        propertyLatitude: 9.0320,
+        propertyLongitude: 38.7469,
+        deliveryOption: 1,
+        kmPrice: 13,
+        totalKmPrice: 130,
+        destinationFriendlyLocation: 'Bole Atlas, Addis Ababa',
+      );
+
+      final json = request.toJson();
+      expect(json['location'], 'Home');
+      expect(json['destination_friendly_location'], 'Bole Atlas, Addis Ababa');
     });
 
     test('PropertyDeliveryOption model parses backend response', () {

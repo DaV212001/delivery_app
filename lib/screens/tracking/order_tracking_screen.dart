@@ -263,7 +263,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         ? CustomerSocketService.to
         : Get.put(CustomerSocketService());
     final isDelivered = order?.status == OrderProgressStatus.delivered;
-    final titleText = isDelivered ? 'order_details'.tr : 'track_order'.tr;
+    final isCancelled = order?.status == OrderProgressStatus.cancelled;
+    final titleText = isCancelled
+        ? 'order_cancelled'.tr
+        : (isDelivered ? 'order_details'.tr : 'track_order'.tr);
 
     if (order == null) {
       if (_isLoadingDetail) {
@@ -458,41 +461,58 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                           child: Obx(() {
                             final isDriverOnline = socket.isDriverOnline.value;
                             final liveMins = socket.estimatedMinutes.value;
-                            final isPreparing = order.status == OrderProgressStatus.preparing;
-                            final prepTitle = 'preparing_order'.tr.isNotEmpty ? 'preparing_order'.tr : 'Preparing';
-                            final arrivalText = isDelivered
-                                ? 'delivered'.tr
-                                : (isPreparing
-                                    ? '$prepTitle (~${order.estimatedArrival})'
-                                    : (liveMins != null ? '$liveMins mins' : order.estimatedArrival));
+                            final isAccepted = order.status == OrderProgressStatus.accepted;
+                            final isDriverToShop = order.status == OrderProgressStatus.driverToShop;
+                            final isDriverToYou = order.status == OrderProgressStatus.driverToYou;
+                            final isDelivered = order.status == OrderProgressStatus.delivered;
+                            final isCancelled = order.status == OrderProgressStatus.cancelled;
+
+                            String arrivalText;
+                            if (isCancelled) {
+                              arrivalText = 'order_cancelled'.tr;
+                            } else if (isDelivered) {
+                              arrivalText = 'delivered'.tr;
+                            } else if (isAccepted) {
+                              arrivalText = '${'order_accepted'.tr} (~${order.estimatedArrival})';
+                            } else if (isDriverToShop) {
+                              arrivalText = liveMins != null
+                                  ? '$liveMins mins • ${'driver_to_shop'.tr}'
+                                  : 'driver_to_shop'.tr;
+                            } else if (isDriverToYou) {
+                              arrivalText = liveMins != null
+                                  ? '$liveMins mins • ${'driver_to_you'.tr}'
+                                  : 'driver_to_you'.tr;
+                            } else {
+                              arrivalText = order.estimatedArrival;
+                            }
+
+                            final Color statusColor = isCancelled
+                                ? Colors.red
+                                : (isDelivered
+                                    ? Colors.green
+                                    : (isDriverOnline ? Colors.green.shade700 : AppColors.primary));
+
+                            final IconData statusIcon = isCancelled
+                                ? Icons.cancel_rounded
+                                : (isDelivered
+                                    ? Icons.check_circle_rounded
+                                    : (isDriverToYou
+                                        ? Icons.two_wheeler_rounded
+                                        : (isDriverToShop
+                                            ? Icons.storefront_rounded
+                                            : Icons.receipt_long_rounded)));
 
                             return Row(
                               children: [
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: isDelivered
-                                        ? Colors.green.withValues(alpha: 0.12)
-                                        : (isPreparing
-                                            ? AppColors.primary.withValues(alpha: 0.12)
-                                            : (isDriverOnline
-                                                ? Colors.green.withValues(alpha: 0.12)
-                                                : AppColors.primary.withValues(alpha: 0.12))),
+                                    color: statusColor.withValues(alpha: 0.12),
                                     shape: BoxShape.circle,
                                   ),
                                   child: Icon(
-                                    isDelivered
-                                        ? Icons.check_circle_rounded
-                                        : (isPreparing
-                                            ? Icons.inventory_2_rounded
-                                            : (isDriverOnline
-                                                ? Icons.sensors_rounded
-                                                : Icons.local_shipping_rounded)),
-                                    color: isDelivered
-                                        ? Colors.green
-                                        : (isPreparing
-                                            ? AppColors.primary
-                                            : (isDriverOnline ? Colors.green.shade700 : AppColors.primary)),
+                                    statusIcon,
+                                    color: statusColor,
                                     size: 26,
                                   ),
                                 ),
@@ -513,11 +533,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                       Text(
                                         arrivalText,
                                         style: theme.textTheme.titleMedium?.copyWith(
-                                          color: isDelivered
-                                              ? Colors.green
-                                              : (isDriverOnline
-                                                  ? Colors.green.shade700
-                                                  : AppColors.primary),
+                                          color: statusColor,
                                           fontWeight: FontWeight.w800,
                                         ),
                                         maxLines: 1,
@@ -530,17 +546,21 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: isDelivered
-                                        ? Colors.green.withValues(alpha: 0.12)
-                                        : AppColors.primaryFixed,
+                                    color: isCancelled
+                                        ? Colors.red.withValues(alpha: 0.12)
+                                        : (isDelivered
+                                            ? Colors.green.withValues(alpha: 0.12)
+                                            : AppColors.primaryFixed),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Text(
                                     order.orderId,
                                     style: TextStyle(
-                                      color: isDelivered
-                                          ? Colors.green
-                                          : AppColors.onPrimaryFixed,
+                                      color: isCancelled
+                                          ? Colors.red
+                                          : (isDelivered
+                                              ? Colors.green
+                                              : AppColors.onPrimaryFixed),
                                       fontWeight: FontWeight.bold,
                                       fontSize: 12,
                                     ),
@@ -555,50 +575,96 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                    // 4-Stage Progress Stepper
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-                      child: Column(
-                        children: [
-                          _ProgressStep(
-                            title: 'order_confirmed'.tr,
-                            subtitle: 'order_confirmed_sub'.tr,
-                            isCompleted: true,
-                            isCurrent: false,
-                            icon: Icons.check_circle_rounded,
+                    // Progress Stepper:
+                    // 1: Accepted
+                    // 2: Driver on the way to shop
+                    // 3: Driver on the way to you
+                    // 4: Delivered
+                    // 5: Cancelled
+                    if (order.status == OrderProgressStatus.cancelled)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                           ),
-                          const _ProgressLine(isCompleted: true),
-                          _ProgressStep(
-                            title: 'preparing_order'.tr,
-                            subtitle: 'preparing_order_sub'.tr,
-                            isCompleted: order.status != OrderProgressStatus.preparing,
-                            isCurrent: order.status == OrderProgressStatus.preparing,
-                            icon: Icons.inventory_2_rounded,
+                          child: Row(
+                            children: [
+                              const Icon(Icons.cancel_rounded, color: Colors.red, size: 30),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'order_cancelled'.tr,
+                                      style: theme.textTheme.titleMedium?.copyWith(
+                                        color: Colors.red.shade700,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'order_cancelled_sub'.tr,
+                                      style: theme.textTheme.bodyMedium?.copyWith(
+                                        color: Colors.red.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                          _ProgressLine(
-                            isCompleted: order.status == OrderProgressStatus.onTheWay ||
-                                order.status == OrderProgressStatus.delivered,
-                          ),
-                          _ProgressStep(
-                            title: 'on_the_way'.tr,
-                            subtitle: 'on_the_way_sub'.tr,
-                            isCompleted: order.status == OrderProgressStatus.delivered,
-                            isCurrent: order.status == OrderProgressStatus.onTheWay,
-                            icon: Icons.two_wheeler_rounded,
-                          ),
-                          _ProgressLine(
-                            isCompleted: order.status == OrderProgressStatus.delivered,
-                          ),
-                          _ProgressStep(
-                            title: 'delivered'.tr,
-                            subtitle: 'delivered_sub'.tr,
-                            isCompleted: order.status == OrderProgressStatus.delivered,
-                            isCurrent: isDelivered,
-                            icon: Icons.home_rounded,
-                          ),
-                        ],
+                        ),
+                      )
+                    else
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                        child: Column(
+                          children: [
+                            _ProgressStep(
+                              title: 'order_accepted'.tr,
+                              subtitle: 'order_accepted_sub'.tr,
+                              isCompleted: order.status.code >= 1,
+                              isCurrent: order.status == OrderProgressStatus.accepted,
+                              icon: Icons.receipt_long_rounded,
+                            ),
+                            _ProgressLine(
+                              isCompleted: order.status.code >= 2,
+                            ),
+                            _ProgressStep(
+                              title: 'driver_to_shop'.tr,
+                              subtitle: 'driver_to_shop_sub'.tr,
+                              isCompleted: order.status.code >= 2,
+                              isCurrent: order.status == OrderProgressStatus.driverToShop,
+                              icon: Icons.storefront_rounded,
+                            ),
+                            _ProgressLine(
+                              isCompleted: order.status.code >= 3,
+                            ),
+                            _ProgressStep(
+                              title: 'driver_to_you'.tr,
+                              subtitle: 'driver_to_you_sub'.tr,
+                              isCompleted: order.status.code >= 3,
+                              isCurrent: order.status == OrderProgressStatus.driverToYou,
+                              icon: Icons.two_wheeler_rounded,
+                            ),
+                            _ProgressLine(
+                              isCompleted: order.status == OrderProgressStatus.delivered,
+                            ),
+                            _ProgressStep(
+                              title: 'delivered'.tr,
+                              subtitle: 'delivered_sub'.tr,
+                              isCompleted: order.status == OrderProgressStatus.delivered,
+                              isCurrent: order.status == OrderProgressStatus.delivered,
+                              icon: Icons.home_rounded,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
 
                     // Courier Card (If available)
                     if (order.driver != null)

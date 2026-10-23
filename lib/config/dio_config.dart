@@ -204,12 +204,18 @@ class AuthInterceptor extends Interceptor {
       return;
     }
 
-    if (ConfigPreference.isAccessTokenExpired()) {
-      final token = await _refreshAccessToken();
-      if (token == null) {
-        await _redirectToLogin();
-        handler.reject(_expired(options));
-        return;
+    final hasToken = ConfigPreference.getAccessToken() != null;
+    final hasRefreshToken = ConfigPreference.getRefreshToken() != null;
+
+    // Only attempt token refresh and redirect if the user has an existing session
+    if (hasToken || hasRefreshToken) {
+      if (ConfigPreference.isAccessTokenExpired()) {
+        final token = await _refreshAccessToken();
+        if (token == null) {
+          await _redirectToLogin();
+          handler.reject(_expired(options));
+          return;
+        }
       }
     }
 
@@ -224,6 +230,12 @@ class AuthInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     if (err.response?.statusCode != 401 ||
         _isAuthPath(err.requestOptions.path)) {
+      handler.next(err);
+      return;
+    }
+
+    // Only attempt refresh & redirect if there is a refresh token to refresh
+    if (ConfigPreference.getRefreshToken() == null) {
       handler.next(err);
       return;
     }
@@ -290,6 +302,11 @@ class AuthInterceptor extends Interceptor {
 
   Future<void> _redirectToLogin() async {
     await ConfigPreference.clearTokens();
-    Get.offAllNamed(AppRoutes.loginRoute);
+    final currentRoute = Get.currentRoute;
+    if (currentRoute != AppRoutes.login &&
+        currentRoute != AppRoutes.otp &&
+        currentRoute != AppRoutes.forgotPassword) {
+      Get.offAllNamed(AppRoutes.loginRoute);
+    }
   }
 }

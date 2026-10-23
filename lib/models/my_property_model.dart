@@ -17,6 +17,7 @@ class MyPropertyModel {
   final String categoryName;
   final String deliveryTypeImage;
   final String deliveryCategoryImage;
+  final String currency;
 
   const MyPropertyModel({
     required this.id,
@@ -35,6 +36,7 @@ class MyPropertyModel {
     required this.categoryName,
     required this.deliveryTypeImage,
     required this.deliveryCategoryImage,
+    this.currency = 'ETB',
   });
 
   /// Whether the property is active and approved on the platform.
@@ -154,6 +156,27 @@ class MyPropertyModel {
         json['delivery_category_image']?.toString() ??
         '';
 
+    String pCurrency = 'ETB';
+    final rawCurrency = json['currency'] ??
+        json['currencies'] ??
+        json['currency_name'] ??
+        json['currency_code'] ??
+        json['currency_symbol'];
+    if (rawCurrency != null) {
+      if (rawCurrency is Map) {
+        pCurrency = rawCurrency['code']?.toString() ??
+            rawCurrency['currency_code']?.toString() ??
+            rawCurrency['name']?.toString() ??
+            rawCurrency['symbol']?.toString() ??
+            'ETB';
+      } else {
+        final s = rawCurrency.toString().trim();
+        if (s.isNotEmpty && s.toLowerCase() != 'null') {
+          pCurrency = s;
+        }
+      }
+    }
+
     return MyPropertyModel(
       id: parsedId,
       name: pName,
@@ -171,6 +194,7 @@ class MyPropertyModel {
       categoryName: pCat,
       deliveryTypeImage: pTypeImg,
       deliveryCategoryImage: pCatImg,
+      currency: pCurrency,
     );
   }
 
@@ -191,6 +215,7 @@ class MyPropertyModel {
     String? categoryName,
     String? deliveryTypeImage,
     String? deliveryCategoryImage,
+    String? currency,
   }) {
     return MyPropertyModel(
       id: id ?? this.id,
@@ -209,6 +234,7 @@ class MyPropertyModel {
       categoryName: categoryName ?? this.categoryName,
       deliveryTypeImage: deliveryTypeImage ?? this.deliveryTypeImage,
       deliveryCategoryImage: deliveryCategoryImage ?? this.deliveryCategoryImage,
+      currency: currency ?? this.currency,
     );
   }
 }

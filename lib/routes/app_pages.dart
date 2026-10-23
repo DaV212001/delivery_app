@@ -31,6 +31,11 @@ class AppPages {
       if (token != null && !isExpired) {
         return AppRoutes.mainNav;
       }
+      final pendingReg = ConfigPreference.getPendingRegistration();
+      if (pendingReg != null &&
+          (pendingReg['phone']?.toString().isNotEmpty ?? false)) {
+        return AppRoutes.otp;
+      }
     } catch (_) {}
     return AppRoutes.splash;
   }

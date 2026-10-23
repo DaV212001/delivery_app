@@ -198,4 +198,76 @@ class ConfigPreference {
     if (!isInitialized) return;
     await sharedPreferencesInstance.remove('saved_cart_batches');
   }
+
+  // Pending Registration OTP state persistence
+  static Map<String, dynamic>? getPendingRegistration() {
+    if (!isInitialized) return null;
+    final phone = sharedPreferencesInstance.getString('pending_reg_phone');
+    if (phone == null || phone.isEmpty) return null;
+    return {
+      'userId': sharedPreferencesInstance.getInt('pending_reg_user_id') ?? 0,
+      'phone': phone,
+      'email': sharedPreferencesInstance.getString('pending_reg_email') ?? '',
+      'name': sharedPreferencesInstance.getString('pending_reg_name') ?? '',
+      'token': sharedPreferencesInstance.getString('pending_reg_token') ?? '',
+      'otp': sharedPreferencesInstance.getString('pending_reg_otp') ?? '',
+    };
+  }
+
+  static Future<void> setPendingRegistration({
+    required int userId,
+    required String phone,
+    required String email,
+    required String name,
+    required String token,
+    required String otp,
+  }) async {
+    if (!isInitialized) return;
+    await sharedPreferencesInstance.setInt('pending_reg_user_id', userId);
+    await sharedPreferencesInstance.setString('pending_reg_phone', phone);
+    await sharedPreferencesInstance.setString('pending_reg_email', email);
+    await sharedPreferencesInstance.setString('pending_reg_name', name);
+    await sharedPreferencesInstance.setString('pending_reg_token', token);
+    await sharedPreferencesInstance.setString('pending_reg_otp', otp);
+  }
+
+  static Future<void> clearPendingRegistration() async {
+    if (!isInitialized) return;
+    await sharedPreferencesInstance.remove('pending_reg_user_id');
+    await sharedPreferencesInstance.remove('pending_reg_phone');
+    await sharedPreferencesInstance.remove('pending_reg_email');
+    await sharedPreferencesInstance.remove('pending_reg_name');
+    await sharedPreferencesInstance.remove('pending_reg_token');
+    await sharedPreferencesInstance.remove('pending_reg_otp');
+  }
+
+  // Pending Forgot Password OTP state persistence
+  static Map<String, dynamic>? getPendingResetPassword() {
+    if (!isInitialized) return null;
+    final phone = sharedPreferencesInstance.getString('pending_reset_phone');
+    if (phone == null || phone.isEmpty) return null;
+    return {
+      'phone': phone,
+      'otp': sharedPreferencesInstance.getString('pending_reset_otp') ?? '',
+      'step': sharedPreferencesInstance.getInt('pending_reset_step') ?? 0,
+    };
+  }
+
+  static Future<void> setPendingResetPassword({
+    required String phone,
+    required String otp,
+    required int step,
+  }) async {
+    if (!isInitialized) return;
+    await sharedPreferencesInstance.setString('pending_reset_phone', phone);
+    await sharedPreferencesInstance.setString('pending_reset_otp', otp);
+    await sharedPreferencesInstance.setInt('pending_reset_step', step);
+  }
+
+  static Future<void> clearPendingResetPassword() async {
+    if (!isInitialized) return;
+    await sharedPreferencesInstance.remove('pending_reset_phone');
+    await sharedPreferencesInstance.remove('pending_reset_otp');
+    await sharedPreferencesInstance.remove('pending_reset_step');
+  }
 }

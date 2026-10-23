@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:gebeta_gl/gebeta_gl.dart';
 import '../config/dio_config.dart';
+import '../models/gebeta_place_suggestion.dart';
 import '../models/gebeta_route.dart';
 
 class GebetaLocationService {
@@ -171,6 +172,101 @@ class GebetaLocationService {
 
   /// In-memory cache for Gebeta Maps routes
   static final Map<String, GebetaRoute> _routeCache = {};
+
+  /// In-memory cache for place search suggestions
+  static final Map<String, List<GebetaPlaceSuggestion>> _searchCache = {};
+
+  /// Forward geocode / search places by name query using Gebeta Maps Geocoding API.
+  /// (e.g. typing "Bole" returns all places with Bole in their name:
+  /// Bole, Bole Medhane Alem, Bole Arabsa, Bole Brass, etc.)
+  static Future<List<GebetaPlaceSuggestion>> searchPlaces(String query) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return [];
+
+    final cacheKey = trimmed.toLowerCase();
+    if (_searchCache.containsKey(cacheKey)) {
+      return _searchCache[cacheKey]!;
+    }
+
+    if (DioConfig.isTestMode) {
+      final mock = trimmed.toLowerCase().contains('bole')
+          ? const [
+              GebetaPlaceSuggestion(
+                name: 'Bole',
+                latitude: 8.989022,
+                longitude: 38.79036,
+                city: 'Addis Ababa',
+                country: 'Ethiopia',
+                type: 'neighborhood',
+              ),
+              GebetaPlaceSuggestion(
+                name: 'Bole Medhane Alem',
+                latitude: 8.99797,
+                longitude: 38.786733,
+                city: 'Addis Ababa',
+                country: 'Ethiopia',
+                type: 'neighborhood',
+              ),
+              GebetaPlaceSuggestion(
+                name: 'Bole Brass',
+                latitude: 8.991661,
+                longitude: 38.79242,
+                city: 'Addis Ababa',
+                country: 'Ethiopia',
+                type: 'Association or organization',
+              ),
+            ]
+          : [
+              GebetaPlaceSuggestion(
+                name: trimmed,
+                latitude: 9.0209,
+                longitude: 38.7469,
+                city: 'Addis Ababa',
+                country: 'Ethiopia',
+                type: 'Location',
+              ),
+            ];
+      _searchCache[cacheKey] = mock;
+      return mock;
+    }
+
+    try {
+      final dio = Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 8),
+          receiveTimeout: const Duration(seconds: 8),
+        ),
+      );
+      final url =
+          'https://mapapi.gebeta.app/api/v1/route/geocoding?name=${Uri.encodeComponent(trimmed)}&apiKey=$apiKey';
+
+      final response = await dio.get(
+        url,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $apiKey',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final data = response.data['data'];
+        if (data is List) {
+          final results = data
+              .map((item) => GebetaPlaceSuggestion.fromJson(
+                    Map<String, dynamic>.from(item as Map),
+                  ))
+              .where((item) => item.latitude != 0.0 && item.longitude != 0.0)
+              .toList();
+          _searchCache[cacheKey] = results;
+          return results;
+        }
+      }
+    } catch (_) {}
+
+    return [];
+  }
 
   /// Convenience method: fetches current location and returns reverse geocoded address
   static Future<String?> fetchCurrentLocationAddress({bool promptIfDeniedForever = false}) async {

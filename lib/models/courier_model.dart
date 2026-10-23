@@ -239,7 +239,9 @@ class CourierOrderModel {
       case '2':
         return 'In Transit';
       case '3':
+      case '4':
         return 'Delivered';
+      case '5':
       case '-1':
         return 'Cancelled';
       default:
@@ -256,7 +258,10 @@ class CourierOrderModel {
       case '2':
         return const Color(0xFF0284C7); // Sky blue
       case '3':
+        return const Color(0xFF6366F1); // Indigo
+      case '4':
         return const Color(0xFF10B981); // Emerald green
+      case '5':
       case '-1':
         return const Color(0xFFEF4444); // Red
       default:

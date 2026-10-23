@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import '../../config/storage_config.dart';
 import '../../controllers/auth_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/country_code.dart';
 import '../../widgets/common/app_widgets.dart';
-import '../../widgets/common/country_code_bottom_sheet.dart';
+import '../../widgets/common/country_code_dropdown.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -48,6 +49,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     } else {
       _phoneController = TextEditingController(text: initialPhone);
     }
+
+    final pendingReset = ConfigPreference.getPendingResetPassword();
+    if (pendingReset != null && pendingReset['phone'] != null) {
+      final resetPhone = pendingReset['phone'] as String;
+      final step = pendingReset['step'] as int? ?? 0;
+      if (step == 1 && resetPhone.isNotEmpty) {
+        _currentStep = 1;
+      }
+    }
   }
 
   @override
@@ -67,6 +77,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   void _handleBack() {
     if (_currentStep > 0) {
+      ConfigPreference.clearPendingResetPassword();
       setState(() => _currentStep--);
     } else {
       _authController.clearResetPasswordState();
@@ -333,50 +344,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             hintText: _selectedCountry.dialCode == '+251'
                 ? '911058179 or 0911058179'
                 : 'enter_phone_number'.tr,
-            prefixIcon: InkWell(
-              onTap: () => showCountryPickerBottomSheet(
-                context,
-                selectedCountry: _selectedCountry,
-                onSelect: (country) {
-                  setState(() {
-                    _selectedCountry = country;
-                  });
-                },
-              ),
-              borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _selectedCountry.flag,
-                      style: const TextStyle(fontSize: 20),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _selectedCountry.dialCode,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: theme.colorScheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(width: 2),
-                    Icon(
-                      Icons.arrow_drop_down_rounded,
-                      size: 20,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      height: 24,
-                      width: 1,
-                      color: theme.dividerColor.withValues(alpha: 0.3),
-                    ),
-                    const SizedBox(width: 4),
-                  ],
-                ),
-              ),
+            prefixIcon: CountryCodeDropdown(
+              selectedCountry: _selectedCountry,
+              onChanged: (country) {
+                setState(() {
+                  _selectedCountry = country;
+                });
+              },
             ),
           ),
         ),
@@ -403,15 +377,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           height: 52,
           decoration: BoxDecoration(
             color: AppColors.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
           ),
           child: const Icon(
-            Icons.sms_rounded,
+            Icons.mark_email_read_outlined,
             color: AppColors.primary,
             size: 28,
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
         Text(
           'verify_your_number'.tr,
           style: theme.textTheme.headlineMedium?.copyWith(
@@ -420,10 +394,57 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          '${'enter_code_sent_to'.tr}\n$phoneDisplay',
+          'enter_code_sent_to'.tr,
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
-            height: 1.5,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (phoneDisplay.isNotEmpty)
+          Chip(
+            avatar: const Icon(Icons.phone_android_rounded,
+                size: 16, color: AppColors.primary),
+            label: Text(phoneDisplay,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600, fontSize: 13)),
+            backgroundColor: AppColors.primary.withValues(alpha: 0.08),
+            side: BorderSide.none,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        const SizedBox(height: 14),
+        // Prominent Instruction Card informing the user to check both phone and email
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.2),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.info_outline_rounded,
+                color: AppColors.primary,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'check_phone_or_email_instructions'.tr,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface,
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 32),

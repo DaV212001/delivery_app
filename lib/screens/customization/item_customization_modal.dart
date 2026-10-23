@@ -128,7 +128,7 @@ class _ItemCustomizationModalState extends State<ItemCustomizationModal> {
                         ),
                       ),
                       Text(
-                        '${widget.item.price.toStringAsFixed(2)} Br',
+                        '${widget.item.price.toStringAsFixed(2)} ${widget.item.displayCurrency}',
                         style: theme.textTheme.titleLarge?.copyWith(
                           color: AppColors.primary,
                           fontWeight: FontWeight.w700,
@@ -238,7 +238,7 @@ class _ItemCustomizationModalState extends State<ItemCustomizationModal> {
                         contentPadding: EdgeInsets.zero,
                         title: Text(addon.name, style: theme.textTheme.bodyMedium),
                         subtitle: Text(
-                          '+ ${addon.price.toStringAsFixed(2)} Br',
+                          '+ ${addon.price.toStringAsFixed(2)} ${widget.item.displayCurrency}',
                           style: const TextStyle(color: AppColors.primary, fontSize: 12),
                         ),
                         activeColor: AppColors.primary,
@@ -414,8 +414,8 @@ class _ItemCustomizationModalState extends State<ItemCustomizationModal> {
                     Expanded(
                       child: AppButton(
                         text: _isStoreClosed
-                            ? '${'save_order_for_later'.tr} • ${_currentTotalPrice.toStringAsFixed(2)} Br'
-                            : '${'add_to_cart'.tr} • ${_currentTotalPrice.toStringAsFixed(2)} Br',
+                            ? '${'save_order_for_later'.tr} • ${_currentTotalPrice.toStringAsFixed(2)} ${widget.item.displayCurrency}'
+                            : '${'add_to_cart'.tr} • ${_currentTotalPrice.toStringAsFixed(2)} ${widget.item.displayCurrency}',
                         onPressed: () {
                           final selectedAddonsList = widget.item.availableAddons
                               .where((a) => _selectedAddonIds.contains(a.id))

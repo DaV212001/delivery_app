@@ -36,6 +36,10 @@ class CartItem {
 
   double get totalPrice => unitPrice * quantity;
 
+  String get displayCurrency => item.displayCurrency;
+  String get formattedTotalPrice => '${totalPrice.toStringAsFixed(2)} $displayCurrency';
+  String get formattedUnitPrice => '${unitPrice.toStringAsFixed(2)} $displayCurrency';
+
   String get customizationSummary {
     final parts = <String>[];
     if (selectedVariant != null) {

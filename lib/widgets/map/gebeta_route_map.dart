@@ -64,14 +64,16 @@ class _GebetaRouteMapState extends State<GebetaRouteMap> with SingleTickerProvid
 
   double get _progressFraction {
     switch (widget.order.status) {
-      case OrderProgressStatus.preparing:
+      case OrderProgressStatus.accepted:
         return 0.0;
-      case OrderProgressStatus.pickedUp:
-        return 0.10;
-      case OrderProgressStatus.onTheWay:
-        return 0.65;
+      case OrderProgressStatus.driverToShop:
+        return 0.20;
+      case OrderProgressStatus.driverToYou:
+        return 0.70;
       case OrderProgressStatus.delivered:
         return 1.0;
+      case OrderProgressStatus.cancelled:
+        return 0.0;
     }
   }
 
@@ -201,8 +203,9 @@ class _GebetaRouteMapState extends State<GebetaRouteMap> with SingleTickerProvid
         ),
       );
 
-      // Driver position along route or live GPS coordinates (only when picked up or on the way)
-      if (widget.order.status != OrderProgressStatus.preparing || widget.liveDriverLatitude != null) {
+      // Driver position along route or live GPS coordinates (only when on the move or live coordinates present)
+      if ((widget.order.status != OrderProgressStatus.accepted && widget.order.status != OrderProgressStatus.cancelled) ||
+          widget.liveDriverLatitude != null) {
         final LatLng driverPos = (widget.liveDriverLatitude != null && widget.liveDriverLongitude != null)
             ? LatLng(widget.liveDriverLatitude!, widget.liveDriverLongitude!)
             : _route!.positionAtProgress(_progressFraction);
@@ -716,8 +719,9 @@ class _GebetaRoutePainter extends CustomPainter {
       isDark: isDark,
     );
 
-    // 6. Courier Scooter Pin with Pulse Effect (Only if order is picked up/on the way, or live driver available)
-    if (order.status != OrderProgressStatus.preparing || liveDriverLatitude != null) {
+    // 6. Courier Scooter Pin with Pulse Effect (Only if order is in transit, or live driver available)
+    if ((order.status != OrderProgressStatus.accepted && order.status != OrderProgressStatus.cancelled) ||
+        liveDriverLatitude != null) {
       final driverPt = toCanvas(driverCoord);
       final markerColor = isLiveDriverOnline ? const Color(0xFF2E7D32) : const Color(0xFF1976D2);
 

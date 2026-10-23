@@ -8,7 +8,7 @@ import '../../constants/pages.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/country_code.dart';
 import '../../widgets/common/app_widgets.dart';
-import '../../widgets/common/country_code_bottom_sheet.dart';
+import '../../widgets/common/country_code_dropdown.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -284,50 +284,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   hintText: _selectedCountry.dialCode == '+251'
                       ? '911058179 or 0911058179'
                       : 'enter_phone_number'.tr,
-                  prefixIcon: InkWell(
-                    onTap: () => showCountryPickerBottomSheet(
-                      context,
-                      selectedCountry: _selectedCountry,
-                      onSelect: (country) {
-                        setState(() {
-                          _selectedCountry = country;
-                        });
-                      },
-                    ),
-                    borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _selectedCountry.flag,
-                            style: const TextStyle(fontSize: 20),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            _selectedCountry.dialCode,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                          ),
-                          const SizedBox(width: 2),
-                          Icon(
-                            Icons.arrow_drop_down_rounded,
-                            size: 20,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            height: 24,
-                            width: 1,
-                            color: theme.dividerColor.withValues(alpha: 0.3),
-                          ),
-                          const SizedBox(width: 4),
-                        ],
-                      ),
-                    ),
+                  prefixIcon: CountryCodeDropdown(
+                    selectedCountry: _selectedCountry,
+                    onChanged: (country) {
+                      setState(() {
+                        _selectedCountry = country;
+                      });
+                    },
                   ),
                 ),
               ),

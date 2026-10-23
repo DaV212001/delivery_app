@@ -13,6 +13,7 @@ class DeliveryItem {
   final List<String> removableOptions; // e.g. ["No Onions", "No plastic packaging"]
   final bool isSpecialOffer;
   final double discountPercent;
+  final String? currency;
 
   const DeliveryItem({
     required this.id,
@@ -29,7 +30,21 @@ class DeliveryItem {
     this.removableOptions = const [],
     this.isSpecialOffer = false,
     this.discountPercent = 0.0,
+    this.currency,
   });
+
+  String get displayCurrency {
+    if (currency != null && currency!.trim().isNotEmpty) {
+      final c = currency!.trim();
+      if (c == '1') return 'USD';
+      if (c == '2') return 'ETB';
+      if (c == '3') return 'EUR';
+      if (c == '4') return 'GBP';
+      return c;
+    }
+    return 'Br';
+  }
+  String get formattedPrice => '${price.toStringAsFixed(0)} $displayCurrency';
 
   factory DeliveryItem.fromJson(
     Map<String, dynamic> json, {
@@ -68,6 +83,12 @@ class DeliveryItem {
         ? rawRemovals.map((r) => r.toString()).toList()
         : const <String>[];
 
+    final itemCurrency = json['currency']?.toString() ??
+        json['currency_name']?.toString() ??
+        json['currency_code']?.toString() ??
+        json['currency_symbol']?.toString() ??
+        json['currency_id']?.toString();
+
     return DeliveryItem(
       id: itemId,
       storeId: propId,
@@ -83,6 +104,7 @@ class DeliveryItem {
       removableOptions: parsedRemovals,
       isSpecialOffer: specialOffer,
       discountPercent: discount,
+      currency: itemCurrency,
     );
   }
 
@@ -101,6 +123,7 @@ class DeliveryItem {
     'removableOptions': removableOptions,
     'isSpecialOffer': isSpecialOffer,
     'discountPercent': discountPercent,
+    'currency': currency,
   };
 
   // Backward-compatibility getters for existing code referencing FoodItem

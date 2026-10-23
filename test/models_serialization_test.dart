@@ -154,7 +154,7 @@ void main() {
         'id': 12,
         'property_id': '1',
         'location': 'Bole Road, Addis Ababa',
-        'status': '0',
+        'status': '1',
         'total_quantity': '3',
         'total_price': '550',
         'total_item': '2',
@@ -163,13 +163,21 @@ void main() {
       expect(activeOrder.orderId, '#AMN-12');
       expect(activeOrder.deliveryAddress, 'Bole Road, Addis Ababa');
       expect(activeOrder.total, 550.0);
-      expect(activeOrder.status, OrderProgressStatus.preparing);
+      expect(activeOrder.status, OrderProgressStatus.accepted);
+      expect(activeOrder.status.code, 1);
+
+      // Verify all 5 new status codes (1: Accepted, 2: Driver on the way to shop, 3: Driver on the way to you, 4: Delivered, 5: Cancelled)
+      expect(OrderModel.parseStatus('1'), OrderProgressStatus.accepted);
+      expect(OrderModel.parseStatus('2'), OrderProgressStatus.driverToShop);
+      expect(OrderModel.parseStatus('3'), OrderProgressStatus.driverToYou);
+      expect(OrderModel.parseStatus('4'), OrderProgressStatus.delivered);
+      expect(OrderModel.parseStatus('5'), OrderProgressStatus.cancelled);
 
       final detailStatusJson = {
         'id': 12,
         'property_id': '1',
         'location': 'Bole Road, Addis Ababa',
-        'status': '2',
+        'status': '3',
         'total_price': '550',
       };
       final detailItemsList = [
@@ -184,7 +192,8 @@ void main() {
         statusJson: detailStatusJson,
         itemsList: detailItemsList,
       );
-      expect(detailOrder.status, OrderProgressStatus.onTheWay);
+      expect(detailOrder.status, OrderProgressStatus.driverToYou);
+      expect(detailOrder.status.code, 3);
       expect(detailOrder.items.length, 1);
       expect(detailOrder.items.first.item.name, 'checkebvsa');
       expect(detailOrder.storeName, 'AMN Restaurant');

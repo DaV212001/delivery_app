@@ -267,7 +267,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       // Advanced to Step 2 (Verify step)
-      expect(find.text('Verify Your Number'), findsOneWidget);
+      expect(find.text('verify_your_number'.tr), findsOneWidget);
+      expect(find.text('check_phone_or_email_instructions'.tr), findsOneWidget);
       expect(find.text('Verify Code'), findsOneWidget);
       expect(find.byType(TextField), findsNWidgets(4));
 

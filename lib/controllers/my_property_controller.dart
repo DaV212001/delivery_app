@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../config/storage_config.dart';
 import '../core/theme/app_colors.dart';
 import '../models/category_model.dart';
+import '../models/currency_model.dart';
 import '../models/my_menu_category_model.dart';
 import '../models/my_menu_item_model.dart';
 import '../models/my_property_model.dart';
@@ -24,9 +25,10 @@ class MyPropertyController extends GetxController {
   final menuItems = <MyMenuItemModel>[].obs;
   final searchQuery = ''.obs;
 
-  // Delivery categories & delivery types for registration
+  // Delivery categories, types & currencies for registration
   final deliveryCategories = <CategoryModel>[].obs;
   final deliveryTypes = <CategoryModel>[].obs;
+  final currencies = <CurrencyModel>[].obs;
   final isLoadingDropdowns = false.obs;
 
   late final AuthController _authController;
@@ -40,6 +42,65 @@ class MyPropertyController extends GetxController {
 
     loadProperties();
     loadRegistrationDropdowns();
+    loadCurrencies();
+  }
+
+  /// Load available currencies
+  Future<void> loadCurrencies() async {
+    try {
+      final list = await PropertyService.fetchCurrencies();
+      currencies.assignAll(list);
+    } catch (_) {}
+  }
+
+  /// Cross-reference the property's currency string to obtain the matching currency ID.
+  /// Used when registering/updating menu items.
+  int? getCurrencyIdForProperty(MyPropertyModel? property) {
+    if (property == null) return null;
+    final propCurrency = property.currency.trim();
+    if (propCurrency.isEmpty) {
+      final etb = currencies.firstWhereOrNull((c) => c.code.toUpperCase() == 'ETB');
+      return etb?.id ?? (currencies.isNotEmpty ? currencies.first.id : 2);
+    }
+
+    final numericId = int.tryParse(propCurrency);
+    if (numericId != null && currencies.any((c) => c.id == numericId)) {
+      return numericId;
+    }
+
+    final matchCode = currencies.firstWhereOrNull(
+      (c) => c.code.trim().toLowerCase() == propCurrency.toLowerCase(),
+    );
+    if (matchCode != null) return matchCode.id;
+
+    final matchSymbol = currencies.firstWhereOrNull(
+      (c) => c.symbol.trim().toLowerCase() == propCurrency.toLowerCase(),
+    );
+    if (matchSymbol != null) return matchSymbol.id;
+
+    final matchLoose = currencies.firstWhereOrNull(
+      (c) => propCurrency.toLowerCase().contains(c.code.toLowerCase()) ||
+          c.code.toLowerCase().contains(propCurrency.toLowerCase()),
+    );
+    if (matchLoose != null) return matchLoose.id;
+
+    // Default fallback to ETB if present, else first currency or 2
+    final etb = currencies.firstWhereOrNull((c) => c.code.toUpperCase() == 'ETB');
+    if (etb != null) return etb.id;
+    return currencies.isNotEmpty ? currencies.first.id : 2;
+  }
+
+  /// Returns the display code or symbol for a property's currency.
+  String getPropertyCurrencyCode(MyPropertyModel? property) {
+    if (property == null || property.currency.trim().isEmpty) return 'ETB';
+    final propCurrency = property.currency.trim();
+    final match = currencies.firstWhereOrNull(
+      (c) => c.code.toLowerCase() == propCurrency.toLowerCase() ||
+             c.symbol.toLowerCase() == propCurrency.toLowerCase() ||
+             c.id.toString() == propCurrency,
+    );
+    if (match != null) return match.code;
+    return propCurrency;
   }
 
   int get currentCustomerId {
@@ -235,7 +296,7 @@ class MyPropertyController extends GetxController {
     return false;
   }
 
-  /// Add new menu item
+  /// Add or update menu item
   Future<bool> saveMenuItem({
     int? editingId,
     required String name,
@@ -245,8 +306,11 @@ class MyPropertyController extends GetxController {
     bool specialOffer = false,
     double discountPercent = 0.0,
     String? imagePath,
+    dynamic currencyId,
   }) async {
     if (selectedProperty.value == null) return false;
+    final effectiveCurrencyId = currencyId ?? getCurrencyIdForProperty(selectedProperty.value);
+
     if (description == null || description.trim().isEmpty) {
       if (Get.context != null && !Get.testMode) {
         Get.snackbar(
@@ -274,6 +338,7 @@ class MyPropertyController extends GetxController {
           specialOffer: specialOffer,
           discountPercent: discountPercent,
           imageFilePath: imagePath,
+          currencyId: effectiveCurrencyId,
         );
         if (ok) {
           await loadCategoriesAndMenus(selectedProperty.value!.id);
@@ -296,6 +361,7 @@ class MyPropertyController extends GetxController {
           specialOffer: specialOffer,
           discountPercent: discountPercent,
           imageFilePath: imagePath,
+          currencyId: effectiveCurrencyId,
         );
         if (created != null) {
           await loadCategoriesAndMenus(selectedProperty.value!.id);
@@ -316,15 +382,17 @@ class MyPropertyController extends GetxController {
     return false;
   }
 
-  /// Load delivery categories & types for registering property
+  /// Load delivery categories, types & currencies for registering property
   Future<void> loadRegistrationDropdowns() async {
-    if (deliveryCategories.isNotEmpty && deliveryTypes.isNotEmpty) return;
+    if (deliveryCategories.isNotEmpty && deliveryTypes.isNotEmpty && currencies.isNotEmpty) return;
     isLoadingDropdowns.value = true;
     try {
       final cats = await PropertyService.fetchCategories();
       deliveryCategories.assignAll(cats);
       final types = await PropertyService.fetchDeliveryTypes();
       deliveryTypes.assignAll(types);
+      final currList = await PropertyService.fetchCurrencies();
+      currencies.assignAll(currList);
     } catch (_) {
     } finally {
       isLoadingDropdowns.value = false;
@@ -348,6 +416,7 @@ class MyPropertyController extends GetxController {
     String? coverImagePath,
     String? tinCertificatePath,
     String? tradeLicensePath,
+    dynamic currencyId,
   }) async {
     isRegistering.value = true;
     try {
@@ -368,6 +437,7 @@ class MyPropertyController extends GetxController {
         coverImagePath: coverImagePath,
         tinCertificatePath: tinCertificatePath,
         tradeLicensePath: tradeLicensePath,
+        currencyId: currencyId,
       );
 
       if (prop != null) {
@@ -409,6 +479,7 @@ class MyPropertyController extends GetxController {
     String? coverImagePath,
     String? tinCertificatePath,
     String? tradeLicensePath,
+    dynamic currencyId,
   }) async {
     isRegistering.value = true;
     try {
@@ -430,6 +501,7 @@ class MyPropertyController extends GetxController {
         coverImagePath: coverImagePath,
         tinCertificatePath: tinCertificatePath,
         tradeLicensePath: tradeLicensePath,
+        currencyId: currencyId,
       );
 
       if (ok) {

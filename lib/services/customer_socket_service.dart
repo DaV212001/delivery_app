@@ -7,6 +7,7 @@ import 'package:socket_io_client/socket_io_client.dart' as IO;
 import '../config/storage_config.dart';
 import '../constants/api_endpoints.dart';
 import '../controllers/order_controller.dart';
+import '../core/theme/app_colors.dart';
 import '../models/order.dart';
 
 
@@ -148,10 +149,11 @@ class CustomerSocketService extends GetxService {
           if (status != null) {
             liveOrderStatus.value = status;
             _syncOrderStatus(status);
+            final progress = OrderModel.parseStatus(status);
             _showNotification(
               'Order Update',
-              statusName ?? 'Your order is in transit: $status',
-              Colors.orange.shade700,
+              statusName ?? _getStatusNotificationMessage(progress),
+              _getStatusNotificationColor(progress),
             );
           }
         }
@@ -159,11 +161,11 @@ class CustomerSocketService extends GetxService {
 
       // Order completed
       _socket!.on('order:completed', (data) {
-        liveOrderStatus.value = 'delivered';
-        _syncOrderStatus('delivered');
+        liveOrderStatus.value = '4';
+        _syncOrderStatus('4');
         _showNotification(
           'Order Delivered! 🎉',
-          'Your meal has been delivered. Enjoy!',
+          'Your order has been delivered. Enjoy!',
           Colors.green.shade700,
         );
       });
@@ -336,14 +338,37 @@ class CustomerSocketService extends GetxService {
   void _syncOrderStatus(String status) {
     if (!Get.isRegistered<OrderController>()) return;
     final orderCtrl = Get.find<OrderController>();
-    if (status == 'at_store') {
-      orderCtrl.updateActiveOrderStatus(OrderProgressStatus.preparing);
-    } else if (status == 'order_picked_up' || status == 'picked_up') {
-      orderCtrl.updateActiveOrderStatus(OrderProgressStatus.pickedUp);
-    } else if (status == 'in_transit' || status == 'on_the_way') {
-      orderCtrl.updateActiveOrderStatus(OrderProgressStatus.onTheWay);
-    } else if (status == 'delivered') {
-      orderCtrl.updateActiveOrderStatus(OrderProgressStatus.delivered);
+    final parsedStatus = OrderModel.parseStatus(status);
+    orderCtrl.updateActiveOrderStatus(parsedStatus);
+  }
+
+  String _getStatusNotificationMessage(OrderProgressStatus status) {
+    switch (status) {
+      case OrderProgressStatus.accepted:
+        return 'Store has accepted your order';
+      case OrderProgressStatus.driverToShop:
+        return 'Driver is on the way to the shop';
+      case OrderProgressStatus.driverToYou:
+        return 'Driver is on the way to you with your order';
+      case OrderProgressStatus.delivered:
+        return 'Your order has been delivered! 🎉';
+      case OrderProgressStatus.cancelled:
+        return 'Your order has been cancelled';
+    }
+  }
+
+  Color _getStatusNotificationColor(OrderProgressStatus status) {
+    switch (status) {
+      case OrderProgressStatus.accepted:
+        return AppColors.primary;
+      case OrderProgressStatus.driverToShop:
+        return Colors.blue.shade700;
+      case OrderProgressStatus.driverToYou:
+        return Colors.orange.shade700;
+      case OrderProgressStatus.delivered:
+        return Colors.green.shade700;
+      case OrderProgressStatus.cancelled:
+        return Colors.red.shade700;
     }
   }
 

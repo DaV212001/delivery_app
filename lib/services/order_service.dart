@@ -3,6 +3,7 @@ import '../models/order.dart';
 import '../models/property_delivery_option.dart';
 import '../models/store.dart';
 import '../utils/templates/dio_template.dart';
+import 'gebeta_location_service.dart';
 import 'property_service.dart';
 
 class OrderService {
@@ -135,9 +136,26 @@ class OrderService {
     required Function(Map<String, dynamic> responseData) onSuccess,
     required Function(String error) onFailure,
   }) async {
+    final payload = request.toJson();
+
+    // Ensure destination_friendly_location contains the reverse-geocoded name of destination coordinate
+    if (!payload.containsKey('destination_friendly_location') ||
+        payload['destination_friendly_location'] == null ||
+        payload['destination_friendly_location'].toString().trim().isEmpty) {
+      String resolved = '';
+      try {
+        resolved = await GebetaLocationService.reverseGeocode(
+          request.customerLatitude,
+          request.customerLongitude,
+        );
+      } catch (_) {}
+      payload['destination_friendly_location'] =
+          resolved.trim().isNotEmpty ? resolved.trim() : request.location;
+    }
+
     await DioService.dioPost(
       path: ApiEndpoints.order,
-      data: request.toJson(),
+      data: payload,
       onSuccess: (response) {
         if (response.data is Map<String, dynamic>) {
           onSuccess(response.data as Map<String, dynamic>);

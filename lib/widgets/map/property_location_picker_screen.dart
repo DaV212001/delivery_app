@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:get/get.dart';
 
 import '../../config/dio_config.dart';
 import '../../core/theme/app_colors.dart';
+import '../../models/gebeta_place_suggestion.dart';
 import '../../services/gebeta_location_service.dart';
 import '../common/app_widgets.dart';
 
@@ -27,8 +29,9 @@ class PropertyLocationResult {
 }
 
 /// Interactive Full-Featured Map Selector powered by Gebeta Maps.
-/// Allows business owners to accurately pin their property / store location on a map
-/// with real-time reverse geocoding, current GPS centering, and intuitive pin-drop interaction.
+/// Allows users to accurately pin their property / store / delivery / courier location on a map
+/// with real-time Gebeta Maps place search autocomplete, reverse geocoding, current GPS centering,
+/// and intuitive pin-drop interaction.
 class PropertyLocationPickerScreen extends StatefulWidget {
   final double? initialLatitude;
   final double? initialLongitude;
@@ -65,6 +68,14 @@ class _PropertyLocationPickerScreenState
   GebetaMapController? _mapController;
   late AnimationController _pinAnimController;
   late Animation<double> _pinJumpAnimation;
+
+  // Search & Gebeta Autocomplete State
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  Timer? _searchDebounce;
+  List<GebetaPlaceSuggestion> _suggestions = [];
+  bool _isSearching = false;
+  bool _hasSearched = false;
 
   bool get _canUseNativeMap {
     if (DioConfig.isTestMode) return false;
@@ -104,6 +115,9 @@ class _PropertyLocationPickerScreenState
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     _pinAnimController.dispose();
     super.dispose();
   }
@@ -135,6 +149,8 @@ class _PropertyLocationPickerScreenState
   }
 
   void _onMapClick(LatLng latLng) {
+    _dismissSearchOverlay();
+
     setState(() {
       _selectedLat = latLng.latitude;
       _selectedLng = latLng.longitude;
@@ -145,6 +161,95 @@ class _PropertyLocationPickerScreenState
     );
 
     _resolveAddress(latLng.latitude, latLng.longitude);
+  }
+
+  void _dismissSearchOverlay() {
+    if (_searchFocusNode.hasFocus || _suggestions.isNotEmpty) {
+      _searchFocusNode.unfocus();
+      if (_suggestions.isNotEmpty || _hasSearched) {
+        setState(() {
+          _suggestions = [];
+          _hasSearched = false;
+          _isSearching = false;
+        });
+      }
+    }
+  }
+
+  void _onSearchChanged(String query) {
+    _searchDebounce?.cancel();
+    final trimmed = query.trim();
+    if (trimmed.length < 2) {
+      setState(() {
+        _suggestions = [];
+        _isSearching = false;
+        _hasSearched = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isSearching = true;
+    });
+
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () async {
+      try {
+        final results = await GebetaLocationService.searchPlaces(trimmed);
+        if (mounted) {
+          setState(() {
+            _suggestions = results;
+            _isSearching = false;
+            _hasSearched = true;
+          });
+        }
+      } catch (_) {
+        if (mounted) {
+          setState(() {
+            _isSearching = false;
+            _hasSearched = true;
+          });
+        }
+      }
+    });
+  }
+
+  void _onSelectSuggestion(GebetaPlaceSuggestion suggestion) {
+    _searchDebounce?.cancel();
+    _searchController.text = suggestion.name;
+    _searchFocusNode.unfocus();
+
+    setState(() {
+      _suggestions = [];
+      _isSearching = false;
+      _hasSearched = false;
+      _selectedLat = suggestion.latitude;
+      _selectedLng = suggestion.longitude;
+      _resolvedAddress = suggestion.displayText.isNotEmpty
+          ? suggestion.displayText
+          : suggestion.name;
+    });
+
+    if (_mapController != null && _canUseNativeMap) {
+      _mapController!.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: LatLng(suggestion.latitude, suggestion.longitude),
+            zoom: 16.5,
+          ),
+        ),
+      );
+    }
+  }
+
+  void _clearSearch() {
+    _searchDebounce?.cancel();
+    _searchController.clear();
+    _searchFocusNode.unfocus();
+    setState(() {
+      _suggestions = [];
+      _isSearching = false;
+      _hasSearched = false;
+    });
   }
 
   Future<void> _resolveAddress(double lat, double lng) async {
@@ -165,6 +270,7 @@ class _PropertyLocationPickerScreenState
   }
 
   Future<void> _handleLocateMe() async {
+    _dismissSearchOverlay();
     setState(() => _isLocatingUser = true);
     try {
       final pos = await GebetaLocationService.getCurrentPosition(
@@ -199,14 +305,17 @@ class _PropertyLocationPickerScreenState
   }
 
   void _zoomIn() {
+    _dismissSearchOverlay();
     _mapController?.animateCamera(CameraUpdate.zoomIn());
   }
 
   void _zoomOut() {
+    _dismissSearchOverlay();
     _mapController?.animateCamera(CameraUpdate.zoomOut());
   }
 
   void _confirmSelection() {
+    _dismissSearchOverlay();
     final result = PropertyLocationResult(
       latitude: _selectedLat,
       longitude: _selectedLng,
@@ -219,6 +328,9 @@ class _PropertyLocationPickerScreenState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final showSuggestionsOverlay = _suggestions.isNotEmpty ||
+        (_isSearching && _searchController.text.trim().length >= 2) ||
+        (_hasSearched && _suggestions.isEmpty && _searchController.text.trim().length >= 2);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -278,7 +390,7 @@ class _PropertyLocationPickerScreenState
                           ],
                         ),
                         child: const Icon(
-                          Icons.storefront_rounded,
+                          Icons.location_on_rounded,
                           color: Colors.white,
                           size: 24,
                         ),
@@ -307,80 +419,7 @@ class _PropertyLocationPickerScreenState
             ),
           ),
 
-          // 3. Top Floating App Bar Pill
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: [
-                    // Back button
-                    Container(
-                      height: 44,
-                      width: 44,
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xEE1E1E1E) : Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.12),
-                            blurRadius: 10,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.arrow_back_rounded),
-                        onPressed: () => Get.back(),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Title Pill
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xEE1E1E1E) : Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.12),
-                              blurRadius: 10,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.location_on_rounded,
-                              size: 18,
-                              color: AppColors.primary,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                widget.title ?? 'Pin Store Location',
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // 4. Map Control Buttons (Zoom & Locate Me)
+          // 3. Map Control Buttons (Zoom & Locate Me)
           Positioned(
             right: 16,
             bottom: 240,
@@ -430,7 +469,7 @@ class _PropertyLocationPickerScreenState
             ),
           ),
 
-          // 5. Bottom Sheet Confirmation Card
+          // 4. Bottom Sheet Confirmation Card
           Positioned(
             left: 0,
             right: 0,
@@ -478,7 +517,7 @@ class _PropertyLocationPickerScreenState
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
-                            Icons.storefront_rounded,
+                            Icons.location_on_rounded,
                             color: AppColors.primary,
                             size: 22,
                           ),
@@ -489,7 +528,7 @@ class _PropertyLocationPickerScreenState
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Selected Store Location',
+                                'Selected Location',
                                 style: theme.textTheme.titleSmall?.copyWith(
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -587,15 +626,391 @@ class _PropertyLocationPickerScreenState
               ),
             ),
           ),
+
+          // 5. Dismiss Barrier for Search Suggestions (closes dropdown on outside tap)
+          if (showSuggestionsOverlay)
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _dismissSearchOverlay,
+                child: const ColoredBox(color: Colors.transparent),
+              ),
+            ),
+
+          // 6. Top Floating Header (Back button, Title, Gebeta Search Bar & Autocomplete Dropdown)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Top row: Back Button + Title Pill
+                    Row(
+                      children: [
+                        // Back button
+                        Container(
+                          height: 42,
+                          width: 42,
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xEE1E1E1E) : Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.12),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            icon: const Icon(Icons.arrow_back_rounded, size: 20),
+                            onPressed: () => Get.back(),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        // Title Pill
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xEE1E1E1E) : Colors.white,
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.12),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.location_on_rounded,
+                                  size: 17,
+                                  color: AppColors.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    widget.title ?? 'Pin Store Location',
+                                    style: theme.textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // Gebeta Maps Search Bar
+                    Container(
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFA242424) : Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.14),
+                            blurRadius: 14,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                        border: Border.all(
+                          color: _searchFocusNode.hasFocus
+                              ? AppColors.primary
+                              : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                          width: 1.2,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const SizedBox(width: 14),
+                          const Icon(
+                            Icons.search_rounded,
+                            size: 20,
+                            color: AppColors.primary,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              focusNode: _searchFocusNode,
+                              onChanged: _onSearchChanged,
+                              textInputAction: TextInputAction.search,
+                              style: const TextStyle(fontSize: 14),
+                              decoration: InputDecoration(
+                                hintText: 'search_place_hint'.tr.isNotEmpty
+                                    ? 'search_place_hint'.tr
+                                    : 'Search location (e.g. Bole)...',
+                                hintStyle: TextStyle(
+                                  fontSize: 13,
+                                  color: isDark
+                                      ? Colors.grey.shade500
+                                      : Colors.grey.shade400,
+                                ),
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding:
+                                    const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                            ),
+                          ),
+                          if (_isSearching)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 14),
+                              child: SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            )
+                          else if (_searchController.text.isNotEmpty)
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded, size: 18),
+                              color: Colors.grey.shade600,
+                              onPressed: _clearSearch,
+                            )
+                          else
+                            const SizedBox(width: 10),
+                        ],
+                      ),
+                    ),
+
+                    // Suggestions Dropdown Card
+                    if (showSuggestionsOverlay)
+                      Container(
+                        margin: const EdgeInsets.only(top: 6),
+                        constraints: const BoxConstraints(maxHeight: 260),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFA262626) : Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.22),
+                              blurRadius: 18,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.grey.shade800
+                                : Colors.grey.shade200,
+                          ),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: _buildSuggestionsList(theme, isDark),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Widget _buildSuggestionsList(ThemeData theme, bool isDark) {
+    if (_isSearching && _suggestions.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'searching_places'.tr.isNotEmpty
+                  ? 'searching_places'.tr
+                  : 'Searching Gebeta Maps...',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_hasSearched && _suggestions.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
+        child: Row(
+          children: [
+            Icon(
+              Icons.search_off_rounded,
+              size: 20,
+              color: Colors.grey.shade500,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'no_places_found'.tr.isNotEmpty
+                    ? 'no_places_found'.tr
+                    : 'No locations found',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      shrinkWrap: true,
+      itemCount: _suggestions.length,
+      separatorBuilder: (context, index) => Divider(
+        height: 1,
+        thickness: 0.8,
+        color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+      ),
+      itemBuilder: (context, index) {
+        final suggestion = _suggestions[index];
+        final subtitleParts = [suggestion.city, suggestion.type]
+            .where((s) => s.trim().isNotEmpty)
+            .toList();
+
+        return InkWell(
+          onTap: () => _onSelectSuggestion(suggestion),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _getPlaceIcon(suggestion.type),
+                    color: AppColors.primary,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        suggestion.name,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (subtitleParts.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitleParts.join(' • '),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.north_west_rounded,
+                  size: 16,
+                  color: Colors.grey.shade400,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  IconData _getPlaceIcon(String type) {
+    final t = type.toLowerCase();
+    if (t.contains('orthodox') ||
+        t.contains('church') ||
+        t.contains('mosque')) {
+      return Icons.church_rounded;
+    }
+    if (t.contains('restaurant') ||
+        t.contains('cafe') ||
+        t.contains('food') ||
+        t.contains('buffet')) {
+      return Icons.restaurant_rounded;
+    }
+    if (t.contains('market') ||
+        t.contains('store') ||
+        t.contains('shop') ||
+        t.contains('mall')) {
+      return Icons.store_rounded;
+    }
+    if (t.contains('bus') ||
+        t.contains('taxi') ||
+        t.contains('station') ||
+        t.contains('airport') ||
+        t.contains('transport')) {
+      return Icons.directions_bus_rounded;
+    }
+    if (t.contains('bank') || t.contains('atm')) {
+      return Icons.account_balance_rounded;
+    }
+    if (t.contains('park') || t.contains('garden')) {
+      return Icons.park_rounded;
+    }
+    if (t.contains('neighborhood') ||
+        t.contains('locality') ||
+        t.contains('subcity')) {
+      return Icons.location_city_rounded;
+    }
+    return Icons.place_rounded;
   }
 
   /// Interactive Fallback View for Desktop/Web or Flutter Tests
   Widget _buildFallbackCanvas(bool isDark) {
     return GestureDetector(
       onPanUpdate: (details) {
+        _dismissSearchOverlay();
         setState(() {
           // Adjust coordinate scale proportional to drag gestures
           _selectedLat -= details.delta.dy * 0.0001;
@@ -603,6 +1018,7 @@ class _PropertyLocationPickerScreenState
         });
       },
       onTapUp: (details) {
+        _dismissSearchOverlay();
         final size = MediaQuery.of(context).size;
         final dx = details.localPosition.dx - (size.width / 2);
         final dy = details.localPosition.dy - (size.height / 2);
@@ -627,7 +1043,8 @@ class _PropertyLocationPickerScreenState
                 children: [
                   const SizedBox(height: 80),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
                       color: isDark
                           ? const Color(0xEE1E1E1E)
@@ -642,7 +1059,8 @@ class _PropertyLocationPickerScreenState
                     ),
                     child: const Text(
                       'Tap or drag to reposition location pin',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],

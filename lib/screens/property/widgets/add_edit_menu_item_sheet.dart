@@ -250,20 +250,25 @@ void showAddEditMenuItemSheet({
                     const SizedBox(height: 14),
 
                     // Price Field
-                    TextFormField(
-                      controller: priceCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: InputDecoration(
-                        labelText: '${'price'.tr} (ETB / Br) *',
-                        hintText: 'e.g. 250',
-                        suffixText: 'Br',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        filled: true,
-                      ),
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'Please enter price';
-                        if (double.tryParse(v.trim()) == null) return 'Enter a valid number';
-                        return null;
+                    Builder(
+                      builder: (context) {
+                        final currencyCode = controller.getPropertyCurrencyCode(controller.selectedProperty.value);
+                        return TextFormField(
+                          controller: priceCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: InputDecoration(
+                            labelText: '${'price'.tr} ($currencyCode) *',
+                            hintText: 'e.g. 250',
+                            suffixText: currencyCode,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            filled: true,
+                          ),
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) return 'Please enter price';
+                            if (double.tryParse(v.trim()) == null) return 'Enter a valid number';
+                            return null;
+                          },
+                        );
                       },
                     ),
                     const SizedBox(height: 14),

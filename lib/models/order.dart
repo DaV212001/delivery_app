@@ -6,10 +6,40 @@ import 'delivery_item.dart';
 import 'store.dart';
 
 enum OrderProgressStatus {
-  preparing,
-  pickedUp,
-  onTheWay,
-  delivered,
+  accepted,      // 1: Accepted
+  driverToShop,  // 2: Driver on the way to shop
+  driverToYou,   // 3: Driver on the way to you
+  delivered,     // 4: Deliverd
+  cancelled;     // 5: Cancelled
+
+  /// Backward-compatibility aliases
+  static const OrderProgressStatus preparing = OrderProgressStatus.accepted;
+  static const OrderProgressStatus pickedUp = OrderProgressStatus.driverToShop;
+  static const OrderProgressStatus onTheWay = OrderProgressStatus.driverToYou;
+
+  /// Numeric status code
+  int get code {
+    switch (this) {
+      case OrderProgressStatus.accepted:
+        return 1;
+      case OrderProgressStatus.driverToShop:
+        return 2;
+      case OrderProgressStatus.driverToYou:
+        return 3;
+      case OrderProgressStatus.delivered:
+        return 4;
+      case OrderProgressStatus.cancelled:
+        return 5;
+    }
+  }
+
+  bool get isActive =>
+      this == OrderProgressStatus.accepted ||
+      this == OrderProgressStatus.driverToShop ||
+      this == OrderProgressStatus.driverToYou;
+
+  bool get isDelivered => this == OrderProgressStatus.delivered;
+  bool get isCancelled => this == OrderProgressStatus.cancelled;
 }
 
 class DriverInfo {
@@ -49,6 +79,7 @@ class OrderCreateRequest {
   final dynamic deliveryOption;
   final num kmPrice;
   final num totalKmPrice;
+  final String? destinationFriendlyLocation;
 
   const OrderCreateRequest({
     required this.customerId,
@@ -69,6 +100,7 @@ class OrderCreateRequest {
     this.deliveryOption = 1,
     this.kmPrice = 13,
     required this.totalKmPrice,
+    this.destinationFriendlyLocation,
   });
 
   Map<String, dynamic> toJson() => {
@@ -90,6 +122,10 @@ class OrderCreateRequest {
         'delivery_option': deliveryOption,
         'km_price': kmPrice,
         'total_km_price': totalKmPrice,
+        'destination_friendly_location': (destinationFriendlyLocation != null &&
+                destinationFriendlyLocation!.trim().isNotEmpty)
+            ? destinationFriendlyLocation!.trim()
+            : location,
       };
 }
 
@@ -104,6 +140,7 @@ class OrderModel {
   final double taxAndFees;
   final double total;
   final String deliveryAddress;
+  final String? destinationFriendlyLocation;
   final OrderProgressStatus status;
   final String estimatedArrival; // e.g. "12 mins"
   final DriverInfo? driver;
@@ -126,6 +163,7 @@ class OrderModel {
     required this.taxAndFees,
     required this.total,
     required this.deliveryAddress,
+    this.destinationFriendlyLocation,
     required this.status,
     required this.estimatedArrival,
     this.driver,
@@ -149,6 +187,7 @@ class OrderModel {
     double? taxAndFees,
     double? total,
     String? deliveryAddress,
+    String? destinationFriendlyLocation,
     OrderProgressStatus? status,
     String? estimatedArrival,
     DriverInfo? driver,
@@ -171,6 +210,7 @@ class OrderModel {
       taxAndFees: taxAndFees ?? this.taxAndFees,
       total: total ?? this.total,
       deliveryAddress: deliveryAddress ?? this.deliveryAddress,
+      destinationFriendlyLocation: destinationFriendlyLocation ?? this.destinationFriendlyLocation,
       status: status ?? this.status,
       estimatedArrival: estimatedArrival ?? this.estimatedArrival,
       driver: driver ?? this.driver,
@@ -186,14 +226,72 @@ class OrderModel {
 
   String get statusLabel {
     switch (status) {
-      case OrderProgressStatus.preparing:
-        return 'preparing_order'.tr;
-      case OrderProgressStatus.pickedUp:
-        return 'picked_up'.tr;
-      case OrderProgressStatus.onTheWay:
-        return 'in_transit'.tr;
+      case OrderProgressStatus.accepted:
+        return 'order_accepted'.tr.isNotEmpty && 'order_accepted'.tr != 'order_accepted'
+            ? 'order_accepted'.tr
+            : 'Accepted';
+      case OrderProgressStatus.driverToShop:
+        return 'driver_to_shop'.tr.isNotEmpty && 'driver_to_shop'.tr != 'driver_to_shop'
+            ? 'driver_to_shop'.tr
+            : 'Driver on the way to shop';
+      case OrderProgressStatus.driverToYou:
+        return 'driver_to_you'.tr.isNotEmpty && 'driver_to_you'.tr != 'driver_to_you'
+            ? 'driver_to_you'.tr
+            : 'Driver on the way to you';
       case OrderProgressStatus.delivered:
-        return 'delivered'.tr;
+        return 'delivered'.tr.isNotEmpty && 'delivered'.tr != 'delivered'
+            ? 'delivered'.tr
+            : 'Delivered';
+      case OrderProgressStatus.cancelled:
+        return 'cancelled'.tr.isNotEmpty && 'cancelled'.tr != 'cancelled'
+            ? 'cancelled'.tr
+            : 'Cancelled';
+    }
+  }
+
+  /// Parses status codes from API / Socket:
+  /// 1: Accepted
+  /// 2: Driver on the way to shop
+  /// 3: Driver on the way to you
+  /// 4: Delivered
+  /// 5: Cancelled
+  static OrderProgressStatus parseStatus(dynamic raw) {
+    if (raw == null) return OrderProgressStatus.accepted;
+    final s = raw.toString().trim().toLowerCase();
+    switch (s) {
+      case '1':
+      case 'accepted':
+      case 'order_accepted':
+      case 'preparing':
+      case 'placed':
+        return OrderProgressStatus.accepted;
+      case '2':
+      case 'driver_to_shop':
+      case 'heading_to_store':
+      case 'at_store':
+      case 'picked_up':
+      case 'driver on the way to shop':
+        return OrderProgressStatus.driverToShop;
+      case '3':
+      case 'driver_to_you':
+      case 'heading_to_customer':
+      case 'in_transit':
+      case 'on_the_way':
+      case 'out_for_delivery':
+      case 'driver on the way to you':
+        return OrderProgressStatus.driverToYou;
+      case '4':
+      case 'delivered':
+      case 'deliverd':
+      case 'completed':
+        return OrderProgressStatus.delivered;
+      case '5':
+      case '-1':
+      case 'cancelled':
+      case 'canceled':
+        return OrderProgressStatus.cancelled;
+      default:
+        return OrderProgressStatus.accepted;
     }
   }
 
@@ -232,24 +330,13 @@ class OrderModel {
   }
 
   factory OrderModel.fromActiveOrderJson(Map<String, dynamic> json) {
-    final rawStatus = json['status']?.toString() ?? '0';
-    OrderProgressStatus orderStatus;
-    switch (rawStatus) {
-      case '1':
-        orderStatus = OrderProgressStatus.pickedUp;
-        break;
-      case '2':
-        orderStatus = OrderProgressStatus.onTheWay;
-        break;
-      case '3':
-        orderStatus = OrderProgressStatus.delivered;
-        break;
-      default:
-        orderStatus = OrderProgressStatus.preparing;
-    }
+    final orderStatus = parseStatus(json['status']);
 
     final id = json['id']?.toString() ?? '';
-    final loc = json['location']?.toString() ?? 'Addis Ababa';
+    final friendlyDest = json['destination_friendly_location']?.toString();
+    final loc = (friendlyDest != null && friendlyDest.trim().isNotEmpty)
+        ? friendlyDest.trim()
+        : (json['location']?.toString() ?? 'Addis Ababa');
     final totalPrice = double.tryParse(json['payment_amount']?.toString() ?? json['total_price']?.toString() ?? '0') ?? 0.0;
     final totalItems = int.tryParse(json['total_item']?.toString() ?? '1') ?? 1;
     final itemTotal = double.tryParse(json['item_total_price']?.toString() ?? '');
@@ -309,8 +396,13 @@ class OrderModel {
           : 0.0,
       total: totalPrice,
       deliveryAddress: loc,
+      destinationFriendlyLocation: friendlyDest,
       status: orderStatus,
-      estimatedArrival: orderStatus == OrderProgressStatus.delivered ? 'Delivered' : '20 mins',
+      estimatedArrival: orderStatus == OrderProgressStatus.delivered
+          ? 'Delivered'
+          : (orderStatus == OrderProgressStatus.cancelled
+              ? 'Cancelled'
+              : (orderStatus == OrderProgressStatus.accepted ? '25 mins' : '15 mins')),
       storeType: cachedStore?.type ?? StoreType.restaurant,
       storeLatitude: double.tryParse(json['store_latitude']?.toString() ?? '') ?? cachedStore?.latitude,
       storeLongitude: double.tryParse(json['store_longitude']?.toString() ?? '') ?? cachedStore?.longitude,
@@ -332,24 +424,13 @@ class OrderModel {
     required List<dynamic> itemsList,
     Store? fallbackStore,
   }) {
-    final rawStatus = statusJson['status']?.toString() ?? '0';
-    OrderProgressStatus orderStatus;
-    switch (rawStatus) {
-      case '1':
-        orderStatus = OrderProgressStatus.pickedUp;
-        break;
-      case '2':
-        orderStatus = OrderProgressStatus.onTheWay;
-        break;
-      case '3':
-        orderStatus = OrderProgressStatus.delivered;
-        break;
-      default:
-        orderStatus = OrderProgressStatus.preparing;
-    }
+    final orderStatus = parseStatus(statusJson['status']);
 
     final id = statusJson['id']?.toString() ?? '';
-    final loc = statusJson['location']?.toString() ?? 'Addis Ababa';
+    final friendlyDest = statusJson['destination_friendly_location']?.toString();
+    final loc = (friendlyDest != null && friendlyDest.trim().isNotEmpty)
+        ? friendlyDest.trim()
+        : (statusJson['location']?.toString() ?? 'Addis Ababa');
     final totalPrice = double.tryParse(statusJson['payment_amount']?.toString() ?? statusJson['total_price']?.toString() ?? '0') ?? 0.0;
     final propId = statusJson['property_id']?.toString();
     final cachedStore = fallbackStore ?? PropertyService.getCachedProperty(propId);
@@ -475,8 +556,13 @@ class OrderModel {
       taxAndFees: taxAndFees,
       total: totalPrice,
       deliveryAddress: loc,
+      destinationFriendlyLocation: friendlyDest,
       status: orderStatus,
-      estimatedArrival: orderStatus == OrderProgressStatus.delivered ? 'Delivered' : '20 mins',
+      estimatedArrival: orderStatus == OrderProgressStatus.delivered
+          ? 'Delivered'
+          : (orderStatus == OrderProgressStatus.cancelled
+              ? 'Cancelled'
+              : (orderStatus == OrderProgressStatus.accepted ? '25 mins' : '15 mins')),
       storeType: cachedStore?.type ?? StoreType.restaurant,
       storeLatitude: double.tryParse(statusJson['store_latitude']?.toString() ?? statusJson['restaurant_latitude']?.toString() ?? '') ?? cachedStore?.latitude,
       storeLongitude: double.tryParse(statusJson['store_longitude']?.toString() ?? statusJson['restaurant_longitude']?.toString() ?? '') ?? cachedStore?.longitude,

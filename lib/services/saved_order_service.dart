@@ -6,6 +6,7 @@ import '../config/storage_config.dart';
 import '../controllers/order_controller.dart';
 import '../models/order.dart';
 import '../models/saved_order.dart';
+import 'gebeta_location_service.dart';
 import 'order_service.dart';
 
 class SavedOrderService {
@@ -107,6 +108,17 @@ class SavedOrderService {
     final now = DateTime.now();
     final dateIso = now.toUtc().toIso8601String();
 
+    String destinationFriendly = '';
+    try {
+      destinationFriendly = await GebetaLocationService.reverseGeocode(
+        order.customerLatitude,
+        order.customerLongitude,
+      );
+    } catch (_) {}
+    if (destinationFriendly.trim().isEmpty) {
+      destinationFriendly = order.deliveryAddress;
+    }
+
     final request = OrderCreateRequest(
       customerId: uid,
       location: order.deliveryAddress,
@@ -126,6 +138,7 @@ class SavedOrderService {
       deliveryOption: order.deliveryOption,
       kmPrice: order.kmPrice,
       totalKmPrice: order.totalKmPrice,
+      destinationFriendlyLocation: destinationFriendly,
     );
 
     await OrderService.createOrder(

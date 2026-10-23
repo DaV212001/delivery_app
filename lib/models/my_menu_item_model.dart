@@ -11,6 +11,7 @@ class MyMenuItemModel {
   final double? discountPercent;
   final String? categoryName;
   final String? propertyName;
+  final String? currency;
 
   const MyMenuItemModel({
     required this.id,
@@ -25,6 +26,7 @@ class MyMenuItemModel {
     this.discountPercent,
     this.categoryName,
     this.propertyName,
+    this.currency,
   });
 
   bool get isActive => status == 1;
@@ -36,7 +38,20 @@ class MyMenuItemModel {
     return price;
   }
 
-  String get formattedPrice => '${price.toStringAsFixed(0)} Br';
+  String get displayCurrency {
+    if (currency != null && currency!.trim().isNotEmpty) {
+      final c = currency!.trim();
+      if (c == '1') return 'USD';
+      if (c == '2') return 'ETB';
+      if (c == '3') return 'EUR';
+      if (c == '4') return 'GBP';
+      return c;
+    }
+    return 'Br';
+  }
+
+  String get formattedPrice => '${price.toStringAsFixed(0)} $displayCurrency';
+  String get formattedEffectivePrice => '${effectivePrice.toStringAsFixed(0)} $displayCurrency';
 
   factory MyMenuItemModel.fromJson(Map<String, dynamic> json) {
     final rawId = json['id'];
@@ -61,6 +76,12 @@ class MyMenuItemModel {
         json['description']?.toString() ??
         '';
 
+    final itemCurrency = json['currency']?.toString() ??
+        json['currency_name']?.toString() ??
+        json['currency_code']?.toString() ??
+        json['currency_symbol']?.toString() ??
+        json['currency_id']?.toString();
+
     return MyMenuItemModel(
       id: parsedId,
       propertyId: pId,
@@ -74,6 +95,7 @@ class MyMenuItemModel {
       discountPercent: parsedDiscount,
       categoryName: json['category_name']?.toString(),
       propertyName: json['property_name']?.toString(),
+      currency: itemCurrency,
     );
   }
 
@@ -90,6 +112,7 @@ class MyMenuItemModel {
     double? discountPercent,
     String? categoryName,
     String? propertyName,
+    String? currency,
   }) {
     return MyMenuItemModel(
       id: id ?? this.id,
@@ -104,6 +127,7 @@ class MyMenuItemModel {
       discountPercent: discountPercent ?? this.discountPercent,
       categoryName: categoryName ?? this.categoryName,
       propertyName: propertyName ?? this.propertyName,
+      currency: currency ?? this.currency,
     );
   }
 }

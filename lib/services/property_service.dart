@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import '../constants/api_endpoints.dart';
 import '../models/category_model.dart';
+import '../models/currency_model.dart';
 import '../models/delivery_item.dart';
 import '../models/my_menu_category_model.dart';
 import '../models/my_menu_item_model.dart';
@@ -11,6 +12,42 @@ import '../models/store.dart';
 import '../utils/templates/dio_template.dart';
 
 class PropertyService {
+  /// Fetch supported currencies
+  static Future<List<CurrencyModel>> fetchCurrencies() async {
+    final list = <CurrencyModel>[];
+    await DioService.dioGet(
+      path: ApiEndpoints.currency,
+      onSuccess: (response) {
+        final resData = response.data;
+        final rawList = resData is Map<String, dynamic>
+            ? (resData['data'] is List ? resData['data'] : null)
+            : (resData is List ? resData : null);
+        if (rawList is List) {
+          for (final item in rawList) {
+            if (item is Map<String, dynamic>) {
+              list.add(CurrencyModel.fromJson(item));
+            }
+          }
+        }
+      },
+      onFailure: (err, res) {
+        list.addAll(defaultCurrencies);
+      },
+    );
+    if (list.isEmpty) {
+      list.addAll(defaultCurrencies);
+    }
+    return list;
+  }
+
+  static const List<CurrencyModel> defaultCurrencies = [
+    CurrencyModel(id: 1, code: 'USD', symbol: '\$'),
+    CurrencyModel(id: 2, code: 'ETB', symbol: 'Br'),
+    CurrencyModel(id: 3, code: 'EUR', symbol: '€'),
+    CurrencyModel(id: 4, code: 'GBP', symbol: '£'),
+    CurrencyModel(id: 5, code: 'BTC', symbol: '₿'),
+  ];
+
   /// Fetch all delivery categories
   static Future<List<CategoryModel>> fetchCategories() async {
     final list = <CategoryModel>[];
@@ -554,6 +591,7 @@ class PropertyService {
     bool specialOffer = false,
     double discountPercent = 0.0,
     String? imageFilePath,
+    dynamic currencyId,
   }) async {
     MyMenuItemModel? created;
     final map = <String, dynamic>{
@@ -565,6 +603,10 @@ class PropertyService {
       'special_offer': specialOffer ? '1' : '0',
       'discount_percent': discountPercent > 0 ? discountPercent.toString() : '0',
     };
+
+    if (currencyId != null) {
+      map['currency_id'] = currencyId.toString();
+    }
 
     if (imageFilePath != null && imageFilePath.isNotEmpty) {
       final fileName = imageFilePath.split(RegExp(r'[/\\]')).last;
@@ -603,6 +645,7 @@ class PropertyService {
     bool specialOffer = false,
     double discountPercent = 0.0,
     String? imageFilePath,
+    dynamic currencyId,
   }) async {
     bool ok = false;
     final map = <String, dynamic>{
@@ -614,6 +657,10 @@ class PropertyService {
       'special_offer': specialOffer ? '1' : '0',
       'discount_percent': discountPercent > 0 ? discountPercent.toString() : '0',
     };
+
+    if (currencyId != null) {
+      map['currency_id'] = currencyId.toString();
+    }
 
     if (imageFilePath != null && imageFilePath.isNotEmpty) {
       final fileName = imageFilePath.split(RegExp(r'[/\\]')).last;
@@ -673,6 +720,7 @@ class PropertyService {
     String? coverImagePath,
     String? tinCertificatePath,
     String? tradeLicensePath,
+    dynamic currencyId,
   }) async {
     MyPropertyModel? registered;
 
@@ -690,6 +738,10 @@ class PropertyService {
       'from_time': fromTime,
       'to_time': toTime,
     };
+
+    if (currencyId != null) {
+      map['currency_id'] = currencyId.toString();
+    }
 
     if (logoPath != null && logoPath.isNotEmpty) {
       final fName = logoPath.split(RegExp(r'[/\\]')).last;
@@ -751,6 +803,7 @@ class PropertyService {
     String? coverImagePath,
     String? tinCertificatePath,
     String? tradeLicensePath,
+    dynamic currencyId,
   }) async {
     bool ok = false;
     final map = <String, dynamic>{
@@ -767,6 +820,10 @@ class PropertyService {
       'from_time': fromTime,
       'to_time': toTime,
     };
+
+    if (currencyId != null) {
+      map['currency_id'] = currencyId.toString();
+    }
 
     if (tinNumber != null && tinNumber.isNotEmpty) {
       map['tin_number'] = tinNumber;

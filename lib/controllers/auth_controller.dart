@@ -118,6 +118,22 @@ class AuthController extends GetxController {
     } else {
       _isLoggedIn.value = false;
       _user.value = emptyUser;
+
+      final pendingReg = ConfigPreference.getPendingRegistration();
+      if (pendingReg != null) {
+        _pendingUserId = pendingReg['userId'] as int?;
+        _pendingPhone = pendingReg['phone'] as String?;
+        _pendingEmail = pendingReg['email'] as String?;
+        _pendingName = pendingReg['name'] as String?;
+        _pendingToken = pendingReg['token'] as String?;
+        _pendingOtp = pendingReg['otp'] as String?;
+      }
+
+      final pendingReset = ConfigPreference.getPendingResetPassword();
+      if (pendingReset != null) {
+        _resetPhone = pendingReset['phone'] as String?;
+        _resetOtp = pendingReset['otp'] as String?;
+      }
     }
   }
 
@@ -296,6 +312,15 @@ class AuthController extends GetxController {
         // Pre-set user object so OTP screen can show name if needed
         _user.value = UserProfile.fromJson(data);
 
+        await ConfigPreference.setPendingRegistration(
+          userId: uid,
+          phone: cleanPhone,
+          email: email,
+          name: '$firstName $lastName'.trim(),
+          token: token,
+          otp: _pendingOtp!,
+        );
+
         await AuthService.sendOtp(
           phone: cleanPhone,
           otp: _pendingOtp!,
@@ -334,13 +359,15 @@ class AuthController extends GetxController {
   }) async {
     // Check locally first — OTP was generated client-side
     if (_pendingOtp != null && otp != _pendingOtp) {
-      Get.snackbar(
-        'invalid_code'.tr,
-        'invalid_code_desc'.tr,
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red.withValues(alpha: 0.8),
-        colorText: Colors.white,
-      );
+      if (!isInTest) {
+        Get.snackbar(
+          'invalid_code'.tr,
+          'invalid_code_desc'.tr,
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red.withValues(alpha: 0.8),
+          colorText: Colors.white,
+        );
+      }
       return;
     }
 
@@ -366,6 +393,7 @@ class AuthController extends GetxController {
         }
 
         // Clear all pending state
+        await ConfigPreference.clearPendingRegistration();
         _pendingUserId = null;
         _pendingToken = null;
         _pendingPhone = null;
@@ -401,10 +429,30 @@ class AuthController extends GetxController {
     );
   }
 
+  Future<void> clearPendingRegistration() async {
+    await ConfigPreference.clearPendingRegistration();
+    _pendingUserId = null;
+    _pendingToken = null;
+    _pendingPhone = null;
+    _pendingEmail = null;
+    _pendingName = null;
+    _pendingOtp = null;
+  }
+
   /// Resend OTP to the given phone (called by OtpScreen resend button).
   Future<void> resendOtp({required String phone}) async {
     // Generate a fresh OTP so the old one is invalidated
     _pendingOtp = (1000 + Random().nextInt(9000)).toString();
+    if (_pendingUserId != null) {
+      await ConfigPreference.setPendingRegistration(
+        userId: _pendingUserId!,
+        phone: _pendingPhone ?? phone,
+        email: _pendingEmail ?? '',
+        name: _pendingName ?? '',
+        token: _pendingToken ?? '',
+        otp: _pendingOtp!,
+      );
+    }
 
     await AuthService.sendOtp(
       phone: phone,
@@ -463,7 +511,7 @@ class AuthController extends GetxController {
     Color? colorText,
     Duration? duration,
   }) {
-    if (Get.testMode) return;
+    if (isInTest) return;
     if (Get.context != null && Get.overlayContext != null) {
       Get.snackbar(
         title,
@@ -501,6 +549,11 @@ class AuthController extends GetxController {
       otp: otp,
       onSuccess: () {
         success = true;
+        ConfigPreference.setPendingResetPassword(
+          phone: cleanPhone,
+          otp: otp,
+          step: 1,
+        );
         _startResetCooldown();
         _showSnackbar(
           'code_sent'.tr,
@@ -550,6 +603,11 @@ class AuthController extends GetxController {
       otp: newOtp,
       onSuccess: () {
         success = true;
+        ConfigPreference.setPendingResetPassword(
+          phone: _resetPhone!,
+          otp: newOtp,
+          step: 1,
+        );
         _startResetCooldown();
         _showSnackbar(
           'code_sent'.tr,
@@ -659,6 +717,7 @@ class AuthController extends GetxController {
 
   void clearResetPasswordState() {
     _resetCooldownTimer?.cancel();
+    ConfigPreference.clearPendingResetPassword();
     _resetPhone = null;
     _resetOtp = null;
     _resetOtpVerified = false;

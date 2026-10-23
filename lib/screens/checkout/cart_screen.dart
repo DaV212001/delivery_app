@@ -1654,6 +1654,7 @@ class _CartScreenState extends State<CartScreen> {
                                       deliveryOption: deliveryOptionId,
                                       kmPrice: kmPrice,
                                       totalKmPrice: totalKmPrice,
+                                      destinationFriendlyLocation: _currentLocationAddress,
                                     );
                                   }
 

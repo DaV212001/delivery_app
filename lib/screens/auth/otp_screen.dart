@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import '../../constants/pages.dart';
 import '../../controllers/auth_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../widgets/common/app_widgets.dart';
@@ -93,18 +94,34 @@ class _OtpScreenState extends State<OtpScreen> {
     });
   }
 
+  void _handleBack() {
+    _authController.clearPendingRegistration();
+    if (Navigator.of(context).canPop()) {
+      Get.back();
+    } else {
+      Get.offAllNamed(AppRoutes.login);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => Get.back(),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          _handleBack();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: _handleBack,
+          ),
         ),
-      ),
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -312,6 +329,7 @@ class _OtpScreenState extends State<OtpScreen> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );
