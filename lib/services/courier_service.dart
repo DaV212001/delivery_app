@@ -2,6 +2,7 @@ import '../config/dio_config.dart';
 import '../constants/api_endpoints.dart';
 import '../models/courier_model.dart';
 import '../models/property_delivery_option.dart';
+import '../services/gebeta_location_service.dart';
 import '../services/order_service.dart';
 import '../utils/templates/dio_template.dart';
 
@@ -21,9 +22,39 @@ class CourierService {
     }
 
     bool success = false;
+    final payload = request.toJson();
+
+    if (!payload.containsKey('from_friendly_location') ||
+        payload['from_friendly_location'] == null ||
+        payload['from_friendly_location'].toString().trim().isEmpty) {
+      String resolvedFrom = '';
+      try {
+        resolvedFrom = await GebetaLocationService.reverseGeocode(
+          request.fromLatitude,
+          request.fromLongitude,
+        );
+      } catch (_) {}
+      payload['from_friendly_location'] =
+          resolvedFrom.trim().isNotEmpty ? resolvedFrom.trim() : (request.fromAddress ?? '');
+    }
+
+    if (!payload.containsKey('to_friendly_location') ||
+        payload['to_friendly_location'] == null ||
+        payload['to_friendly_location'].toString().trim().isEmpty) {
+      String resolvedTo = '';
+      try {
+        resolvedTo = await GebetaLocationService.reverseGeocode(
+          request.toLatitude,
+          request.toLongitude,
+        );
+      } catch (_) {}
+      payload['to_friendly_location'] =
+          resolvedTo.trim().isNotEmpty ? resolvedTo.trim() : (request.toAddress ?? '');
+    }
+
     await DioService.dioPost(
       path: ApiEndpoints.courierOrder,
-      data: request.toJson(),
+      data: payload,
       onSuccess: (response) {
         success = true;
         if (response.data is Map<String, dynamic>) {

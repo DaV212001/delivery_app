@@ -6,6 +6,7 @@ import '../controllers/auth_controller.dart';
 import '../models/courier_model.dart';
 import '../models/property_delivery_option.dart';
 import '../services/courier_service.dart';
+import '../services/gebeta_location_service.dart';
 import '../utils/api_call_status.dart';
 import '../utils/location_utils.dart';
 import '../widgets/map/property_location_picker_screen.dart';
@@ -290,6 +291,30 @@ class CourierController extends GetxController {
     isSubmitting.value = true;
 
     try {
+      String fromFriendly = pickupAddress.value ?? '';
+      if (fromFriendly.trim().isEmpty &&
+          pickupLatitude.value != null &&
+          pickupLongitude.value != null) {
+        try {
+          fromFriendly = await GebetaLocationService.reverseGeocode(
+            pickupLatitude.value!,
+            pickupLongitude.value!,
+          );
+        } catch (_) {}
+      }
+
+      String toFriendly = dropoffAddress.value ?? '';
+      if (toFriendly.trim().isEmpty &&
+          dropoffLatitude.value != null &&
+          dropoffLongitude.value != null) {
+        try {
+          toFriendly = await GebetaLocationService.reverseGeocode(
+            dropoffLatitude.value!,
+            dropoffLongitude.value!,
+          );
+        } catch (_) {}
+      }
+
       final request = CourierOrderCreateRequest(
         fromLatitude: pickupLatitude.value!,
         fromLongitude: pickupLongitude.value!,
@@ -307,6 +332,8 @@ class CourierController extends GetxController {
         description: description,
         fromAddress: pickupAddress.value,
         toAddress: dropoffAddress.value,
+        fromFriendlyLocation: fromFriendly,
+        toFriendlyLocation: toFriendly,
       );
 
       final success = await CourierService.createCourierOrder(

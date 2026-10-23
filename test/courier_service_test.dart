@@ -54,6 +54,27 @@ void main() {
       expect(json['km_price'], 35.0);
       expect(json['total_price'], 250.0);
       expect(json['description'], 'Fragile electronics. Please call upon arrival.');
+      expect(json['from_friendly_location'], '');
+      expect(json['to_friendly_location'], '');
+    });
+
+    test('CourierOrderCreateRequest serializes with from_friendly_location and to_friendly_location', () {
+      const request = CourierOrderCreateRequest(
+        fromLatitude: 9.02497,
+        fromLongitude: 38.74689,
+        toLatitude: 8.98060,
+        toLongitude: 38.75780,
+        senderUserId: 1,
+        receiverName: 'Bluye',
+        receiverPhone: '+251911234567',
+        fromFriendlyLocation: 'Bole Atlas, Addis Ababa',
+        toFriendlyLocation: 'Sarbet, Addis Ababa',
+        totalPrice: 250.0,
+      );
+
+      final json = request.toJson();
+      expect(json['from_friendly_location'], 'Bole Atlas, Addis Ababa');
+      expect(json['to_friendly_location'], 'Sarbet, Addis Ababa');
     });
 
     test('CourierOrderModel deserializes backend active order response with longtude safely', () {

@@ -118,6 +118,8 @@ void main() {
         'status': '0',
         'from_branch': 'Main Branch',
         'to_branch': 'Beklobet Branch',
+        'from_friendly_location': 'Main Branch, Addis Ababa',
+        'to_friendly_location': 'Beklobet Branch, Addis Ababa',
         'item': 'posta',
         'sender_f_name': 'haymanot',
         'sender_l_name': 'yirga',
@@ -141,6 +143,8 @@ void main() {
       expect(order.isFinished, isFalse);
       expect(order.fromBranch, 'Main Branch');
       expect(order.toBranch, 'Beklobet Branch');
+      expect(order.fromFriendlyLocation, 'Main Branch, Addis Ababa');
+      expect(order.toFriendlyLocation, 'Beklobet Branch, Addis Ababa');
       expect(order.senderFullName, 'haymanot yirga');
       expect(order.receiverFullName, 'Abel Seyoum');
       expect(order.hasDriver, isFalse);

@@ -18,6 +18,8 @@ class CourierOrderCreateRequest {
   final String? description;
   final String? fromAddress;
   final String? toAddress;
+  final String? fromFriendlyLocation;
+  final String? toFriendlyLocation;
 
   const CourierOrderCreateRequest({
     required this.fromLatitude,
@@ -34,6 +36,8 @@ class CourierOrderCreateRequest {
     this.description,
     this.fromAddress,
     this.toAddress,
+    this.fromFriendlyLocation,
+    this.toFriendlyLocation,
   });
 
   Map<String, dynamic> toJson() => {
@@ -50,6 +54,18 @@ class CourierOrderCreateRequest {
         'payment_type': paymentType,
         if (description != null && description!.trim().isNotEmpty)
           'description': description!.trim(),
+        'from_friendly_location': (fromFriendlyLocation != null &&
+                fromFriendlyLocation!.trim().isNotEmpty)
+            ? fromFriendlyLocation!.trim()
+            : (fromAddress != null && fromAddress!.trim().isNotEmpty
+                ? fromAddress!.trim()
+                : ''),
+        'to_friendly_location': (toFriendlyLocation != null &&
+                toFriendlyLocation!.trim().isNotEmpty)
+            ? toFriendlyLocation!.trim()
+            : (toAddress != null && toAddress!.trim().isNotEmpty
+                ? toAddress!.trim()
+                : ''),
       };
 }
 
@@ -63,6 +79,8 @@ class CourierOrderModel {
   final double toLongitude;
   final String? fromAddress;
   final String? toAddress;
+  final String? fromFriendlyLocation;
+  final String? toFriendlyLocation;
   final String? senderFName;
   final String? senderLName;
   final String? senderPhone;
@@ -87,6 +105,8 @@ class CourierOrderModel {
     required this.toLongitude,
     this.fromAddress,
     this.toAddress,
+    this.fromFriendlyLocation,
+    this.toFriendlyLocation,
     this.senderFName,
     this.senderLName,
     this.senderPhone,
@@ -112,6 +132,8 @@ class CourierOrderModel {
     double? toLongitude,
     String? fromAddress,
     String? toAddress,
+    String? fromFriendlyLocation,
+    String? toFriendlyLocation,
     String? senderFName,
     String? senderLName,
     String? senderPhone,
@@ -136,6 +158,8 @@ class CourierOrderModel {
       toLongitude: toLongitude ?? this.toLongitude,
       fromAddress: fromAddress ?? this.fromAddress,
       toAddress: toAddress ?? this.toAddress,
+      fromFriendlyLocation: fromFriendlyLocation ?? this.fromFriendlyLocation,
+      toFriendlyLocation: toFriendlyLocation ?? this.toFriendlyLocation,
       senderFName: senderFName ?? this.senderFName,
       senderLName: senderLName ?? this.senderLName,
       senderPhone: senderPhone ?? this.senderPhone,
@@ -165,6 +189,9 @@ class CourierOrderModel {
         ) ??
         0.0;
 
+    final fromFriendly = json['from_friendly_location']?.toString();
+    final toFriendly = json['to_friendly_location']?.toString();
+
     return CourierOrderModel(
       id: int.tryParse(json['id']?.toString() ?? '0') ?? 0,
       status: json['status']?.toString() ?? '0',
@@ -172,8 +199,10 @@ class CourierOrderModel {
       fromLongitude: fromLng,
       toLatitude: toLat,
       toLongitude: toLng,
-      fromAddress: json['from_address']?.toString(),
-      toAddress: json['to_address']?.toString(),
+      fromAddress: json['from_address']?.toString() ?? fromFriendly,
+      toAddress: json['to_address']?.toString() ?? toFriendly,
+      fromFriendlyLocation: fromFriendly,
+      toFriendlyLocation: toFriendly,
       senderFName: json['sender_f_name']?.toString(),
       senderLName: json['sender_l_name']?.toString(),
       senderPhone: json['sender_phone']?.toString(),
@@ -202,6 +231,10 @@ class CourierOrderModel {
         'from_longtude': fromLongitude,
         'to_latitude': toLatitude,
         'to_longtude': toLongitude,
+        if (fromFriendlyLocation != null)
+          'from_friendly_location': fromFriendlyLocation,
+        if (toFriendlyLocation != null)
+          'to_friendly_location': toFriendlyLocation,
         'sender_f_name': senderFName,
         'sender_l_name': senderLName,
         'sender_phone': senderPhone,

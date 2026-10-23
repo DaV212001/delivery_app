@@ -120,6 +120,8 @@ class CompanyOrderModel {
   final String status;
   final String? fromBranch;
   final String? toBranch;
+  final String? fromFriendlyLocation;
+  final String? toFriendlyLocation;
   final String? item;
   final String? senderFName;
   final String? senderLName;
@@ -141,6 +143,8 @@ class CompanyOrderModel {
     required this.status,
     this.fromBranch,
     this.toBranch,
+    this.fromFriendlyLocation,
+    this.toFriendlyLocation,
     this.item,
     this.senderFName,
     this.senderLName,
@@ -164,6 +168,8 @@ class CompanyOrderModel {
       status: json['status']?.toString() ?? '0',
       fromBranch: json['from_branch']?.toString(),
       toBranch: json['to_branch']?.toString(),
+      fromFriendlyLocation: json['from_friendly_location']?.toString(),
+      toFriendlyLocation: json['to_friendly_location']?.toString(),
       item: json['item']?.toString(),
       senderFName: json['sender_f_name']?.toString(),
       senderLName: json['sender_l_name']?.toString(),

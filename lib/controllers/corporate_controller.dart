@@ -4,6 +4,7 @@ import '../config/storage_config.dart';
 import '../controllers/auth_controller.dart';
 import '../models/corporate_model.dart';
 import '../services/corporate_service.dart';
+import '../services/gebeta_location_service.dart';
 import '../utils/api_call_status.dart';
 import '../utils/location_utils.dart';
 
@@ -228,6 +229,38 @@ class CorporateController extends GetxController {
     }
 
     isSubmitting.value = true;
+
+    final sender = senderBranch;
+    String fromFriendly = sender?.friendlyLocation ?? '';
+    if (fromFriendly.trim().isEmpty &&
+        sender?.latitude != null &&
+        sender?.longitude != null) {
+      try {
+        fromFriendly = await GebetaLocationService.reverseGeocode(
+          sender!.latitude!,
+          sender.longitude!,
+        );
+      } catch (_) {}
+    }
+    if (fromFriendly.trim().isEmpty) {
+      fromFriendly = sender?.branchName ?? '';
+    }
+
+    String toFriendly = receiver.friendlyLocation;
+    if (toFriendly.trim().isEmpty &&
+        receiver.latitude != null &&
+        receiver.longitude != null) {
+      try {
+        toFriendly = await GebetaLocationService.reverseGeocode(
+          receiver.latitude!,
+          receiver.longitude!,
+        );
+      } catch (_) {}
+    }
+    if (toFriendly.trim().isEmpty) {
+      toFriendly = receiver.branchName;
+    }
+
     await CorporateService.createCompanyOrder(
       receiverBranchId: receiver.id,
       itemId: item.id,
@@ -237,6 +270,8 @@ class CorporateController extends GetxController {
       totalKm: calculatedDistanceKm.value,
       totalPrice: calculatedTotalPrice.value,
       remark: remark,
+      fromFriendlyLocation: fromFriendly,
+      toFriendlyLocation: toFriendly,
       onSuccess: (data) async {
         isSubmitting.value = false;
         Get.snackbar(

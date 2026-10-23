@@ -123,6 +123,8 @@ class CorporateService {
     required double totalKm,
     required double totalPrice,
     required String remark,
+    String? fromFriendlyLocation,
+    String? toFriendlyLocation,
     required Function(Map<String, dynamic> data) onSuccess,
     required Function(String error) onFailure,
   }) async {
@@ -139,6 +141,8 @@ class CorporateService {
       'satus': 0,
       'status': 0,
       'remark': remark,
+      'from_friendly_location': fromFriendlyLocation?.trim() ?? '',
+      'to_friendly_location': toFriendlyLocation?.trim() ?? '',
     };
 
     await DioService.dioPost(
