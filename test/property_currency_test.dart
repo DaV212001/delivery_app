@@ -131,6 +131,85 @@ void main() {
       expect(dItem.currency, 'ETB');
       expect(dItem.displayCurrency, 'ETB');
     });
+
+    test('SpecialOffer decodes numeric currency IDs correctly', () {
+      const offerEtb = SpecialOffer(
+        id: 'so2',
+        name: 'Burger',
+        storeName: 'Injoy',
+        branchName: 'Bole',
+        discountedPrice: 150,
+        originalPrice: 200,
+        discountPercent: 25,
+        imageUrl: '',
+        storeId: '6',
+        currency: '1',
+      );
+      expect(offerEtb.displayCurrency, 'ETB');
+
+      const offerUsd = SpecialOffer(
+        id: 'so3',
+        name: 'Steak',
+        storeName: 'Grill',
+        branchName: 'Bole',
+        discountedPrice: 20,
+        originalPrice: 25,
+        discountPercent: 20,
+        imageUrl: '',
+        storeId: '7',
+        currency: '3',
+      );
+      expect(offerUsd.displayCurrency, 'USD');
+
+      const offerAed = SpecialOffer(
+        id: 'so4',
+        name: 'Shawarma',
+        storeName: 'Dubai Express',
+        branchName: 'Bole',
+        discountedPrice: 30,
+        originalPrice: 40,
+        discountPercent: 25,
+        imageUrl: '',
+        storeId: '8',
+        currency: '2',
+      );
+      expect(offerAed.displayCurrency, 'AED');
+    });
+
+    test('SpecialOffer falls back to deliveryItem currency or default Br', () {
+      final item = DeliveryItem.fromJson({
+        'id': 'd2',
+        'name': 'Pasta',
+        'price': 180,
+        'currency': '1',
+      });
+      final offerFromItem = SpecialOffer(
+        id: 'so4',
+        name: 'Pasta Deal',
+        storeName: 'Italiano',
+        branchName: 'Sarbet',
+        discountedPrice: 150,
+        originalPrice: 180,
+        discountPercent: 16.6,
+        imageUrl: '',
+        storeId: '8',
+        deliveryItem: item,
+      );
+      expect(offerFromItem.displayCurrency, 'ETB');
+
+      const offerDefault = SpecialOffer(
+        id: 'so5',
+        name: 'Standard Offer',
+        storeName: 'Store',
+        branchName: 'Branch',
+        discountedPrice: 100,
+        originalPrice: 120,
+        discountPercent: 16.6,
+        imageUrl: '',
+        storeId: '9',
+      );
+      expect(offerDefault.displayCurrency, 'Br');
+    });
   });
 
   group('MyPropertyController Currency Cross-Referencing Tests', () {

@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import '../utils/currency_utils.dart';
 import '../utils/location_utils.dart';
 import 'delivery_item.dart';
 import 'multilingual_string.dart';
@@ -40,6 +41,7 @@ class Store {
   final TodaySchedule? todaySchedule;
   final List<String> categories;
   final List<DeliveryItem> items;
+  final String? currency;
 
   const Store({
     required this.id,
@@ -67,7 +69,10 @@ class Store {
     this.todaySchedule,
     this.categories = const [],
     this.items = const [],
+    this.currency,
   });
+
+  String get displayCurrency => CurrencyUtils.resolveCode(currency);
 
   factory Store.fromJson(Map<String, dynamic> json, {List<DeliveryItem> items = const []}) {
     // Determine category / cuisine name
@@ -143,6 +148,13 @@ class Store {
         ? TodaySchedule.fromJson(json['today_schedule'])
         : null;
 
+    final rawCurrency = json['currency']?.toString() ??
+        json['currency_code']?.toString() ??
+        json['currency_name']?.toString() ??
+        json['currency_symbol']?.toString() ??
+        json['currency_id']?.toString() ??
+        (json['currencies'] is Map ? json['currencies']['code']?.toString() : null);
+
     return Store(
       id: json['id']?.toString() ?? '',
       name: json['property_name']?.toString() ?? json['name']?.toString() ?? 'Store',
@@ -169,6 +181,7 @@ class Store {
       todaySchedule: todaySched,
       categories: [catDesc],
       items: items,
+      currency: rawCurrency,
     );
   }
 
@@ -198,6 +211,7 @@ class Store {
     TodaySchedule? todaySchedule,
     List<String>? categories,
     List<DeliveryItem>? items,
+    String? currency,
   }) {
     final newItems = items ?? this.items;
     double? newMinOrder = minOrder;
@@ -235,6 +249,7 @@ class Store {
       todaySchedule: todaySchedule ?? this.todaySchedule,
       categories: categories ?? this.categories,
       items: newItems,
+      currency: currency ?? this.currency,
     );
   }
 

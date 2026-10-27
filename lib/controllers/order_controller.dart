@@ -16,6 +16,7 @@ import 'profile_controller.dart';
 class OrderController extends GetxController {
   final status = ApiCallStatus.success.obs;
   final Rx<OrderModel?> activeOrder = Rx<OrderModel?>(null);
+  final activeOrders = <OrderModel>[].obs;
   final pastOrders = <OrderModel>[].obs;
   final isPlacingOrder = false.obs;
   Timer? _progressTimer;
@@ -27,6 +28,7 @@ class OrderController extends GetxController {
   void onInit() {
     super.onInit();
     if (DioConfig.isTestMode) {
+      activeOrders.assignAll([MockData.activeOrder]);
       activeOrder.value = MockData.activeOrder;
       pastOrders.assignAll(MockData.pastOrders);
       status.value = ApiCallStatus.success;
@@ -44,6 +46,7 @@ class OrderController extends GetxController {
   Future<void> loadOrders() async {
     final uid = currentCustomerId;
     if (uid == null) {
+      activeOrders.clear();
       activeOrder.value = null;
       pastOrders.clear();
       status.value = ApiCallStatus.success;
@@ -53,11 +56,10 @@ class OrderController extends GetxController {
     status.value = ApiCallStatus.loading;
     try {
       final activeList = await OrderService.fetchActiveOrders(uid);
-      if (activeList.isNotEmpty) {
-        activeOrder.value = activeList.first;
-        fetchDetail(activeList.first.orderId);
-      } else {
-        activeOrder.value = null;
+      activeOrders.assignAll(activeList);
+      activeOrder.value = activeList.isNotEmpty ? activeList.first : null;
+      for (final order in activeList) {
+        fetchDetail(order.orderId);
       }
 
       final pastList = await OrderService.fetchPastOrders(uid);
@@ -70,12 +72,14 @@ class OrderController extends GetxController {
       status.value = ApiCallStatus.success;
     } catch (_) {
       if (DioConfig.isTestMode) {
-        if (activeOrder.value == null) {
+        if (activeOrders.isEmpty && activeOrder.value == null) {
+          activeOrders.assignAll([MockData.activeOrder]);
           activeOrder.value = MockData.activeOrder;
         }
         pastOrders.assignAll(MockData.pastOrders);
         status.value = ApiCallStatus.success;
       } else {
+        activeOrders.clear();
         activeOrder.value = null;
         pastOrders.clear();
         status.value = ApiCallStatus.error;
@@ -228,6 +232,8 @@ class OrderController extends GetxController {
           );
 
           activeOrder.value = newOrder;
+          activeOrders.removeWhere((o) => o.orderId == newOrder.orderId);
+          activeOrders.insert(0, newOrder);
 
           // If payment gateway returned a checkout URL fallback
           String? checkoutUrl = OrderService.findCheckoutUrl(data);
@@ -278,6 +284,8 @@ class OrderController extends GetxController {
               storeType: storeType,
             );
             activeOrder.value = newOrder;
+          activeOrders.removeWhere((o) => o.orderId == newOrder.orderId);
+          activeOrders.insert(0, newOrder);
           } else {
             success = false;
             Get.snackbar(
@@ -315,6 +323,12 @@ class OrderController extends GetxController {
     final targetId = cleanId.isNotEmpty ? cleanId : orderId.toString();
     final detail = await OrderService.fetchOrderDetail(targetId);
     if (detail != null) {
+      final index = activeOrders.indexWhere(
+        (o) => o.orderId.replaceAll(RegExp(r'[^0-9]'), '') == targetId,
+      );
+      if (index != -1) {
+        activeOrders[index] = detail;
+      }
       if (activeOrder.value == null ||
           activeOrder.value!.orderId.replaceAll(RegExp(r'[^0-9]'), '') == targetId) {
         activeOrder.value = detail;
@@ -323,14 +337,46 @@ class OrderController extends GetxController {
     }
   }
 
-  void updateActiveOrderStatus(OrderProgressStatus newStatus) {
+  void updateActiveOrderStatus(OrderProgressStatus newStatus, {String? orderId}) {
+    if (orderId != null) {
+      final clean = orderId.replaceAll(RegExp(r'[^0-9]'), '');
+      final idx = activeOrders.indexWhere(
+        (o) => o.orderId.replaceAll(RegExp(r'[^0-9]'), '') == clean,
+      );
+      if (idx != -1) {
+        activeOrders[idx] = activeOrders[idx].copyWith(status: newStatus);
+      }
+    } else if (activeOrders.isNotEmpty) {
+      activeOrders[0] = activeOrders[0].copyWith(status: newStatus);
+    }
     if (activeOrder.value != null) {
       activeOrder.value = activeOrder.value!.copyWith(status: newStatus);
       activeOrder.refresh();
     }
   }
 
-  void updateActiveOrderLocation({required double latitude, required double longitude}) {
+  void updateActiveOrderLocation({
+    required double latitude,
+    required double longitude,
+    String? orderId,
+  }) {
+    if (orderId != null) {
+      final clean = orderId.replaceAll(RegExp(r'[^0-9]'), '');
+      final idx = activeOrders.indexWhere(
+        (o) => o.orderId.replaceAll(RegExp(r'[^0-9]'), '') == clean,
+      );
+      if (idx != -1) {
+        activeOrders[idx] = activeOrders[idx].copyWith(
+          driverLatitude: latitude,
+          driverLongitude: longitude,
+        );
+      }
+    } else if (activeOrders.isNotEmpty) {
+      activeOrders[0] = activeOrders[0].copyWith(
+        driverLatitude: latitude,
+        driverLongitude: longitude,
+      );
+    }
     if (activeOrder.value != null) {
       activeOrder.value = activeOrder.value!.copyWith(
         driverLatitude: latitude,
@@ -340,12 +386,24 @@ class OrderController extends GetxController {
     }
   }
 
-  void cancelOrder() {
-    activeOrder.value = null;
+  void cancelOrder({String? orderId}) {
+    if (orderId != null) {
+      final clean = orderId.replaceAll(RegExp(r'[^0-9]'), '');
+      activeOrders.removeWhere(
+        (o) => o.orderId.replaceAll(RegExp(r'[^0-9]'), '') == clean,
+      );
+      if (activeOrder.value?.orderId.replaceAll(RegExp(r'[^0-9]'), '') == clean) {
+        activeOrder.value = activeOrders.isNotEmpty ? activeOrders.first : null;
+      }
+    } else {
+      activeOrders.clear();
+      activeOrder.value = null;
+    }
   }
 
   /// Reset all order state (called on logout)
   void clear() {
+    activeOrders.clear();
     activeOrder.value = null;
     pastOrders.clear();
     status.value = ApiCallStatus.success;

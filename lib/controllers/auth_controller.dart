@@ -14,6 +14,7 @@ import '../controllers/restaurant_controller.dart';
 import '../models/user_profile.dart';
 import '../services/auth_service.dart';
 import '../services/customer_socket_service.dart';
+import '../services/notification_service.dart';
 import '../services/profile_service.dart';
 import '../services/user_location_service.dart';
 import '../utils/api_call_status.dart';
@@ -45,6 +46,7 @@ class AuthController extends GetxController {
 
   final rememberMe = true.obs;
   final isLoading = false.obs;
+  final isLoggingOut = false.obs;
   final status = ApiCallStatus.holding.obs;
 
   // Temporary storage while awaiting OTP verification after registration
@@ -115,6 +117,9 @@ class AuthController extends GetxController {
         branchId: savedBranchId,
       );
       refreshUserProfile();
+      if (savedUserId != null) {
+        NotificationService.instance.registerDeviceToken(customerId: savedUserId);
+      }
     } else {
       _isLoggedIn.value = false;
       _user.value = emptyUser;
@@ -191,6 +196,12 @@ class AuthController extends GetxController {
     // 7. Update live location
     if (Get.isRegistered<UserLocationService>()) {
       Get.find<UserLocationService>().updateLocation();
+    }
+
+    // 8. Register FCM device token with backend push notification service
+    final uid = ConfigPreference.getUserId();
+    if (uid != null) {
+      NotificationService.instance.registerDeviceToken(customerId: uid);
     }
   }
 
@@ -733,43 +744,62 @@ class AuthController extends GetxController {
   }
 
   Future<void> logout() async {
-    final uid = ConfigPreference.getUserId();
-    if (uid != null) {
-      await AuthService.customerLogout(userId: uid, onSuccess: () {}, onFailure: (_) {});
-    }
-    _isLoggedIn.value = false;
-    await ConfigPreference.clearTokens();
-    _user.value = emptyUser;
+    if (isLoggingOut.value) return;
+    isLoggingOut.value = true;
 
-    // Disconnect real-time tracking socket
-    if (Get.isRegistered<CustomerSocketService>() && !Get.isPrepared<CustomerSocketService>()) {
-      CustomerSocketService.to.disconnect();
-    }
+    try {
+      // 1. Delete FCM device token from push notification server
+      try {
+        final currentFcmToken = await NotificationService.instance.getDeviceToken();
+        if (currentFcmToken != null && currentFcmToken.isNotEmpty) {
+          await NotificationService.instance.unregisterDeviceToken(token: currentFcmToken);
+        }
+      } catch (_) {}
 
-    // Clear user orders
-    if (Get.isRegistered<OrderController>() && !Get.isPrepared<OrderController>()) {
-      Get.find<OrderController>().clear();
-    }
+      // 2. Call customer logout endpoint
+      final uid = ConfigPreference.getUserId();
+      if (uid != null) {
+        try {
+          await AuthService.customerLogout(userId: uid, onSuccess: () {}, onFailure: (_) {});
+        } catch (_) {}
+      }
 
-    // Reset profile data
-    if (Get.isRegistered<ProfileController>() && !Get.isPrepared<ProfileController>()) {
-      Get.find<ProfileController>().clear();
-    }
+      _isLoggedIn.value = false;
+      await ConfigPreference.clearTokens();
+      _user.value = emptyUser;
 
-    // Clear cart
-    if (Get.isRegistered<CartController>()) {
-      final cc = Get.find<CartController>();
-      cc.clearCart();
-      cc.deliveryAddress.value = '';
-    }
+      // Disconnect real-time tracking socket
+      if (Get.isRegistered<CustomerSocketService>() && !Get.isPrepared<CustomerSocketService>()) {
+        CustomerSocketService.to.disconnect();
+      }
 
-    // Clear merchant properties if loaded
-    if (Get.isRegistered<MyPropertyController>() && !Get.isPrepared<MyPropertyController>()) {
-      Get.find<MyPropertyController>().clear();
-    }
+      // Clear user orders
+      if (Get.isRegistered<OrderController>() && !Get.isPrepared<OrderController>()) {
+        Get.find<OrderController>().clear();
+      }
 
-    if (!isInTest) {
-      Get.offAllNamed(AppRoutes.login);
+      // Reset profile data
+      if (Get.isRegistered<ProfileController>() && !Get.isPrepared<ProfileController>()) {
+        Get.find<ProfileController>().clear();
+      }
+
+      // Clear cart
+      if (Get.isRegistered<CartController>()) {
+        final cc = Get.find<CartController>();
+        cc.clearCart();
+        cc.deliveryAddress.value = '';
+      }
+
+      // Clear merchant properties if loaded
+      if (Get.isRegistered<MyPropertyController>() && !Get.isPrepared<MyPropertyController>()) {
+        Get.find<MyPropertyController>().clear();
+      }
+
+      if (!isInTest) {
+        Get.offAllNamed(AppRoutes.login);
+      }
+    } finally {
+      isLoggingOut.value = false;
     }
   }
 }

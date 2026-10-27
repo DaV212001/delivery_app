@@ -428,7 +428,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '${cartController.total.toStringAsFixed(2)} Br',
+                        '${cartController.total.toStringAsFixed(2)} ${cartController.displayCurrency}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 15,

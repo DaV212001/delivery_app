@@ -14,6 +14,7 @@ import '../../services/order_service.dart';
 import '../../services/user_location_service.dart';
 import '../../utils/location_utils.dart';
 import '../../widgets/common/app_widgets.dart';
+import '../../widgets/map/locked_map_preview.dart';
 import '../../widgets/map/property_location_picker_screen.dart';
 import '../../models/saved_order.dart';
 import '../../services/saved_order_service.dart';
@@ -534,7 +535,7 @@ class _CartScreenState extends State<CartScreen> {
                                   ],
                                   const SizedBox(height: 4),
                                   Text(
-                                    '${cartItem.totalPrice.toStringAsFixed(2)} Br',
+                                    '${cartItem.totalPrice.toStringAsFixed(2)} ${cartItem.displayCurrency}',
                                     style: TextStyle(
                                       color: AppColors.primary,
                                       fontWeight: FontWeight.bold,
@@ -721,7 +722,7 @@ class _CartScreenState extends State<CartScreen> {
                                                       ),
                                                     ),
                                                     Text(
-                                                      '${opt.kmPrice.toStringAsFixed(0)} Br/km',
+                                                      '${opt.kmPrice.toStringAsFixed(0)} ${cartController.displayCurrency}/km',
                                                       style: theme.textTheme.bodySmall?.copyWith(
                                                         color: theme.colorScheme.onSurfaceVariant,
                                                         fontSize: 11,
@@ -731,7 +732,7 @@ class _CartScreenState extends State<CartScreen> {
                                                 ),
                                               ),
                                               Text(
-                                                '${optTotal.toStringAsFixed(2)} Br',
+                                                '${optTotal.toStringAsFixed(2)} ${cartController.displayCurrency}',
                                                 style: theme.textTheme.bodyMedium?.copyWith(
                                                   fontWeight: FontWeight.w700,
                                                   color: AppColors.primary,
@@ -1348,24 +1349,27 @@ class _CartScreenState extends State<CartScreen> {
                       ),
                       child: Column(
                         children: [
-                          _SummaryRow(label: 'subtotal'.tr, value: '${cartController.subtotal.toStringAsFixed(2)} Br'),
+                          _SummaryRow(
+                            label: 'subtotal'.tr,
+                            value: '${cartController.subtotal.toStringAsFixed(2)} ${cartController.displayCurrency}',
+                          ),
                           const SizedBox(height: 10),
                           _SummaryRow(
                             label: 'delivery_fee'.tr,
-                            value: '${cartController.deliveryFee.toStringAsFixed(2)} Br',
+                            value: '${cartController.deliveryFee.toStringAsFixed(2)} ${cartController.displayCurrency}',
                           ),
                           if (cartController.taxAndFees > 0) ...[
                             const SizedBox(height: 10),
                             _SummaryRow(
                               label: 'tax_and_fees'.tr,
-                              value: '${cartController.taxAndFees.toStringAsFixed(2)} Br',
+                              value: '${cartController.taxAndFees.toStringAsFixed(2)} ${cartController.displayCurrency}',
                             ),
                           ],
                           if (cartController.promoDiscount.value > 0) ...[
                             const SizedBox(height: 10),
                             _SummaryRow(
                               label: 'promo_discount'.tr,
-                              value: '-${cartController.promoDiscount.value.toStringAsFixed(2)} Br',
+                              value: '-${cartController.promoDiscount.value.toStringAsFixed(2)} ${cartController.displayCurrency}',
                               textColor: AppColors.primary,
                             ),
                           ],
@@ -1387,7 +1391,7 @@ class _CartScreenState extends State<CartScreen> {
                               const SizedBox(width: 8),
                               Flexible(
                                 child: Text(
-                                  '${cartController.total.toStringAsFixed(2)} Br',
+                                  '${cartController.total.toStringAsFixed(2)} ${cartController.displayCurrency}',
                                   style: theme.textTheme.headlineSmall?.copyWith(
                                     color: AppColors.primary,
                                     fontWeight: FontWeight.w800,
@@ -1469,7 +1473,7 @@ class _CartScreenState extends State<CartScreen> {
                         () => AppButton(
                           text: isStoreClosed
                               ? 'save_order_for_later'.tr
-                              : '${'place_order'.tr} • ${cartController.total.toStringAsFixed(2)} Br',
+                              : '${'place_order'.tr} • ${cartController.total.toStringAsFixed(2)} ${cartController.displayCurrency}',
                           isLoading: orderController.isPlacingOrder.value,
                           onPressed: (orderController.isPlacingOrder.value)
                               ? null
@@ -1894,7 +1898,7 @@ class _CartScreenState extends State<CartScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '${batch.totalQuantity} items • ${batch.subtotal.toStringAsFixed(2)} Br',
+                            '${batch.totalQuantity} items • ${batch.subtotal.toStringAsFixed(2)} ${batch.items.isNotEmpty ? batch.items.first.displayCurrency : cartController.displayCurrency}',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
@@ -2269,83 +2273,43 @@ class _CartScreenState extends State<CartScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  // Map Location Selector Card
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.pin_drop_rounded, size: 18, color: AppColors.primary),
-                            const SizedBox(width: 6),
-                            Text(
-                              'pinned_location'.tr,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                            ),
-                          ],
+                  LockedLocationPickerCard(
+                    latitude: selectedLat,
+                    longitude: selectedLng,
+                    address: locationLabel,
+                    buttonLabel: 'select_location_on_map'.tr,
+                    onPickOnMap: () async {
+                      final result = await Get.to<PropertyLocationResult>(
+                        () => PropertyLocationPickerScreen(
+                          title: 'Pin Delivery Address',
+                          initialLatitude: selectedLat,
+                          initialLongitude: selectedLng,
+                          initialAddress: nameCtrl.text.trim().isNotEmpty
+                              ? nameCtrl.text.trim()
+                              : locationLabel,
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          '${selectedLat.toStringAsFixed(5)}, ${selectedLng.toStringAsFixed(5)}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                        if (locationLabel.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            locationLabel,
-                            style: const TextStyle(fontSize: 11, color: Colors.grey),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                        const SizedBox(height: 10),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.primary,
-                              side: const BorderSide(color: AppColors.primary),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                            icon: const Icon(Icons.map_outlined, size: 16),
-                            label: Text('select_location_on_map'.tr, style: const TextStyle(fontSize: 13)),
-                            onPressed: () async {
-                              final result = await Get.to<PropertyLocationResult>(
-                                () => PropertyLocationPickerScreen(
-                                  title: 'Pin Delivery Address',
-                                  initialLatitude: selectedLat,
-                                  initialLongitude: selectedLng,
-                                  initialAddress: nameCtrl.text.trim(),
-                                ),
-                              );
-                              if (result != null) {
-                                setDialogState(() {
-                                  selectedLat = result.latitude;
-                                  selectedLng = result.longitude;
-                                  if (result.address.isNotEmpty) {
-                                    locationLabel = result.address;
-                                    if (nameCtrl.text.trim().isEmpty) {
-                                      nameCtrl.text = result.address;
-                                    }
-                                  }
-                                });
-                              }
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
+                      );
+                      if (result != null) {
+                        setDialogState(() {
+                          selectedLat = result.latitude;
+                          selectedLng = result.longitude;
+                          if (result.address.isNotEmpty) {
+                            locationLabel = result.address;
+                            if (nameCtrl.text.trim().isEmpty) {
+                              nameCtrl.text = result.address;
+                            }
+                          }
+                        });
+                      }
+                    },
+                    onAddressResolved: (resolved) {
+                      setDialogState(() {
+                        locationLabel = resolved;
+                        if (nameCtrl.text.trim().isEmpty) {
+                          nameCtrl.text = resolved;
+                        }
+                      });
+                    },
                   ),
                 ],
               ),

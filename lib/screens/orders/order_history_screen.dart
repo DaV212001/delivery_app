@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/cart_controller.dart';
 import '../../controllers/order_controller.dart';
+import '../../models/order.dart';
 import '../../constants/pages.dart';
 import '../../core/theme/app_colors.dart';
 import '../../utils/templates/loaded_widgets_template.dart';
@@ -149,8 +150,14 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       color: AppColors.primary,
       onRefresh: () => orderController.loadOrders(),
       child: Obx(() {
-        final active = orderController.activeOrder.value;
-        if (active == null) {
+        final list = orderController.activeOrders;
+        final ordersToRender = list.isNotEmpty
+            ? list
+            : (orderController.activeOrder.value != null
+                ? [orderController.activeOrder.value!]
+                : <OrderModel>[]);
+
+        if (ordersToRender.isEmpty) {
           return SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: Container(
@@ -194,115 +201,129 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
           );
         }
 
-        return SingleChildScrollView(
+        return ListView.separated(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: () => Get.toNamed(AppRoutes.tracking, arguments: active),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkSurfaceContainerLowest : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.3),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.08),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
-                          child: AppNetworkImage(
-                            imageUrl: active.restaurantImageUrl,
-                            width: 56,
-                            height: 56,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                active.restaurantName,
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${'estimated_arrival'.tr}: ${active.estimatedArrival}',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            active.orderId,
-                            style: const TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    const Divider(),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '${active.total.toStringAsFixed(2)} Br • ${active.statusLabel}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        AppButton(
-                          width: 110,
-                          height: 40,
-                          text: 'track_live'.tr,
-                          onPressed: () => Get.toNamed(AppRoutes.tracking, arguments: active),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          itemCount: ordersToRender.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 14),
+          itemBuilder: (context, index) {
+            final active = ordersToRender[index];
+            return _buildActiveOrderCard(context, theme, isDark, active);
+          },
         );
       }),
+    );
+  }
+
+  Widget _buildActiveOrderCard(
+    BuildContext context,
+    ThemeData theme,
+    bool isDark,
+    OrderModel active,
+  ) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => Get.toNamed(AppRoutes.tracking, arguments: active),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkSurfaceContainerLowest : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.08),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: AppNetworkImage(
+                      imageUrl: active.restaurantImageUrl,
+                      width: 56,
+                      height: 56,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          active.restaurantName,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${'estimated_arrival'.tr}: ${active.estimatedArrival}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      active.orderId,
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Divider(),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${active.total.toStringAsFixed(2)} ${active.displayCurrency} • ${active.statusLabel}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  AppButton(
+                    width: 110,
+                    height: 40,
+                    text: 'track_live'.tr,
+                    onPressed: () => Get.toNamed(AppRoutes.tracking, arguments: active),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -485,7 +506,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                                     Row(
                                       children: [
                                         Text(
-                                          '${order.total.toStringAsFixed(2)} Br',
+                                          '${order.total.toStringAsFixed(2)} ${order.displayCurrency}',
                                           style: theme.textTheme.titleSmall?.copyWith(
                                             fontWeight: FontWeight.w800,
                                             color: AppColors.primary,

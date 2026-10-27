@@ -301,20 +301,23 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
 
       // 3. Special Offers
       if (apiOffers.isNotEmpty) {
+        final allStores = [...apiFeatured, ...apiNearby.properties, ...apiProperties];
         final mappedOffers = apiOffers.map((item) {
           final discount = item.discountPercent > 0 ? item.discountPercent : 20.0;
           final orig = item.price / (1 - (discount / 100));
+          final matchingStore = allStores.firstWhereOrNull((s) => s.id == item.storeId);
           return SpecialOffer(
             id: item.id,
             name: item.name,
-            storeName: '',
-            branchName: '',
+            storeName: matchingStore?.name ?? '',
+            branchName: matchingStore?.branch ?? '',
             discountedPrice: item.price,
             originalPrice: orig,
             discountPercent: discount,
             imageUrl: item.imageUrl,
             storeId: item.storeId,
             deliveryItem: item,
+            currency: item.currency,
           );
         }).toList();
         specialOffers.assignAll(mappedOffers);

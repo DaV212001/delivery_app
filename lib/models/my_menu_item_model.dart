@@ -1,3 +1,5 @@
+import '../utils/currency_utils.dart';
+
 class MyMenuItemModel {
   final int id;
   final dynamic propertyId;
@@ -40,12 +42,7 @@ class MyMenuItemModel {
 
   String get displayCurrency {
     if (currency != null && currency!.trim().isNotEmpty) {
-      final c = currency!.trim();
-      if (c == '1') return 'USD';
-      if (c == '2') return 'ETB';
-      if (c == '3') return 'EUR';
-      if (c == '4') return 'GBP';
-      return c;
+      return CurrencyUtils.resolveCode(currency);
     }
     return 'Br';
   }

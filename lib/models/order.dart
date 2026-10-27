@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import '../constants/app_assets.dart';
 import '../services/property_service.dart';
+import '../utils/currency_utils.dart';
 import 'cart_item.dart';
 import 'delivery_item.dart';
 import 'store.dart';
@@ -151,6 +152,7 @@ class OrderModel {
   final double? deliveryLongitude;
   final double? driverLatitude;
   final double? driverLongitude;
+  final String? currency;
 
   const OrderModel({
     required this.orderId,
@@ -174,6 +176,7 @@ class OrderModel {
     this.deliveryLongitude,
     this.driverLatitude,
     this.driverLongitude,
+    this.currency,
   });
 
   OrderModel copyWith({
@@ -198,6 +201,7 @@ class OrderModel {
     double? deliveryLongitude,
     double? driverLatitude,
     double? driverLongitude,
+    String? currency,
   }) {
     return OrderModel(
       orderId: orderId ?? this.orderId,
@@ -221,7 +225,20 @@ class OrderModel {
       deliveryLongitude: deliveryLongitude ?? this.deliveryLongitude,
       driverLatitude: driverLatitude ?? this.driverLatitude,
       driverLongitude: driverLongitude ?? this.driverLongitude,
+      currency: currency ?? this.currency,
     );
+  }
+
+  String get displayCurrency {
+    if (currency != null && currency!.trim().isNotEmpty) {
+      return CurrencyUtils.resolveCode(currency);
+    }
+    for (final item in items) {
+      if (item.item.currency != null && item.item.currency!.trim().isNotEmpty) {
+        return CurrencyUtils.resolveCode(item.item.currency);
+      }
+    }
+    return CurrencyUtils.resolveCode(null);
   }
 
   String get statusLabel {
@@ -337,13 +354,34 @@ class OrderModel {
     final loc = (friendlyDest != null && friendlyDest.trim().isNotEmpty)
         ? friendlyDest.trim()
         : (json['location']?.toString() ?? 'Addis Ababa');
-    final totalPrice = double.tryParse(json['payment_amount']?.toString() ?? json['total_price']?.toString() ?? '0') ?? 0.0;
-    final totalItems = int.tryParse(json['total_item']?.toString() ?? '1') ?? 1;
+
+    final rawPayment = double.tryParse(json['payment_amount']?.toString() ?? '') ?? 0.0;
+    final rawTotal = double.tryParse(json['total_price']?.toString() ?? json['total']?.toString() ?? '') ?? 0.0;
     final itemTotal = double.tryParse(json['item_total_price']?.toString() ?? '');
-    final kmTotal = double.tryParse(json['total_km_price']?.toString() ?? '');
+    final kmTotal = double.tryParse(json['total_km_price']?.toString() ?? json['km_price']?.toString() ?? '');
+    final totalItems = int.tryParse(json['total_item']?.toString() ?? json['total_quantity']?.toString() ?? '1') ?? 1;
+
+    double totalPrice = 0.0;
+    if (rawPayment > 0.0) {
+      totalPrice = rawPayment;
+    } else if (rawTotal > 0.0) {
+      totalPrice = rawTotal;
+    } else if (itemTotal != null && itemTotal > 0.0) {
+      totalPrice = itemTotal + (kmTotal ?? 0.0);
+    }
+
+    final subtotal = itemTotal ?? (totalPrice > 0 ? (totalPrice * 0.9) : 0.0);
+    final deliveryFee = kmTotal ?? (totalPrice > subtotal ? (totalPrice - subtotal) : 0.0);
+    if (totalPrice <= 0.0 && (subtotal > 0 || deliveryFee > 0)) {
+      totalPrice = subtotal + deliveryFee;
+    }
 
     final propId = json['property_id']?.toString();
     final cachedStore = PropertyService.getCachedProperty(propId);
+    final rawCurrency = json['currency']?.toString() ??
+        json['currency_code']?.toString() ??
+        json['currency_id']?.toString() ??
+        cachedStore?.currency;
 
     String rawStoreName = json['property_name']?.toString() ?? json['property']?.toString() ?? '';
     if (rawStoreName.trim().isEmpty || rawStoreName.toLowerCase() == 'null' || rawStoreName.toLowerCase() == 'store') {
@@ -382,17 +420,18 @@ class OrderModel {
             storeId: propId ?? '1',
             name: rawStoreName != 'Store' ? '$rawStoreName Item ${index + 1}' : 'Order Item ${index + 1}',
             description: '',
-            price: totalItems > 0 ? (totalPrice / totalItems) : totalPrice,
+            price: totalItems > 0 ? (subtotal / totalItems) : subtotal,
             imageUrl: rawStoreLogo,
             category: 'Order',
+            currency: rawCurrency,
           ),
           quantity: 1,
         ),
       ),
-      subtotal: itemTotal ?? (totalPrice * 0.9),
-      deliveryFee: kmTotal ?? 50.0,
-      taxAndFees: totalPrice > ((itemTotal ?? (totalPrice * 0.9)) + (kmTotal ?? 50.0))
-          ? totalPrice - ((itemTotal ?? (totalPrice * 0.9)) + (kmTotal ?? 50.0))
+      subtotal: subtotal,
+      deliveryFee: deliveryFee,
+      taxAndFees: (totalPrice > (subtotal + deliveryFee))
+          ? (totalPrice - subtotal - deliveryFee)
           : 0.0,
       total: totalPrice,
       deliveryAddress: loc,
@@ -416,6 +455,7 @@ class OrderModel {
         photoUrl: AppAssets.driverAvatar,
         phone: '+251 911 058 179',
       ),
+      currency: rawCurrency,
     );
   }
 
@@ -431,7 +471,6 @@ class OrderModel {
     final loc = (friendlyDest != null && friendlyDest.trim().isNotEmpty)
         ? friendlyDest.trim()
         : (statusJson['location']?.toString() ?? 'Addis Ababa');
-    final totalPrice = double.tryParse(statusJson['payment_amount']?.toString() ?? statusJson['total_price']?.toString() ?? '0') ?? 0.0;
     final propId = statusJson['property_id']?.toString();
     final cachedStore = fallbackStore ?? PropertyService.getCachedProperty(propId);
 
@@ -472,6 +511,26 @@ class OrderModel {
       storeLogo = cachedStore?.logoUrl ?? cachedStore?.heroImageUrl ?? AppAssets.parcelBoxItem;
     }
 
+    String? orderCurrency;
+    for (final raw in itemsList) {
+      if (raw is Map<String, dynamic>) {
+        final c = raw['currency'] ?? raw['currency_code'] ?? raw['currency_id'];
+        if (c != null && c.toString().trim().isNotEmpty) {
+          orderCurrency = c.toString().trim();
+          break;
+        }
+      }
+    }
+    if (orderCurrency == null || orderCurrency.isEmpty) {
+      final cStatus = statusJson['currency'] ?? statusJson['currency_code'] ?? statusJson['currency_id'];
+      if (cStatus != null && cStatus.toString().trim().isNotEmpty) {
+        orderCurrency = cStatus.toString().trim();
+      }
+    }
+    if (orderCurrency == null || orderCurrency.isEmpty) {
+      orderCurrency = cachedStore?.currency;
+    }
+
     final parsedItems = <CartItem>[];
     double calculatedItemsSum = 0.0;
 
@@ -492,6 +551,10 @@ class OrderModel {
 
         final itemPrice = double.tryParse(raw['item_price']?.toString() ?? raw['price']?.toString() ?? '0') ?? 0.0;
         final qty = int.tryParse(raw['quantity']?.toString() ?? raw['qty']?.toString() ?? '1') ?? 1;
+        final itemCurrency = raw['currency']?.toString() ??
+            raw['currency_code']?.toString() ??
+            raw['currency_id']?.toString() ??
+            orderCurrency;
 
         calculatedItemsSum += itemPrice * qty;
 
@@ -506,6 +569,7 @@ class OrderModel {
               price: itemPrice,
               imageUrl: rawImage,
               category: 'Menu',
+              currency: itemCurrency,
             ),
             quantity: qty,
           ),
@@ -524,11 +588,29 @@ class OrderModel {
       } catch (_) {}
     }
 
+    final rawPayment = double.tryParse(statusJson['payment_amount']?.toString() ?? '') ?? 0.0;
+    final rawTotal = double.tryParse(statusJson['total_price']?.toString() ?? statusJson['total']?.toString() ?? '') ?? 0.0;
     final itemTotal = double.tryParse(statusJson['item_total_price']?.toString() ?? '');
-    final kmTotal = double.tryParse(statusJson['total_km_price']?.toString() ?? '');
-    final subtotal = calculatedItemsSum > 0 ? calculatedItemsSum : (itemTotal ?? (totalPrice * 0.9));
-    final deliveryFee = kmTotal ?? ((totalPrice > subtotal) ? (totalPrice - subtotal) : 50.0);
-    final taxAndFees = (totalPrice - subtotal - deliveryFee) > 0 ? (totalPrice - subtotal - deliveryFee) : 0.0;
+    final kmTotal = double.tryParse(statusJson['total_km_price']?.toString() ?? statusJson['km_price']?.toString() ?? '');
+    final subtotal = calculatedItemsSum > 0
+        ? calculatedItemsSum
+        : (itemTotal ?? (rawPayment > 0 ? (rawPayment * 0.9) : (rawTotal > 0 ? (rawTotal * 0.9) : 0.0)));
+    final deliveryFee = kmTotal ?? ((rawPayment > subtotal) ? (rawPayment - subtotal) : ((rawTotal > subtotal) ? (rawTotal - subtotal) : 0.0));
+
+    double effectiveTotal = 0.0;
+    if (rawPayment > 0.0) {
+      effectiveTotal = rawPayment;
+    } else if (rawTotal > 0.0) {
+      effectiveTotal = rawTotal;
+    } else if (itemTotal != null && itemTotal > 0.0) {
+      effectiveTotal = itemTotal + deliveryFee;
+    } else {
+      effectiveTotal = subtotal + deliveryFee;
+    }
+
+    final taxAndFees = (effectiveTotal > (subtotal + deliveryFee))
+        ? (effectiveTotal - subtotal - deliveryFee)
+        : 0.0;
 
     DriverInfo? driverInfo;
     final driverId = statusJson['driver_id']?.toString();
@@ -554,7 +636,7 @@ class OrderModel {
       subtotal: subtotal,
       deliveryFee: deliveryFee,
       taxAndFees: taxAndFees,
-      total: totalPrice,
+      total: effectiveTotal,
       deliveryAddress: loc,
       destinationFriendlyLocation: friendlyDest,
       status: orderStatus,
@@ -569,6 +651,7 @@ class OrderModel {
       deliveryLatitude: double.tryParse(statusJson['latitude']?.toString() ?? ''),
       deliveryLongitude: double.tryParse(statusJson['longitude']?.toString() ?? ''),
       driver: driverInfo,
+      currency: orderCurrency,
     );
   }
 

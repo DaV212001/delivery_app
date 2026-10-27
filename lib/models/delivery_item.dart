@@ -1,3 +1,5 @@
+import '../utils/currency_utils.dart';
+
 class DeliveryItem {
   final String id;
   final String storeId;
@@ -35,12 +37,7 @@ class DeliveryItem {
 
   String get displayCurrency {
     if (currency != null && currency!.trim().isNotEmpty) {
-      final c = currency!.trim();
-      if (c == '1') return 'USD';
-      if (c == '2') return 'ETB';
-      if (c == '3') return 'EUR';
-      if (c == '4') return 'GBP';
-      return c;
+      return CurrencyUtils.resolveCode(currency);
     }
     return 'Br';
   }

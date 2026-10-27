@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'bindings/initial_binding.dart';
@@ -5,8 +6,10 @@ import 'config/storage_config.dart';
 import 'config/translations.dart';
 import 'controllers/localization_controller.dart';
 import 'core/theme/app_theme.dart';
+import 'firebase_options.dart';
 import 'routes/app_pages.dart';
 import 'services/gebeta_location_service.dart';
+import 'services/notification_service.dart';
 import 'services/saved_order_service.dart';
 
 void main() async {
@@ -16,6 +19,10 @@ void main() async {
   await ConfigPreference.init();
   SavedOrderService.init();
   GebetaLocationService.configureMapHeaders();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  await NotificationService.instance.initialize();
   runApp(const AmnDeliveryApp());
 }
 

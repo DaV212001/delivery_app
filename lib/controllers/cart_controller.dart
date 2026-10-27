@@ -106,6 +106,13 @@ class CartController extends GetxController {
     return items.fold(0, (sum, item) => sum + item.quantity);
   }
 
+  String get displayCurrency {
+    if (items.isNotEmpty) {
+      return items.first.displayCurrency;
+    }
+    return 'ETB';
+  }
+
   /// item_total_price sum
   double get subtotal {
     return items.fold(0.0, (sum, item) => sum + item.totalPrice);

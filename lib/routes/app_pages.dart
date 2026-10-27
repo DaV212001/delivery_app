@@ -14,6 +14,7 @@ import '../screens/main_navigation.dart';
 import '../screens/orders/order_history_screen.dart';
 import '../screens/profile/edit_profile_screen.dart';
 import '../screens/profile/profile_screen.dart';
+import '../screens/profile/saved_addresses_screen.dart';
 import '../screens/property/my_properties_list_screen.dart';
 import '../screens/property/my_property_screen.dart';
 import '../screens/property/property_schedules_screen.dart';
@@ -84,6 +85,10 @@ class AppPages {
     GetPage(
       name: AppRoutes.editProfile,
       page: () => const EditProfileScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.savedAddresses,
+      page: () => const SavedAddressesScreen(),
     ),
     GetPage(
       name: AppRoutes.wallet,

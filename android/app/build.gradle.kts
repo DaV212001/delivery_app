@@ -3,6 +3,7 @@ import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
+    id("com.google.gms.google-services")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -10,7 +11,12 @@ plugins {
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+    val rawProperties = Properties()
+    keystorePropertiesFile.inputStream().use { rawProperties.load(it) }
+    for ((k, v) in rawProperties) {
+        val cleanKey = k.toString().removePrefix("\uFEFF").trim()
+        keystoreProperties[cleanKey] = v.toString().trim()
+    }
 }
 
 android {

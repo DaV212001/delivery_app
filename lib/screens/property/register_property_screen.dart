@@ -8,6 +8,7 @@ import '../../core/theme/app_colors.dart';
 import '../../models/my_property_model.dart';
 import '../../services/gebeta_location_service.dart';
 import '../../widgets/common/app_widgets.dart';
+import '../../widgets/map/locked_map_preview.dart';
 import '../../widgets/map/property_location_picker_screen.dart';
 
 class RegisterPropertyScreen extends StatefulWidget {
@@ -24,13 +25,9 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
   final _nameController = TextEditingController();
   final _locationController = TextEditingController();
   final _descController = TextEditingController();
-  final _deliveryTimeController = TextEditingController(text: '30 min');
   final _tinController = TextEditingController();
   final _latController = TextEditingController(text: '9.0209');
   final _lngController = TextEditingController(text: '38.7469');
-
-  TimeOfDay _openTime = const TimeOfDay(hour: 8, minute: 0);
-  TimeOfDay _closeTime = const TimeOfDay(hour: 22, minute: 0);
 
   int? _selectedCategoryId;
   int? _selectedTypeId;
@@ -62,22 +59,8 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
       _nameController.text = p.name;
       _locationController.text = p.friendlyLocation;
       _descController.text = p.description;
-      _deliveryTimeController.text = p.deliveryTime.isNotEmpty ? p.deliveryTime : '30 min';
       _latController.text = p.latitude.isNotEmpty ? p.latitude : '9.0209';
       _lngController.text = p.longitude.isNotEmpty ? p.longitude : '38.7469';
-
-      if (p.openingTime.contains(':')) {
-        final parts = p.openingTime.split(':');
-        final h = int.tryParse(parts[0]) ?? 8;
-        final m = int.tryParse(parts[1]) ?? 0;
-        _openTime = TimeOfDay(hour: h, minute: m);
-      }
-      if (p.closingTime.contains(':')) {
-        final parts = p.closingTime.split(':');
-        final h = int.tryParse(parts[0]) ?? 22;
-        final m = int.tryParse(parts[1]) ?? 0;
-        _closeTime = TimeOfDay(hour: h, minute: m);
-      }
       _selectedCurrencyId = _controller.getCurrencyIdForProperty(p);
     }
 
@@ -89,7 +72,6 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
     _nameController.dispose();
     _locationController.dispose();
     _descController.dispose();
-    _deliveryTimeController.dispose();
     _tinController.dispose();
     _latController.dispose();
     _lngController.dispose();
@@ -183,29 +165,6 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
     }
   }
 
-  String _formatTimeOfDay(TimeOfDay tod) {
-    final hour = tod.hour.toString().padLeft(2, '0');
-    final min = tod.minute.toString().padLeft(2, '0');
-    return '$hour:$min';
-  }
-
-  Future<void> _selectTime(bool isOpenTime) async {
-    final initial = isOpenTime ? _openTime : _closeTime;
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: initial,
-    );
-    if (picked != null) {
-      setState(() {
-        if (isOpenTime) {
-          _openTime = picked;
-        } else {
-          _closeTime = picked;
-        }
-      });
-    }
-  }
-
   void _handleSubmit() {
     if (!_formKey.currentState!.validate()) {
       Get.snackbar('error'.tr, 'Please fill in required fields');
@@ -233,12 +192,12 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
         typeId: _selectedTypeId ?? 1,
         friendlyLocation: _locationController.text.trim(),
         description: _descController.text.trim(),
-        deliveryTime: _deliveryTimeController.text.trim(),
+        deliveryTime: _propertyToEdit?.deliveryTime.isNotEmpty == true ? _propertyToEdit!.deliveryTime : '30 min',
         tinNumber: _tinController.text.trim().isNotEmpty ? _tinController.text.trim() : null,
         latitude: _latController.text.trim(),
         longitude: _lngController.text.trim(),
-        fromTime: _formatTimeOfDay(_openTime),
-        toTime: _formatTimeOfDay(_closeTime),
+        fromTime: _propertyToEdit?.openingTime.isNotEmpty == true ? _propertyToEdit!.openingTime : '08:00',
+        toTime: _propertyToEdit?.closingTime.isNotEmpty == true ? _propertyToEdit!.closingTime : '22:00',
         logoPath: _logoPath,
         coverImagePath: _coverPath,
         tinCertificatePath: _tinCertPath,
@@ -252,12 +211,12 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
         typeId: _selectedTypeId ?? 1,
         friendlyLocation: _locationController.text.trim(),
         description: _descController.text.trim(),
-        deliveryTime: _deliveryTimeController.text.trim(),
+        deliveryTime: '30 min',
         tinNumber: _tinController.text.trim().isNotEmpty ? _tinController.text.trim() : '0000000000',
         latitude: _latController.text.trim(),
         longitude: _lngController.text.trim(),
-        fromTime: _formatTimeOfDay(_openTime),
-        toTime: _formatTimeOfDay(_closeTime),
+        fromTime: '08:00',
+        toTime: '22:00',
         logoPath: _logoPath,
         coverImagePath: _coverPath,
         tinCertificatePath: _tinCertPath,
@@ -457,89 +416,7 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Section 2: Operating Schedule & Delivery
-                _buildCardSection(
-                  context,
-                  title: 'Operating Hours & Dispatch',
-                  icon: Icons.access_time_rounded,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: InkWell(
-                            onTap: () => _selectTime(true),
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                              decoration: BoxDecoration(
-                                color: isDark ? AppColors.darkSurfaceContainerLow : AppColors.surfaceContainerLow,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Opens At', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.schedule, size: 16, color: AppColors.primary),
-                                      const SizedBox(width: 6),
-                                      Text(_formatTimeOfDay(_openTime), style: const TextStyle(fontWeight: FontWeight.bold)),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: InkWell(
-                            onTap: () => _selectTime(false),
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                              decoration: BoxDecoration(
-                                color: isDark ? AppColors.darkSurfaceContainerLow : AppColors.surfaceContainerLow,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Closes At', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.schedule, size: 16, color: AppColors.primary),
-                                      const SizedBox(width: 6),
-                                      Text(_formatTimeOfDay(_closeTime), style: const TextStyle(fontWeight: FontWeight.bold)),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _deliveryTimeController,
-                      decoration: InputDecoration(
-                        labelText: 'Estimated Prep & Delivery Time',
-                        hintText: 'e.g. 30 min',
-                        prefixIcon: const Icon(Icons.delivery_dining_outlined),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        filled: true,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Section 3: Store Imagery
+                // Section 2: Store Imagery
                 _buildCardSection(
                   context,
                   title: 'Store Imagery',
@@ -660,7 +537,7 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Section 4: Legal & Verification
+                // Section 3: Legal & Verification
                 _buildCardSection(
                   context,
                   title: 'Business Verification',
@@ -721,141 +598,45 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Section 5: Map Location Selector
+                // Section 4: Map Location Selector
                 _buildCardSection(
                   context,
                   title: 'Store Location on Map',
                   icon: Icons.map_rounded,
                   children: [
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? AppColors.darkSurfaceContainerLow
-                            : AppColors.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.25),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Icon(
-                                  Icons.pin_drop_rounded,
-                                  color: AppColors.primary,
-                                  size: 26,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Pinned Coordinates',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 3),
-                                    Text(
-                                      _latController.text.isNotEmpty && _lngController.text.isNotEmpty
-                                          ? '${_latController.text}, ${_lngController.text}'
-                                          : 'No coordinates pinned yet',
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        fontFamily: 'monospace',
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (_locationController.text.isNotEmpty) ...[
-                            const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? Colors.black.withValues(alpha: 0.25)
-                                    : Colors.white.withValues(alpha: 0.8),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.place_outlined, size: 14, color: Colors.grey.shade600),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      _locationController.text,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: isDark ? Colors.grey.shade300 : Colors.grey.shade800,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                    // Pinned location preview
+                    LockedLocationPickerCard(
+                      latitude: double.tryParse(_latController.text) ?? 9.0209,
+                      longitude: double.tryParse(_lngController.text) ?? 38.7469,
+                      address: _locationController.text.isNotEmpty ? _locationController.text : null,
+                      buttonLabel: 'Pick on Map',
+                      onPickOnMap: _openMapLocationPicker,
+                      onAddressResolved: (resolved) {
+                        setState(() {
+                          if (_locationController.text.trim().isEmpty) {
+                            _locationController.text = resolved;
+                          }
+                        });
+                      },
+                      extraActions: [
+                        OutlinedButton.icon(
+                          icon: _isGettingLocation
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.gps_fixed_rounded, size: 16),
+                          label: const Text('GPS Position', style: TextStyle(fontSize: 12)),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                          ],
-                          const SizedBox(height: 14),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: ElevatedButton.icon(
-                                  icon: const Icon(Icons.map_rounded, size: 18),
-                                  label: const Text('Pick on Map'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(vertical: 12),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    elevation: 0,
-                                  ),
-                                  onPressed: _openMapLocationPicker,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              OutlinedButton.icon(
-                                icon: _isGettingLocation
-                                    ? const SizedBox(
-                                        width: 14,
-                                        height: 14,
-                                        child: CircularProgressIndicator(strokeWidth: 2),
-                                      )
-                                    : const Icon(Icons.gps_fixed_rounded, size: 16),
-                                label: const Text('GPS Position', style: TextStyle(fontSize: 12)),
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                onPressed: _isGettingLocation ? null : _getCurrentLocation,
-                              ),
-                            ],
                           ),
-                        ],
-                      ),
+                          onPressed: _isGettingLocation ? null : _getCurrentLocation,
+                        ),
+                      ],
                     ),
                   ],
                 ),

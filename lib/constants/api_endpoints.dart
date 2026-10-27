@@ -99,4 +99,12 @@ class ApiEndpoints {
 
   // Real-Time Socket Server (Render)
   static const String socketServerUrl = 'https://amn-delivery-socket-server.onrender.com';
+
+  // Push Notification Service Endpoints
+  static const String notificationBaseUrl = 'https://notification.amnplc.com/api';
+  static const String customerTokens = '$notificationBaseUrl/customer-tokens';
+  static String deleteCustomerToken(String fcmToken) =>
+      '$notificationBaseUrl/customer-tokens/$fcmToken';
+  static const String pushCustomersBulk = '$notificationBaseUrl/push/customers-bulk';
+  static const String pushCustomerOrderStatus = '$notificationBaseUrl/push/customer-order-status';
 }

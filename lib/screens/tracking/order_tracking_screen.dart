@@ -914,7 +914,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                         ),
                                       ),
                                       Text(
-                                        '${(cartItem.item.price * cartItem.quantity).toStringAsFixed(2)} Br',
+                                        '${(cartItem.item.price * cartItem.quantity).toStringAsFixed(2)} ${cartItem.displayCurrency}',
                                         style: theme.textTheme.bodySmall?.copyWith(
                                           fontWeight: FontWeight.w600,
                                         ),
@@ -922,6 +922,62 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                     ],
                                   ),
                                 ),
+                              ),
+                            ],
+
+                            if (order.deliveryFee > 0) ...[
+                              const SizedBox(height: 6),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      'delivery_fee'.tr.isNotEmpty && 'delivery_fee'.tr != 'delivery_fee'
+                                          ? 'delivery_fee'.tr
+                                          : 'Delivery Fee',
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: theme.colorScheme.onSurfaceVariant,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '${order.deliveryFee.toStringAsFixed(2)} ${order.displayCurrency}',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+
+                            if (order.taxAndFees > 0) ...[
+                              const SizedBox(height: 4),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      'tax_and_fees'.tr.isNotEmpty && 'tax_and_fees'.tr != 'tax_and_fees'
+                                          ? 'tax_and_fees'.tr
+                                          : 'Tax & Fees',
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: theme.colorScheme.onSurfaceVariant,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '${order.taxAndFees.toStringAsFixed(2)} ${order.displayCurrency}',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
 
@@ -941,7 +997,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  '${order.total.toStringAsFixed(2)} Br',
+                                  '${order.total.toStringAsFixed(2)} ${order.displayCurrency}',
                                   style: const TextStyle(
                                     color: AppColors.primary,
                                     fontWeight: FontWeight.w800,

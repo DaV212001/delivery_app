@@ -15,6 +15,7 @@ class AppRoutes {
   static const String otp = '/otp';
   static const String forgotPassword = '/forgot-password';
   static const String editProfile = '/edit-profile';
+  static const String savedAddresses = '/saved-addresses';
   static const String courier = '/courier';
   static const String courierHistory = '/courier-history';
   static const String myProperty = '/my-property';

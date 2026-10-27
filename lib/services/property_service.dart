@@ -9,6 +9,7 @@ import '../models/my_property_model.dart';
 import '../models/paginated_properties.dart';
 import '../models/property_schedule.dart';
 import '../models/store.dart';
+import '../utils/currency_utils.dart';
 import '../utils/templates/dio_template.dart';
 
 class PropertyService {
@@ -37,15 +38,15 @@ class PropertyService {
     if (list.isEmpty) {
       list.addAll(defaultCurrencies);
     }
+    CurrencyUtils.registerCurrencies(list);
     return list;
   }
 
   static const List<CurrencyModel> defaultCurrencies = [
-    CurrencyModel(id: 1, code: 'USD', symbol: '\$'),
-    CurrencyModel(id: 2, code: 'ETB', symbol: 'Br'),
-    CurrencyModel(id: 3, code: 'EUR', symbol: '€'),
-    CurrencyModel(id: 4, code: 'GBP', symbol: '£'),
-    CurrencyModel(id: 5, code: 'BTC', symbol: '₿'),
+    CurrencyModel(id: 1, code: 'ETB', symbol: 'Br'),
+    CurrencyModel(id: 2, code: 'AED', symbol: 'AED'),
+    CurrencyModel(id: 3, code: 'USD', symbol: '\$'),
+    CurrencyModel(id: 4, code: 'Yuan', symbol: 'Yuan'),
   ];
 
   /// Fetch all delivery categories

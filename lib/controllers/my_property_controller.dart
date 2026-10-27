@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../config/storage_config.dart';
+import '../constants/pages.dart';
 import '../core/theme/app_colors.dart';
 import '../models/category_model.dart';
 import '../models/currency_model.dart';
@@ -443,7 +444,8 @@ class MyPropertyController extends GetxController {
       if (prop != null) {
         await loadProperties(forceRefresh: true);
         selectedProperty.value = prop;
-        Get.back();
+        Get.offNamed(AppRoutes.myProperty);
+        Get.toNamed(AppRoutes.propertySchedules, arguments: prop);
         Get.snackbar(
           'success'.tr,
           'Property registered successfully!',
