@@ -179,10 +179,12 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
     }
 
     final effectiveCurrencyId = _selectedCurrencyId ??
-        (_propertyToEdit != null ? _controller.getCurrencyIdForProperty(_propertyToEdit) : null) ??
-        (_controller.currencies.any((c) => c.code.toUpperCase() == 'ETB')
-            ? _controller.currencies.firstWhere((c) => c.code.toUpperCase() == 'ETB').id
-            : (_controller.currencies.isNotEmpty ? _controller.currencies.first.id : 2));
+        (_propertyToEdit != null ? _controller.getCurrencyIdForProperty(_propertyToEdit) : null);
+
+    if (effectiveCurrencyId == null) {
+      Get.snackbar('error'.tr, 'Please select a currency');
+      return;
+    }
 
     if (_isEditing) {
       _controller.updateExistingProperty(
@@ -374,14 +376,15 @@ class _RegisterPropertyScreenState extends State<RegisterPropertyScreen> {
                       }
                       final selectedCurrency = currencies.any((c) => c.id == _selectedCurrencyId)
                           ? _selectedCurrencyId
-                          : (_propertyToEdit != null && _controller.getCurrencyIdForProperty(_propertyToEdit) != null && currencies.any((c) => c.id == _controller.getCurrencyIdForProperty(_propertyToEdit))
+                          : (_propertyToEdit != null &&
+                                  _controller.getCurrencyIdForProperty(_propertyToEdit) != null &&
+                                  currencies.any((c) => c.id == _controller.getCurrencyIdForProperty(_propertyToEdit))
                               ? _controller.getCurrencyIdForProperty(_propertyToEdit)
-                              : (currencies.any((c) => c.code.toUpperCase() == 'ETB')
-                                  ? currencies.firstWhere((c) => c.code.toUpperCase() == 'ETB').id
-                                  : (currencies.isNotEmpty ? currencies.first.id : null)));
+                              : null);
                       return DropdownButtonFormField<int>(
                         isExpanded: true,
                         initialValue: selectedCurrency,
+                        hint: const Text('Select store currency'),
                         decoration: InputDecoration(
                           labelText: 'Currency *',
                           hintText: 'Select store currency',

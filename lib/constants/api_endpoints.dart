@@ -50,6 +50,7 @@ class ApiEndpoints {
 
   // Order endpoints
   static const String order = '/order';
+  static String orderByPropertyId(dynamic propertyId) => '/order_by_property_id/$propertyId';
   static String activeOrders(dynamic customerId) => '/my_active_order/$customerId';
   static String pastOrders(dynamic customerId) => '/my_past_order/$customerId';
   static String orderDetail(dynamic orderId) => '/my_order_detail/$orderId';
@@ -94,8 +95,9 @@ class ApiEndpoints {
   // App Version
   static const String appVersion = '/app_version';
 
-  // Currency
+  // Currency & City
   static const String currency = '/currency';
+  static const String city = '/city';
 
   // Real-Time Socket Server (Render)
   static const String socketServerUrl = 'https://amn-delivery-socket-server.onrender.com';
@@ -107,4 +109,7 @@ class ApiEndpoints {
       '$notificationBaseUrl/customer-tokens/$fcmToken';
   static const String pushCustomersBulk = '$notificationBaseUrl/push/customers-bulk';
   static const String pushCustomerOrderStatus = '$notificationBaseUrl/push/customer-order-status';
+  static const String pushNewOrder = '$notificationBaseUrl/push/new-order';
+  static const String pushCorporateOrder = '$notificationBaseUrl/push/corporate-order';
+  static const String pushCourierOrder = '$notificationBaseUrl/push/courirer-order';
 }

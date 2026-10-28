@@ -307,3 +307,170 @@ class ShimmerCircularCategorySkeleton extends StatelessWidget {
   }
 }
 
+class ShimmerOrderTrackingSkeleton extends StatelessWidget {
+  const ShimmerOrderTrackingSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: Stack(
+        children: [
+          // 1. Map placeholder shimmer in the background
+          const Positioned.fill(
+            child: ShimmerBox(
+              width: double.infinity,
+              height: double.infinity,
+              borderRadius: 0,
+            ),
+          ),
+
+          // 2. Floating Top Header: Back button & Title pill shimmer
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: const [
+                    ShimmerBox(width: 42, height: 42, shape: BoxShape.circle),
+                    ShimmerBox(width: 140, height: 38, borderRadius: 20),
+                    SizedBox(width: 42),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // 3. Bottom Sheet Shimmer
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              height: screenHeight * 0.48,
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkSurface : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.12),
+                    blurRadius: 16,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: SingleChildScrollView(
+                physics: const NeverScrollableScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                  // Drag Handle
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+
+                  // ETA / Status Banner Skeleton
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.darkSurfaceContainerLowest : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      children: const [
+                        ShimmerBox(width: 48, height: 48, borderRadius: 14),
+                        SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ShimmerBox(width: 120, height: 16, borderRadius: 4),
+                              SizedBox(height: 6),
+                              ShimmerBox(width: 80, height: 14, borderRadius: 4),
+                            ],
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        ShimmerBox(width: 68, height: 26, borderRadius: 10),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+
+                  // Progress Stepper Skeleton
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Column(
+                      children: List.generate(
+                        3,
+                        (index) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 5),
+                          child: Row(
+                            children: const [
+                              ShimmerBox(width: 20, height: 20, shape: BoxShape.circle),
+                              SizedBox(width: 14),
+                              Expanded(
+                                child: ShimmerBox(height: 14, borderRadius: 4),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Driver Info Skeleton
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.darkSurfaceContainerLowest : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      children: const [
+                        ShimmerBox(width: 44, height: 44, borderRadius: 14),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ShimmerBox(width: 100, height: 14, borderRadius: 4),
+                              SizedBox(height: 6),
+                              ShimmerBox(width: 130, height: 12, borderRadius: 4),
+                            ],
+                          ),
+                        ),
+                        ShimmerBox(width: 32, height: 32, shape: BoxShape.circle),
+                        SizedBox(width: 8),
+                        ShimmerBox(width: 32, height: 32, shape: BoxShape.circle),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

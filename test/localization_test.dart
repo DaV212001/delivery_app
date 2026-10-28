@@ -38,6 +38,10 @@ void main() {
       // Somali mapped to en_AU
       Get.locale = const Locale('en', 'AU');
       expect(parsingTranslator(), 'so');
+
+      // Arabic mapped to ar
+      Get.locale = const Locale('ar');
+      expect(parsingTranslator(), 'ar');
     });
 
     test('MultiLangString dynamically returns text based on active locale', () {
@@ -47,6 +51,7 @@ void main() {
         orm: 'Mana Nyaataa',
         tg: 'ቤት ምግቢ',
         so: 'Makhaayad',
+        ar: 'مطعم',
       );
 
       Get.locale = const Locale('en', 'US');
@@ -63,6 +68,9 @@ void main() {
 
       Get.locale = const Locale('en', 'AU');
       expect(multi.text, 'Makhaayad');
+
+      Get.locale = const Locale('ar');
+      expect(multi.text, 'مطعم');
     });
 
     test('MultiLangString falls back to en when translation is missing', () {
@@ -87,6 +95,7 @@ void main() {
       expect(keys.containsKey('it'), isTrue); // Oromiffa
       expect(keys.containsKey('en_GB'), isTrue); // Tigrignya
       expect(keys.containsKey('en_AU'), isTrue); // Somali
+      expect(keys.containsKey('ar'), isTrue); // Arabic
 
       final requiredKeys = [
         'home',
@@ -100,11 +109,20 @@ void main() {
         'language',
       ];
 
-      for (final lang in ['en_US', 'am', 'it', 'en_GB', 'en_AU']) {
+      for (final lang in ['en_US', 'am', 'it', 'en_GB', 'en_AU', 'ar']) {
         for (final k in requiredKeys) {
           expect(keys[lang]!.containsKey(k), isTrue, reason: '$lang is missing key: $k');
         }
       }
+    });
+
+    test('Arabic dictionary has full parity with English dictionary', () {
+      final keys = AppTranslations().keys;
+      final enKeys = keys['en_US']!.keys.toSet();
+      final arKeys = keys['ar']!.keys.toSet();
+
+      final missingInArabic = enKeys.difference(arKeys);
+      expect(missingInArabic, isEmpty, reason: 'Keys missing in Arabic: $missingInArabic');
     });
 
     test('GetX .tr translates reactively across locales', () {
@@ -122,6 +140,9 @@ void main() {
 
       Get.locale = const Locale('en', 'AU');
       expect('home'.tr, 'Guriga');
+
+      Get.locale = const Locale('ar');
+      expect('home'.tr, 'الرئيسية');
     });
   });
 
@@ -148,6 +169,11 @@ void main() {
       expect(LocalizationController.currentLanguageCode.value, 'am');
       expect(ConfigPreference.getLanguage(), 'am');
       expect(LocalizationController.getLanguageName(), 'አማርኛ');
+
+      await LocalizationController.changeLanguage(const Locale('ar'));
+      expect(LocalizationController.currentLanguageCode.value, 'ar');
+      expect(ConfigPreference.getLanguage(), 'ar');
+      expect(LocalizationController.getLanguageName(), 'العربية');
     });
   });
 }

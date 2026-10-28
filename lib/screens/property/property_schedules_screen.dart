@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../constants/pages.dart';
+import '../../controllers/my_property_controller.dart';
 import '../../controllers/property_schedule_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/my_property_model.dart';
@@ -22,6 +24,18 @@ class PropertySchedulesScreen extends StatefulWidget {
 
 class _PropertySchedulesScreenState extends State<PropertySchedulesScreen> {
   late final PropertyScheduleController _controller;
+  bool _isFromRegistration = false;
+
+  void _navigateToPropertyDetail() {
+    if (Get.isRegistered<MyPropertyController>()) {
+      final myPropCtrl = Get.find<MyPropertyController>();
+      final prop = myPropCtrl.properties.firstWhereOrNull((p) => p.id == _controller.propertyId);
+      if (prop != null) {
+        myPropCtrl.selectProperty(prop);
+      }
+    }
+    Get.offNamed(AppRoutes.manageProperty);
+  }
 
   @override
   void initState() {
@@ -39,6 +53,7 @@ class _PropertySchedulesScreenState extends State<PropertySchedulesScreen> {
         final map = Get.arguments as Map;
         pid = map['id'] ?? map['propertyId'];
         pname = map['name'] ?? map['propertyName'];
+        _isFromRegistration = map['isFromRegistration'] == true;
       } else {
         pid = Get.arguments;
       }
@@ -67,27 +82,40 @@ class _PropertySchedulesScreenState extends State<PropertySchedulesScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : const Color(0xFFF9FAFB),
-      appBar: AppBar(
-        title: Text(
-          'schedules'.tr,
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w800,
-            fontSize: 20,
+    return PopScope(
+      canPop: !_isFromRegistration,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _isFromRegistration) {
+          _navigateToPropertyDetail();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: isDark ? AppColors.darkBackground : const Color(0xFFF9FAFB),
+        appBar: AppBar(
+          title: Text(
+            'schedules'.tr,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              fontSize: 20,
+            ),
+          ),
+          centerTitle: false,
+          elevation: 0,
+          backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
+          foregroundColor: isDark ? Colors.white : const Color(0xFF1E293B),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+            onPressed: () {
+              if (_isFromRegistration) {
+                _navigateToPropertyDetail();
+              } else {
+                Get.back();
+              }
+            },
           ),
         ),
-        centerTitle: false,
-        elevation: 0,
-        backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
-        foregroundColor: isDark ? Colors.white : const Color(0xFF1E293B),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => Get.back(),
-        ),
-      ),
-      bottomNavigationBar: _buildBottomActionBar(context, isDark),
-      body: Obx(() {
+        bottomNavigationBar: _buildBottomActionBar(context, isDark),
+        body: Obx(() {
         if (_controller.isLoading.value) {
           return const Center(
             child: CircularProgressIndicator(color: AppColors.primary),
@@ -126,8 +154,9 @@ class _PropertySchedulesScreenState extends State<PropertySchedulesScreen> {
           ),
         );
       }),
-    );
-  }
+    ),
+  );
+}
 
   /// Card 1: Open 24 Hours & default Starting/Closing Time
   Widget _buildOpen24HoursCard(BuildContext context, bool isDark) {
@@ -668,7 +697,13 @@ class _PropertySchedulesScreenState extends State<PropertySchedulesScreen> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                onPressed: () => Get.back(),
+                onPressed: () {
+                  if (_isFromRegistration) {
+                    _navigateToPropertyDetail();
+                  } else {
+                    Get.back();
+                  }
+                },
                 child: Text(
                   'cancel'.tr,
                   style: const TextStyle(
@@ -700,7 +735,11 @@ class _PropertySchedulesScreenState extends State<PropertySchedulesScreen> {
                       : () async {
                           final ok = await _controller.saveSchedules();
                           if (ok) {
-                            Get.back(result: true);
+                            if (_isFromRegistration) {
+                              _navigateToPropertyDetail();
+                            } else {
+                              Get.back(result: true);
+                            }
                           }
                         },
                   child: _controller.isSaving.value

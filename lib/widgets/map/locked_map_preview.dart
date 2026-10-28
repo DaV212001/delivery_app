@@ -111,47 +111,7 @@ class _LockedMapPreviewState extends State<LockedMapPreview> {
             ),
           ),
 
-          // 3. Top-Right "Locked Map" Pill Indicator
-          Positioned(
-            top: 8,
-            right: 8,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: (isDark ? const Color(0xEE1E1E1E) : Colors.white)
-                    .withValues(alpha: 0.9),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.lock_rounded,
-                    size: 11,
-                    color: AppColors.primary,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Locked Map',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white70 : Colors.black87,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // 4. Tap Overlay (Allows user to tap map view to open map picker)
+          // 3. Tap Overlay (Allows user to tap map view to open map picker)
           if (widget.onTap != null)
             Positioned.fill(
               child: Material(

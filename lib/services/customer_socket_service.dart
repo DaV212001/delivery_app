@@ -344,8 +344,10 @@ class CustomerSocketService extends GetxService {
 
   String _getStatusNotificationMessage(OrderProgressStatus status) {
     switch (status) {
+      case OrderProgressStatus.placed:
+        return 'Order placed, waiting for driver to accept';
       case OrderProgressStatus.accepted:
-        return 'Store has accepted your order';
+        return 'Driver has accepted your order';
       case OrderProgressStatus.driverToShop:
         return 'Driver is on the way to the shop';
       case OrderProgressStatus.driverToYou:
@@ -359,6 +361,8 @@ class CustomerSocketService extends GetxService {
 
   Color _getStatusNotificationColor(OrderProgressStatus status) {
     switch (status) {
+      case OrderProgressStatus.placed:
+        return Colors.amber.shade800;
       case OrderProgressStatus.accepted:
         return AppColors.primary;
       case OrderProgressStatus.driverToShop:

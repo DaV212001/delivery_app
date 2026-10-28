@@ -28,6 +28,7 @@ class LocalizationController extends GetxController {
   /// - Oromiffa -> it
   /// - Tigrignya -> en_GB
   /// - Somali -> en_AU
+  /// - Arabic -> ar
   static const List<LanguageOption> supportedLanguages = [
     LanguageOption(
       name: 'English',
@@ -63,6 +64,13 @@ class LocalizationController extends GetxController {
       flag: '🇸🇴',
       locale: Locale('en', 'AU'),
       codeString: 'en_AU',
+    ),
+    LanguageOption(
+      name: 'Arabic',
+      nativeName: 'العربية',
+      flag: '🇸🇦',
+      locale: Locale('ar'),
+      codeString: 'ar',
     ),
   ];
 

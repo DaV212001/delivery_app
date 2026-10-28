@@ -23,8 +23,12 @@ class AppRoutes {
   static const String registerProperty = '/register-property';
   static const String editProperty = '/edit-property';
   static const String propertySchedules = '/property-schedules';
+  static const String propertyOrders = '/property-orders';
   static const String corporateDashboard = '/corporate-dashboard';
   static const String createCorporateOrder = '/create-corporate-order';
+  static const String faq = '/faq';
+  static const String privacyPolicy = '/privacy-policy';
+  static const String termsAndConditions = '/terms-and-conditions';
 
   // Compatible alias required by SKILL.md AuthInterceptor
   static const String loginRoute = login;

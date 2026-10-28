@@ -77,6 +77,25 @@ void main() {
       expect(json['to_friendly_location'], 'Sarbet, Addis Ababa');
     });
 
+    test('CourierOrderCreateRequest serializes city_id correctly', () {
+      const request = CourierOrderCreateRequest(
+        fromLatitude: 9.02497,
+        fromLongitude: 38.74689,
+        toLatitude: 8.98060,
+        toLongitude: 38.75780,
+        senderUserId: 1,
+        receiverName: 'Bluye',
+        receiverPhone: '+251911234567',
+        fromFriendlyLocation: 'Bole, Addis Ababa',
+        toFriendlyLocation: 'Sarbet, Addis Ababa',
+        cityId: 1,
+        totalPrice: 250.0,
+      );
+
+      final json = request.toJson();
+      expect(json['city_id'], 1);
+    });
+
     test('CourierOrderModel deserializes backend active order response with longtude safely', () {
       final json = {
         'id': 1,

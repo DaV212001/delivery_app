@@ -1,3 +1,4 @@
+import '../config/storage_config.dart';
 import 'multilingual_string.dart';
 
 class MyPropertyModel {
@@ -161,20 +162,43 @@ class MyPropertyModel {
         json['currencies'] ??
         json['currency_name'] ??
         json['currency_code'] ??
-        json['currency_symbol'];
+        json['currency_symbol'] ??
+        json['currency_id'] ??
+        json['currencyId'];
     if (rawCurrency != null) {
       if (rawCurrency is Map) {
-        pCurrency = rawCurrency['code']?.toString() ??
-            rawCurrency['currency_code']?.toString() ??
-            rawCurrency['name']?.toString() ??
-            rawCurrency['symbol']?.toString() ??
-            'ETB';
+        final cVal = rawCurrency['code'] ??
+            rawCurrency['currency_code'] ??
+            rawCurrency['name'] ??
+            rawCurrency['symbol'] ??
+            rawCurrency['id'];
+        if (cVal != null) {
+          final s = cVal.toString().trim();
+          if (s.isNotEmpty && s.toLowerCase() != 'null') {
+            pCurrency = s;
+          }
+        }
       } else {
         final s = rawCurrency.toString().trim();
         if (s.isNotEmpty && s.toLowerCase() != 'null') {
           pCurrency = s;
         }
       }
+    }
+
+    // If the API payload returned null or default 'ETB', check local persistence
+    if (parsedId > 0 && (pCurrency == 'ETB' || rawCurrency == null)) {
+      final savedCode = ConfigPreference.getPropertyCurrency(parsedId);
+      if (savedCode != null && savedCode.trim().isNotEmpty) {
+        pCurrency = savedCode.trim();
+      } else {
+        final savedId = ConfigPreference.getPropertyCurrencyId(parsedId);
+        if (savedId != null && savedId > 0) {
+          pCurrency = savedId.toString();
+        }
+      }
+    } else if (parsedId > 0 && pCurrency != 'ETB') {
+      ConfigPreference.setPropertyCurrency(parsedId, pCurrency);
     }
 
     return MyPropertyModel(

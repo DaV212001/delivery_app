@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../controllers/my_property_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../models/my_menu_item_model.dart';
+import '../../../utils/currency_utils.dart';
 import '../../../widgets/common/app_widgets.dart';
 import 'add_edit_category_dialog.dart';
 
@@ -250,9 +251,14 @@ void showAddEditMenuItemSheet({
                     const SizedBox(height: 14),
 
                     // Price Field
-                    Builder(
-                      builder: (context) {
-                        final currencyCode = controller.getPropertyCurrencyCode(controller.selectedProperty.value);
+                    Obx(
+                      () {
+                        final storeProp = controller.selectedProperty.value;
+                        final currencyCode = storeProp != null
+                            ? controller.getPropertyCurrencyCode(storeProp)
+                            : (itemToEdit?.currency != null && itemToEdit!.currency!.isNotEmpty
+                                ? CurrencyUtils.resolveCode(itemToEdit.currency)
+                                : controller.getPropertyCurrencyCode(null));
                         return TextFormField(
                           controller: priceCtrl,
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -260,6 +266,10 @@ void showAddEditMenuItemSheet({
                             labelText: '${'price'.tr} ($currencyCode) *',
                             hintText: 'e.g. 250',
                             suffixText: currencyCode,
+                            suffixStyle: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                             filled: true,
                           ),

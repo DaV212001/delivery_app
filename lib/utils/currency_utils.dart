@@ -73,4 +73,28 @@ class CurrencyUtils {
     final code = resolveCode(currency);
     return '${price.toStringAsFixed(decimalDigits)} $code';
   }
+
+  /// Resolves currency input (code, symbol, or ID) to canonical numeric ID (e.g. 'USD' -> 3, 'ETB' -> 1, 'AED' -> 2, 'Yuan' -> 4).
+  static int? resolveId(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is int) return raw;
+    final s = raw.toString().trim();
+    if (s.isEmpty) return null;
+    final parsed = int.tryParse(s);
+    if (parsed != null && _codeMap.containsKey(parsed.toString())) {
+      return parsed;
+    }
+    final lower = s.toLowerCase();
+    for (final entry in _codeMap.entries) {
+      if (int.tryParse(entry.key) != null && entry.value.toLowerCase() == lower) {
+        return int.parse(entry.key);
+      }
+    }
+    for (final entry in _symbolMap.entries) {
+      if (int.tryParse(entry.key) != null && entry.value.toLowerCase() == lower) {
+        return int.parse(entry.key);
+      }
+    }
+    return null;
+  }
 }

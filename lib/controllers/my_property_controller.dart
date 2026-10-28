@@ -8,7 +8,9 @@ import '../models/currency_model.dart';
 import '../models/my_menu_category_model.dart';
 import '../models/my_menu_item_model.dart';
 import '../models/my_property_model.dart';
+import '../models/property_order_model.dart';
 import '../services/property_service.dart';
+import '../utils/currency_utils.dart';
 import 'auth_controller.dart';
 
 class MyPropertyController extends GetxController {
@@ -25,6 +27,12 @@ class MyPropertyController extends GetxController {
 
   final menuItems = <MyMenuItemModel>[].obs;
   final searchQuery = ''.obs;
+
+  // Property orders
+  final propertyOrders = <PropertyOrderModel>[].obs;
+  final isLoadingOrders = false.obs;
+  final ordersFilter = 'all'.obs; // 'all', 'active', 'delivered', 'cancelled'
+  final ordersSearchQuery = ''.obs;
 
   // Delivery categories, types & currencies for registration
   final deliveryCategories = <CategoryModel>[].obs;
@@ -58,49 +66,75 @@ class MyPropertyController extends GetxController {
   /// Used when registering/updating menu items.
   int? getCurrencyIdForProperty(MyPropertyModel? property) {
     if (property == null) return null;
-    final propCurrency = property.currency.trim();
+
+    // 1. Check if ID was explicitly persisted
+    final savedId = ConfigPreference.getPropertyCurrencyId(property.id);
+    if (savedId != null && savedId > 0) return savedId;
+
+    // 2. Check if currency code/name was persisted or on property
+    final savedCode = ConfigPreference.getPropertyCurrency(property.id);
+    final propCurrency = (savedCode != null && savedCode.trim().isNotEmpty)
+        ? savedCode.trim()
+        : property.currency.trim();
+
+    final allCurrencies = currencies.isNotEmpty ? currencies : PropertyService.defaultCurrencies;
+
     if (propCurrency.isEmpty) {
-      final etb = currencies.firstWhereOrNull((c) => c.code.toUpperCase() == 'ETB');
-      return etb?.id ?? (currencies.isNotEmpty ? currencies.first.id : 2);
+      final etb = allCurrencies.firstWhereOrNull((c) => c.code.toUpperCase() == 'ETB');
+      return etb?.id ?? (allCurrencies.isNotEmpty ? allCurrencies.first.id : 2);
     }
 
     final numericId = int.tryParse(propCurrency);
-    if (numericId != null && currencies.any((c) => c.id == numericId)) {
+    if (numericId != null && allCurrencies.any((c) => c.id == numericId)) {
       return numericId;
     }
 
-    final matchCode = currencies.firstWhereOrNull(
+    final matchCode = allCurrencies.firstWhereOrNull(
       (c) => c.code.trim().toLowerCase() == propCurrency.toLowerCase(),
     );
     if (matchCode != null) return matchCode.id;
 
-    final matchSymbol = currencies.firstWhereOrNull(
+    final matchSymbol = allCurrencies.firstWhereOrNull(
       (c) => c.symbol.trim().toLowerCase() == propCurrency.toLowerCase(),
     );
     if (matchSymbol != null) return matchSymbol.id;
 
-    final matchLoose = currencies.firstWhereOrNull(
+    final matchLoose = allCurrencies.firstWhereOrNull(
       (c) => propCurrency.toLowerCase().contains(c.code.toLowerCase()) ||
           c.code.toLowerCase().contains(propCurrency.toLowerCase()),
     );
     if (matchLoose != null) return matchLoose.id;
 
+    final utilId = CurrencyUtils.resolveId(propCurrency);
+    if (utilId != null) return utilId;
+
     // Default fallback to ETB if present, else first currency or 2
-    final etb = currencies.firstWhereOrNull((c) => c.code.toUpperCase() == 'ETB');
+    final etb = allCurrencies.firstWhereOrNull((c) => c.code.toUpperCase() == 'ETB');
     if (etb != null) return etb.id;
-    return currencies.isNotEmpty ? currencies.first.id : 2;
+    return allCurrencies.isNotEmpty ? allCurrencies.first.id : 2;
   }
 
   /// Returns the display code or symbol for a property's currency.
   String getPropertyCurrencyCode(MyPropertyModel? property) {
-    if (property == null || property.currency.trim().isEmpty) return 'ETB';
-    final propCurrency = property.currency.trim();
-    final match = currencies.firstWhereOrNull(
+    if (property == null) return 'ETB';
+
+    final savedCode = ConfigPreference.getPropertyCurrency(property.id);
+    final propCurrency = (savedCode != null && savedCode.trim().isNotEmpty)
+        ? savedCode.trim()
+        : property.currency.trim();
+    if (propCurrency.isEmpty) return 'ETB';
+
+    final allCurrencies = currencies.isNotEmpty ? currencies : PropertyService.defaultCurrencies;
+    final match = allCurrencies.firstWhereOrNull(
       (c) => c.code.toLowerCase() == propCurrency.toLowerCase() ||
              c.symbol.toLowerCase() == propCurrency.toLowerCase() ||
              c.id.toString() == propCurrency,
     );
     if (match != null) return match.code;
+
+    final resolved = CurrencyUtils.resolveCode(propCurrency);
+    if (resolved.isNotEmpty) return resolved;
+
     return propCurrency;
   }
 
@@ -117,7 +151,17 @@ class MyPropertyController extends GetxController {
     isLoading.value = true;
     try {
       final list = await PropertyService.fetchMyProperties(currentCustomerId);
-      properties.assignAll(list);
+
+      // Merge persisted currency into properties if backend returned null/ETB
+      final mergedList = list.map((p) {
+        final savedCode = ConfigPreference.getPropertyCurrency(p.id);
+        if (savedCode != null && savedCode.isNotEmpty && p.currency != savedCode) {
+          return p.copyWith(currency: savedCode);
+        }
+        return p;
+      }).toList();
+
+      properties.assignAll(mergedList);
 
       if (properties.isNotEmpty) {
         // Keep current selected if still present, otherwise choose first
@@ -131,10 +175,12 @@ class MyPropertyController extends GetxController {
           );
         }
         await loadCategoriesAndMenus(selectedProperty.value!.id);
+        loadOrdersForProperty(selectedProperty.value!.id, silent: true);
       } else {
         selectedProperty.value = null;
         categories.clear();
         menuItems.clear();
+        propertyOrders.clear();
       }
     } catch (e) {
       Get.snackbar('error'.tr, 'Failed to load properties: $e');
@@ -149,7 +195,69 @@ class MyPropertyController extends GetxController {
     selectedProperty.value = property;
     selectedCategoryId.value = null;
     searchQuery.value = '';
+    ordersSearchQuery.value = '';
+    ordersFilter.value = 'all';
     loadCategoriesAndMenus(property.id);
+    loadOrdersForProperty(property.id, silent: false);
+  }
+
+  int get activeOrdersCount =>
+      propertyOrders.where((o) => o.isActive).length;
+
+  int get deliveredOrdersCount =>
+      propertyOrders.where((o) => o.isDelivered).length;
+
+  int get cancelledOrdersCount =>
+      propertyOrders.where((o) => o.isCancelled).length;
+
+  double get totalOrdersRevenue => propertyOrders
+      .where((o) => !o.isCancelled)
+      .fold(0.0, (sum, o) => sum + o.effectiveTotal);
+
+  List<PropertyOrderModel> get filteredOrders {
+    final query = ordersSearchQuery.value.trim().toLowerCase();
+    final filter = ordersFilter.value;
+
+    return propertyOrders.where((o) {
+      if (filter == 'active' && !o.isActive) return false;
+      if (filter == 'delivered' && !o.isDelivered) return false;
+      if (filter == 'cancelled' && !o.isCancelled) return false;
+
+      if (query.isNotEmpty) {
+        final matchesId = o.id.toString().contains(query) ||
+            o.orderCode.toLowerCase().contains(query);
+        final matchesLocation = o.location.toLowerCase().contains(query);
+        final matchesCustomer = o.customerFullName.toLowerCase().contains(query);
+        final matchesPhone = (o.customerPhone ?? '').contains(query);
+        if (!matchesId && !matchesLocation && !matchesCustomer && !matchesPhone) {
+          return false;
+        }
+      }
+      return true;
+    }).toList();
+  }
+
+  /// Load orders for a property
+  Future<void> loadOrdersForProperty(int propertyId, {bool silent = false}) async {
+    if (!silent) isLoadingOrders.value = true;
+    try {
+      final list = await PropertyService.fetchOrdersByPropertyId(propertyId);
+      propertyOrders.assignAll(list);
+    } catch (e) {
+      if (!silent) {
+        Get.snackbar('error'.tr, 'Failed to load property orders: $e');
+      }
+    } finally {
+      if (!silent) isLoadingOrders.value = false;
+    }
+  }
+
+  /// Refresh orders for currently selected property
+  Future<void> refreshCurrentPropertyOrders() async {
+    final prop = selectedProperty.value;
+    if (prop != null) {
+      await loadOrdersForProperty(prop.id, silent: false);
+    }
   }
 
   /// Load categories and menu items for a property
@@ -160,7 +268,44 @@ class MyPropertyController extends GetxController {
       categories.assignAll(catList);
 
       final items = await PropertyService.fetchPropertyMenus(propertyId);
-      menuItems.assignAll(items);
+      final propCurrencyCode = getPropertyCurrencyCode(selectedProperty.value);
+
+      // Infer property currency from items if not already saved
+      if (ConfigPreference.getPropertyCurrency(propertyId) == null && propCurrencyCode == 'ETB') {
+        final nonEtbItem = items.firstWhereOrNull((m) =>
+            m.currency != null &&
+            m.currency!.isNotEmpty &&
+            m.currency != 'ETB' &&
+            m.currency != 'Br');
+        if (nonEtbItem != null) {
+          final inferredCode = CurrencyUtils.resolveCode(nonEtbItem.currency);
+          await ConfigPreference.setPropertyCurrency(propertyId, inferredCode);
+          final inferredId = CurrencyUtils.resolveId(inferredCode);
+          if (inferredId != null) {
+            await ConfigPreference.setPropertyCurrencyId(propertyId, inferredId);
+          }
+          if (selectedProperty.value != null && selectedProperty.value!.id == propertyId) {
+            selectedProperty.value = selectedProperty.value!.copyWith(currency: inferredCode);
+          }
+          final idx = properties.indexWhere((p) => p.id == propertyId);
+          if (idx != -1) {
+            properties[idx] = properties[idx].copyWith(currency: inferredCode);
+          }
+        }
+      }
+
+      // Enrich menu items with property currency if null/empty/ETB and store is non-ETB
+      final effectivePropCurrency = getPropertyCurrencyCode(selectedProperty.value);
+      final enrichedMenus = items.map((item) {
+        if (effectivePropCurrency != 'ETB') {
+          if (item.currency == null || item.currency!.isEmpty || item.currency == 'ETB') {
+            return item.copyWith(currency: effectivePropCurrency);
+          }
+        }
+        return item;
+      }).toList();
+
+      menuItems.assignAll(enrichedMenus);
     } catch (e) {
       Get.snackbar('error'.tr, 'Failed to load catalog: $e');
     } finally {
@@ -442,10 +587,44 @@ class MyPropertyController extends GetxController {
       );
 
       if (prop != null) {
+        String chosenCurrencyCode = 'ETB';
+        if (currencyId != null) {
+          final allCurrencies = currencies.isNotEmpty ? currencies : PropertyService.defaultCurrencies;
+          final match = allCurrencies.firstWhereOrNull((c) => c.id.toString() == currencyId.toString());
+          chosenCurrencyCode = match?.code ?? CurrencyUtils.resolveCode(currencyId);
+          await ConfigPreference.setPropertyCurrency(prop.id, chosenCurrencyCode);
+          final cid = int.tryParse(currencyId.toString());
+          if (cid != null) {
+            await ConfigPreference.setPropertyCurrencyId(prop.id, cid);
+          }
+        }
+
+        final propertyWithCurrency = prop.copyWith(currency: chosenCurrencyCode);
+
         await loadProperties(forceRefresh: true);
-        selectedProperty.value = prop;
-        Get.offNamed(AppRoutes.myProperty);
-        Get.toNamed(AppRoutes.propertySchedules, arguments: prop);
+
+        final existingIdx = properties.indexWhere((p) => p.id == prop.id);
+        if (existingIdx != -1) {
+          properties[existingIdx] = properties[existingIdx].copyWith(currency: chosenCurrencyCode);
+          selectedProperty.value = properties[existingIdx];
+        } else {
+          properties.add(propertyWithCurrency);
+          selectedProperty.value = propertyWithCurrency;
+        }
+
+        final targetProp = selectedProperty.value ?? propertyWithCurrency;
+        selectProperty(targetProp);
+
+        Get.offNamed(AppRoutes.manageProperty);
+        Get.toNamed(
+          AppRoutes.propertySchedules,
+          arguments: {
+            'property': targetProp,
+            'id': targetProp.id,
+            'name': targetProp.name,
+            'isFromRegistration': true,
+          },
+        );
         Get.snackbar(
           'success'.tr,
           'Property registered successfully!',
@@ -507,7 +686,23 @@ class MyPropertyController extends GetxController {
       );
 
       if (ok) {
+        if (currencyId != null) {
+          final allCurrencies = currencies.isNotEmpty ? currencies : PropertyService.defaultCurrencies;
+          final match = allCurrencies.firstWhereOrNull((c) => c.id.toString() == currencyId.toString());
+          final chosenCode = match?.code ?? CurrencyUtils.resolveCode(currencyId);
+          await ConfigPreference.setPropertyCurrency(propertyId, chosenCode);
+          final cid = int.tryParse(currencyId.toString());
+          if (cid != null) {
+            await ConfigPreference.setPropertyCurrencyId(propertyId, cid);
+          }
+        }
         await loadProperties(forceRefresh: true);
+        if (selectedProperty.value != null && selectedProperty.value!.id == propertyId) {
+          final savedCode = ConfigPreference.getPropertyCurrency(propertyId);
+          if (savedCode != null) {
+            selectedProperty.value = selectedProperty.value!.copyWith(currency: savedCode);
+          }
+        }
         Get.back();
         Get.snackbar(
           'success'.tr,
@@ -532,5 +727,6 @@ class MyPropertyController extends GetxController {
     selectedProperty.value = null;
     categories.clear();
     menuItems.clear();
+    propertyOrders.clear();
   }
 }

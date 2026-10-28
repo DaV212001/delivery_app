@@ -20,6 +20,7 @@ class CourierOrderCreateRequest {
   final String? toAddress;
   final String? fromFriendlyLocation;
   final String? toFriendlyLocation;
+  final int? cityId;
 
   const CourierOrderCreateRequest({
     required this.fromLatitude,
@@ -38,6 +39,7 @@ class CourierOrderCreateRequest {
     this.toAddress,
     this.fromFriendlyLocation,
     this.toFriendlyLocation,
+    this.cityId,
   });
 
   Map<String, dynamic> toJson() => {
@@ -52,6 +54,7 @@ class CourierOrderCreateRequest {
         'km_price': kmPrice,
         'total_price': totalPrice,
         'payment_type': paymentType,
+        if (cityId != null) 'city_id': cityId,
         if (description != null && description!.trim().isNotEmpty)
           'description': description!.trim(),
         'from_friendly_location': (fromFriendlyLocation != null &&

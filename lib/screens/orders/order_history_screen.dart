@@ -7,6 +7,7 @@ import '../../controllers/order_controller.dart';
 import '../../models/order.dart';
 import '../../constants/pages.dart';
 import '../../core/theme/app_colors.dart';
+import '../../utils/api_call_status.dart';
 import '../../utils/templates/loaded_widgets_template.dart';
 import '../../widgets/common/app_widgets.dart';
 import '../../widgets/skeletons/skeleton_loaders.dart';
@@ -150,12 +151,26 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
       color: AppColors.primary,
       onRefresh: () => orderController.loadOrders(),
       child: Obx(() {
+        final status = orderController.status.value;
         final list = orderController.activeOrders;
         final ordersToRender = list.isNotEmpty
             ? list
             : (orderController.activeOrder.value != null
                 ? [orderController.activeOrder.value!]
                 : <OrderModel>[]);
+
+        if (status == ApiCallStatus.loading && ordersToRender.isEmpty) {
+          return SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+            child: Column(
+              children: List.generate(
+                3,
+                (_) => const ShimmerOrderCardSkeleton(),
+              ),
+            ),
+          );
+        }
 
         if (ordersToRender.isEmpty) {
           return SingleChildScrollView(

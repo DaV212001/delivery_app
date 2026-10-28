@@ -17,9 +17,11 @@ void main() {
         'en': 'Bar and Restaurant',
         'am': 'ባር እና ሬስቶራንት',
         'or': 'Bar and Restaurant',
+        'ar': 'بار ومطعم',
       });
       expect(fromMap.en, 'Bar and Restaurant');
       expect(fromMap.am, 'ባር እና ሬስቶራንት');
+      expect(fromMap.ar, 'بار ومطعم');
       expect(fromMap.text, 'Bar and Restaurant');
 
       final fromString = MultiLangString.fromJson('Groceries');
@@ -166,7 +168,9 @@ void main() {
       expect(activeOrder.status, OrderProgressStatus.accepted);
       expect(activeOrder.status.code, 1);
 
-      // Verify all 5 new status codes (1: Accepted, 2: Driver on the way to shop, 3: Driver on the way to you, 4: Delivered, 5: Cancelled)
+      // Verify all status codes (0: Placed / Waiting for driver, 1: Accepted, 2: Driver on the way to shop, 3: Driver on the way to you, 4: Delivered, 5: Cancelled)
+      expect(OrderModel.parseStatus('0'), OrderProgressStatus.placed);
+      expect(OrderProgressStatus.placed.code, 0);
       expect(OrderModel.parseStatus('1'), OrderProgressStatus.accepted);
       expect(OrderModel.parseStatus('2'), OrderProgressStatus.driverToShop);
       expect(OrderModel.parseStatus('3'), OrderProgressStatus.driverToYou);

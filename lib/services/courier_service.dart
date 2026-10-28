@@ -2,6 +2,7 @@ import '../config/dio_config.dart';
 import '../constants/api_endpoints.dart';
 import '../models/courier_model.dart';
 import '../models/property_delivery_option.dart';
+import '../services/city_service.dart';
 import '../services/gebeta_location_service.dart';
 import '../services/order_service.dart';
 import '../utils/templates/dio_template.dart';
@@ -24,6 +25,26 @@ class CourierService {
     bool success = false;
     final payload = request.toJson();
 
+    Map<String, dynamic>? toRawGeo;
+
+    if (!payload.containsKey('to_friendly_location') ||
+        payload['to_friendly_location'] == null ||
+        payload['to_friendly_location'].toString().trim().isEmpty) {
+      String resolvedTo = '';
+      try {
+        final details = await GebetaLocationService.reverseGeocodeWithDetails(
+          request.toLatitude,
+          request.toLongitude,
+        );
+        resolvedTo = details['address']?.toString() ?? '';
+        toRawGeo = details['raw'] as Map<String, dynamic>?;
+      } catch (_) {}
+      payload['to_friendly_location'] =
+          resolvedTo.trim().isNotEmpty ? resolvedTo.trim() : (request.toAddress ?? '');
+    } else {
+      toRawGeo = GebetaLocationService.getCachedRawRevGeo(request.toLatitude, request.toLongitude);
+    }
+
     if (!payload.containsKey('from_friendly_location') ||
         payload['from_friendly_location'] == null ||
         payload['from_friendly_location'].toString().trim().isEmpty) {
@@ -38,18 +59,20 @@ class CourierService {
           resolvedFrom.trim().isNotEmpty ? resolvedFrom.trim() : (request.fromAddress ?? '');
     }
 
-    if (!payload.containsKey('to_friendly_location') ||
-        payload['to_friendly_location'] == null ||
-        payload['to_friendly_location'].toString().trim().isEmpty) {
-      String resolvedTo = '';
+    // Infer city_id from drop-off reverse geocoding if not provided
+    if (!payload.containsKey('city_id') ||
+        payload['city_id'] == null ||
+        payload['city_id'].toString().trim().isEmpty) {
       try {
-        resolvedTo = await GebetaLocationService.reverseGeocode(
-          request.toLatitude,
-          request.toLongitude,
+        final dropoffFriendly = payload['to_friendly_location']?.toString() ?? request.toAddress ?? '';
+        final cityId = await CityService.matchCityIdFromGeocode(
+          dropoffFriendly,
+          rawGebetaResponse: toRawGeo,
         );
-      } catch (_) {}
-      payload['to_friendly_location'] =
-          resolvedTo.trim().isNotEmpty ? resolvedTo.trim() : (request.toAddress ?? '');
+        payload['city_id'] = cityId;
+      } catch (_) {
+        payload['city_id'] = CityService.defaultCityId;
+      }
     }
 
     await DioService.dioPost(

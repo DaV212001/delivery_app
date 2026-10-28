@@ -214,6 +214,23 @@ class MyPropertiesListScreen extends StatelessWidget {
 
                 const SizedBox(width: 4),
 
+                // Compact Quick Orders Button
+                Tooltip(
+                  message: 'Orders',
+                  child: InkWell(
+                    onTap: () {
+                      controller.selectProperty(property);
+                      Get.toNamed(AppRoutes.propertyOrders, arguments: property);
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: const Padding(
+                      padding: EdgeInsets.all(6),
+                      child: Icon(Icons.receipt_long_rounded, size: 18, color: AppColors.primary),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+
                 // Compact Quick Schedules Button
                 InkWell(
                   onTap: () {

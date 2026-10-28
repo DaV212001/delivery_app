@@ -29,6 +29,7 @@ class ProfileController extends GetxController {
   final isLoadingAddresses = false.obs;
   final isSaving = false.obs;
   final isUploadingAvatar = false.obs;
+  final isLoadingInfo = false.obs;
 
   int? get customerId => ConfigPreference.getUserId();
   bool get isAuthenticated => customerId != null;
@@ -146,12 +147,16 @@ class ProfileController extends GetxController {
   }
 
   Future<void> loadInformation() async {
+    isLoadingInfo.value = true;
     try {
       final faqList = await InfoService.fetchFaqs();
       faqs.assignAll(faqList);
       privacyPolicy.value = await InfoService.fetchPrivacyPolicy();
       termsAndConditions.value = await InfoService.fetchTermsAndConditions();
-    } catch (_) {}
+    } catch (_) {
+    } finally {
+      isLoadingInfo.value = false;
+    }
   }
 
   /// Universal Top-Up Dialog for Wallet

@@ -119,16 +119,30 @@ void main(List<String> args) async {
     }
 
     printStep('Connecting to Google Play Developer API...');
-    await uploadToPlayStore(
-      keyFile: keyFile,
-      packageName: packageName,
-      aabFile: aabFile,
-      trackName: config.track,
-      versionCode: newVersion.buildNumber,
-      releaseName: newVersion.raw,
-      releaseNotes: config.releaseNotes,
-      isDraft: config.draft,
-    );
+    const maxRetries = 3;
+    var attempt = 0;
+    while (true) {
+      attempt++;
+      try {
+        await uploadToPlayStore(
+          keyFile: keyFile,
+          packageName: packageName,
+          aabFile: aabFile,
+          trackName: config.track,
+          versionCode: newVersion.buildNumber,
+          releaseName: newVersion.raw,
+          releaseNotes: config.releaseNotes,
+          isDraft: config.draft,
+        );
+        break;
+      } catch (e) {
+        if (attempt >= maxRetries) {
+          rethrow;
+        }
+        printError('Upload attempt $attempt failed ($e). Retrying in 5 seconds...');
+        await Future.delayed(const Duration(seconds: 5));
+      }
+    }
   } else {
     printStep('Skipping upload (--skip-upload).');
   }

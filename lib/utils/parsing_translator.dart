@@ -1,11 +1,12 @@
 import 'package:get/get.dart';
 
-/// Maps the active GetX locale to backend multilingual string keys ('en', 'am', 'or', 'tg', 'so').
+/// Maps the active GetX locale to backend multilingual string keys ('en', 'am', 'or', 'tg', 'so', 'ar').
 ///
 /// Notice:
 /// - Oromiffa uses 'it' locale code
 /// - Tigrigna uses 'en_GB' locale code
 /// - Somali uses 'en_AU' locale code
+/// - Arabic uses 'ar' locale code
 /// This avoids Flutter/GetX missing localization lookup crashes while supporting Ethiopian regional languages.
 String parsingTranslator() {
   final locale = Get.locale?.toString() ?? 'en';
@@ -15,6 +16,7 @@ String parsingTranslator() {
   if (locale == 'it') return 'or';    // Oromiffa
   if (locale == 'en_AU') return 'so'; // Somali
   if (langCode == 'am') return 'am';  // Amharic
+  if (langCode == 'ar') return 'ar';  // Arabic
 
   return 'en';
 }

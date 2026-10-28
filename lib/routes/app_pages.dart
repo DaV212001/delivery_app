@@ -13,10 +13,14 @@ import '../screens/home/home_screen.dart';
 import '../screens/main_navigation.dart';
 import '../screens/orders/order_history_screen.dart';
 import '../screens/profile/edit_profile_screen.dart';
+import '../screens/profile/faq_screen.dart';
+import '../screens/profile/privacy_policy_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/profile/saved_addresses_screen.dart';
+import '../screens/profile/terms_and_conditions_screen.dart';
 import '../screens/property/my_properties_list_screen.dart';
 import '../screens/property/my_property_screen.dart';
+import '../screens/property/property_orders_screen.dart';
 import '../screens/property/property_schedules_screen.dart';
 import '../screens/property/register_property_screen.dart';
 import '../screens/search/search_screen.dart';
@@ -131,12 +135,28 @@ class AppPages {
       page: () => const PropertySchedulesScreen(),
     ),
     GetPage(
+      name: AppRoutes.propertyOrders,
+      page: () => const PropertyOrdersScreen(),
+    ),
+    GetPage(
       name: AppRoutes.corporateDashboard,
       page: () => const CorporateDashboardScreen(),
     ),
     GetPage(
       name: AppRoutes.createCorporateOrder,
       page: () => const CreateCorporateDeliveryScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.faq,
+      page: () => const FaqScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.privacyPolicy,
+      page: () => const PrivacyPolicyScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.termsAndConditions,
+      page: () => const TermsAndConditionsScreen(),
     ),
   ];
 }

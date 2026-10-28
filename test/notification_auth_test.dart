@@ -64,6 +64,18 @@ void main() {
         ApiEndpoints.pushCustomerOrderStatus,
         'https://notification.amnplc.com/api/push/customer-order-status',
       );
+      expect(
+        ApiEndpoints.pushNewOrder,
+        'https://notification.amnplc.com/api/push/new-order',
+      );
+      expect(
+        ApiEndpoints.pushCorporateOrder,
+        'https://notification.amnplc.com/api/push/corporate-order',
+      );
+      expect(
+        ApiEndpoints.pushCourierOrder,
+        'https://notification.amnplc.com/api/push/courirer-order',
+      );
     });
   });
 

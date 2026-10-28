@@ -5,8 +5,10 @@ import '../config/storage_config.dart';
 import '../controllers/auth_controller.dart';
 import '../models/courier_model.dart';
 import '../models/property_delivery_option.dart';
+import '../services/city_service.dart';
 import '../services/courier_service.dart';
 import '../services/gebeta_location_service.dart';
+import '../services/order_notification_retry_service.dart';
 import '../utils/api_call_status.dart';
 import '../utils/location_utils.dart';
 import '../widgets/map/property_location_picker_screen.dart';
@@ -304,16 +306,27 @@ class CourierController extends GetxController {
       }
 
       String toFriendly = dropoffAddress.value ?? '';
-      if (toFriendly.trim().isEmpty &&
-          dropoffLatitude.value != null &&
-          dropoffLongitude.value != null) {
+      Map<String, dynamic>? toRawGeo;
+      if (dropoffLatitude.value != null && dropoffLongitude.value != null) {
         try {
-          toFriendly = await GebetaLocationService.reverseGeocode(
+          final details = await GebetaLocationService.reverseGeocodeWithDetails(
             dropoffLatitude.value!,
             dropoffLongitude.value!,
           );
+          if (toFriendly.trim().isEmpty) {
+            toFriendly = details['address']?.toString() ?? '';
+          }
+          toRawGeo = details['raw'] as Map<String, dynamic>?;
         } catch (_) {}
       }
+
+      int? dropoffCityId;
+      try {
+        dropoffCityId = await CityService.matchCityIdFromGeocode(
+          toFriendly,
+          rawGebetaResponse: toRawGeo,
+        );
+      } catch (_) {}
 
       final request = CourierOrderCreateRequest(
         fromLatitude: pickupLatitude.value!,
@@ -334,6 +347,7 @@ class CourierController extends GetxController {
         toAddress: dropoffAddress.value,
         fromFriendlyLocation: fromFriendly,
         toFriendlyLocation: toFriendly,
+        cityId: dropoffCityId,
       );
 
       final success = await CourierService.createCourierOrder(
@@ -341,6 +355,29 @@ class CourierController extends GetxController {
         onSuccess: (data) {
           final idVal = data['order_id'] ?? data['id'] ?? (data['data'] is Map ? data['data']['id'] : null);
           final parsedId = idVal != null ? int.tryParse(idVal.toString()) : null;
+          final finalId = parsedId ?? CourierService.lastCreatedOrderId;
+          if (finalId != null && finalId > 0) {
+            OrderNotificationRetryService.instance.trackCourierOrder(
+              orderId: finalId,
+              userId: request.senderUserId,
+              amount: request.totalPrice,
+              fromAddress: (request.fromFriendlyLocation != null &&
+                      request.fromFriendlyLocation!.isNotEmpty)
+                  ? request.fromFriendlyLocation!
+                  : ((pickupAddress.value != null &&
+                          pickupAddress.value!.isNotEmpty)
+                      ? pickupAddress.value!
+                      : 'Addis Ababa'),
+              toAddress: (request.toFriendlyLocation != null &&
+                      request.toFriendlyLocation!.isNotEmpty)
+                  ? request.toFriendlyLocation!
+                  : ((dropoffAddress.value != null &&
+                          dropoffAddress.value!.isNotEmpty)
+                      ? dropoffAddress.value!
+                      : 'Addis Ababa'),
+              cityId: dropoffCityId,
+            );
+          }
           onCreated?.call(parsedId);
         },
       );

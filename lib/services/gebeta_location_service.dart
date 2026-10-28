@@ -25,6 +25,82 @@ class GebetaLocationService {
   /// In-memory cache for coordinates to reverse-geocoded addresses
   static final Map<String, String> _addressCache = {};
 
+  /// In-memory cache for raw Gebeta reverse geocoding JSON responses
+  static final Map<String, Map<String, dynamic>> _rawRevGeoCache = {};
+
+  /// Retrieve cached raw Gebeta response for coordinates if available
+  static Map<String, dynamic>? getCachedRawRevGeo(double lat, double lng) {
+    final cacheKey = '${lat.toStringAsFixed(5)}_${lng.toStringAsFixed(5)}';
+    return _rawRevGeoCache[cacheKey];
+  }
+
+  /// Reverse geocode latitude and longitude and return both formatted string and raw Gebeta response
+  static Future<Map<String, dynamic>> reverseGeocodeWithDetails(double lat, double lng) async {
+    final cacheKey = '${lat.toStringAsFixed(5)}_${lng.toStringAsFixed(5)}';
+    if (_rawRevGeoCache.containsKey(cacheKey) && _addressCache.containsKey(cacheKey)) {
+      return {
+        'address': _addressCache[cacheKey]!,
+        'raw': _rawRevGeoCache[cacheKey]!,
+      };
+    }
+
+    try {
+      final dio = Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
+      );
+      final url =
+          'https://mapapi.gebeta.app/api/v1/route/revgeocoding?lat=$lat&lon=$lng&apiKey=$apiKey';
+
+      final response = await dio.get(
+        url,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $apiKey',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final rawMap = response.data is Map<String, dynamic>
+            ? response.data as Map<String, dynamic>
+            : (response.data is Map ? Map<String, dynamic>.from(response.data) : <String, dynamic>{});
+        _rawRevGeoCache[cacheKey] = rawMap;
+
+        final data = rawMap['data'];
+        if (data is List && data.isNotEmpty) {
+          final first = data.first;
+          final name = first['name']?.toString() ?? '';
+          final city = first['City']?.toString() ?? '';
+          final country = first['Country']?.toString() ?? '';
+
+          final parts = [name, city, country]
+              .where((s) => s.trim().isNotEmpty)
+              .toList();
+
+          if (parts.isNotEmpty) {
+            final formatted = parts.join(', ');
+            _addressCache[cacheKey] = formatted;
+            return {
+              'address': formatted,
+              'raw': rawMap,
+            };
+          }
+        }
+      }
+    } catch (_) {}
+
+    final fallback = '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)} (Addis Ababa)';
+    _addressCache[cacheKey] = fallback;
+    return {
+      'address': fallback,
+      'raw': <String, dynamic>{},
+    };
+  }
+
   /// Get current GPS position with permission and system prompt handling.
   /// Prompts for permission if denied, and triggers the Android/iOS system prompt
   /// to turn on device location if location services are turned off.
@@ -119,55 +195,8 @@ class GebetaLocationService {
 
   /// Reverse geocode latitude and longitude using Gebeta Maps API
   static Future<String> reverseGeocode(double lat, double lng) async {
-    final cacheKey = '${lat.toStringAsFixed(5)}_${lng.toStringAsFixed(5)}';
-    if (_addressCache.containsKey(cacheKey)) {
-      return _addressCache[cacheKey]!;
-    }
-
-    try {
-      final dio = Dio(
-        BaseOptions(
-          connectTimeout: const Duration(seconds: 10),
-          receiveTimeout: const Duration(seconds: 10),
-        ),
-      );
-      final url =
-          'https://mapapi.gebeta.app/api/v1/route/revgeocoding?lat=$lat&lon=$lng&apiKey=$apiKey';
-
-      final response = await dio.get(
-        url,
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $apiKey',
-            'Accept': 'application/json',
-          },
-        ),
-      );
-
-      if (response.statusCode == 200 && response.data != null) {
-        final data = response.data['data'];
-        if (data is List && data.isNotEmpty) {
-          final first = data.first;
-          final name = first['name']?.toString() ?? '';
-          final city = first['City']?.toString() ?? '';
-          final country = first['Country']?.toString() ?? '';
-
-          final parts = [name, city, country]
-              .where((s) => s.trim().isNotEmpty)
-              .toList();
-
-          if (parts.isNotEmpty) {
-            final formatted = parts.join(', ');
-            _addressCache[cacheKey] = formatted;
-            return formatted;
-          }
-        }
-      }
-    } catch (_) {}
-
-    final fallback = '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)} (Addis Ababa)';
-    _addressCache[cacheKey] = fallback;
-    return fallback;
+    final details = await reverseGeocodeWithDetails(lat, lng);
+    return details['address'] as String;
   }
 
   /// In-memory cache for Gebeta Maps routes

@@ -64,6 +64,7 @@ class _GebetaRouteMapState extends State<GebetaRouteMap> with SingleTickerProvid
 
   double get _progressFraction {
     switch (widget.order.status) {
+      case OrderProgressStatus.placed:
       case OrderProgressStatus.accepted:
         return 0.0;
       case OrderProgressStatus.driverToShop:
@@ -204,7 +205,9 @@ class _GebetaRouteMapState extends State<GebetaRouteMap> with SingleTickerProvid
       );
 
       // Driver position along route or live GPS coordinates (only when on the move or live coordinates present)
-      if ((widget.order.status != OrderProgressStatus.accepted && widget.order.status != OrderProgressStatus.cancelled) ||
+      if ((widget.order.status != OrderProgressStatus.placed &&
+              widget.order.status != OrderProgressStatus.accepted &&
+              widget.order.status != OrderProgressStatus.cancelled) ||
           widget.liveDriverLatitude != null) {
         final LatLng driverPos = (widget.liveDriverLatitude != null && widget.liveDriverLongitude != null)
             ? LatLng(widget.liveDriverLatitude!, widget.liveDriverLongitude!)
@@ -720,7 +723,9 @@ class _GebetaRoutePainter extends CustomPainter {
     );
 
     // 6. Courier Scooter Pin with Pulse Effect (Only if order is in transit, or live driver available)
-    if ((order.status != OrderProgressStatus.accepted && order.status != OrderProgressStatus.cancelled) ||
+    if ((order.status != OrderProgressStatus.placed &&
+            order.status != OrderProgressStatus.accepted &&
+            order.status != OrderProgressStatus.cancelled) ||
         liveDriverLatitude != null) {
       final driverPt = toCanvas(driverCoord);
       final markerColor = isLiveDriverOnline ? const Color(0xFF2E7D32) : const Color(0xFF1976D2);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../constants/app_assets.dart';
 import '../../controllers/cart_controller.dart';
 import '../../controllers/order_controller.dart';
 import '../../constants/pages.dart';
@@ -7,8 +8,10 @@ import '../../core/theme/app_colors.dart';
 import '../../models/order.dart';
 import '../../services/customer_socket_service.dart';
 import '../../services/order_service.dart';
+import '../../utils/api_call_status.dart';
 import '../../widgets/common/app_widgets.dart';
 import '../../widgets/map/gebeta_route_map.dart';
+import '../../widgets/skeletons/skeleton_loaders.dart';
 import '../checkout/widgets/different_property_batch_sheet.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
@@ -29,6 +32,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     final OrderModel? orderArg = Get.arguments is OrderModel ? Get.arguments as OrderModel : null;
     if (orderArg != null) {
       _orderDetail = orderArg;
+      _isLoadingDetail = false;
+    } else {
+      _isLoadingDetail = true;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _joinActiveOrder();
@@ -75,7 +81,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
     if (mounted) setState(() => _isLoadingDetail = true);
     try {
-      final detail = await OrderService.fetchOrderDetail(targetId);
+      final detail = await OrderService.fetchOrderDetail(
+        targetId,
+        existingOrder: order,
+      );
       if (detail != null && mounted) {
         setState(() {
           _orderDetail = detail;
@@ -268,18 +277,13 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         ? 'order_cancelled'.tr
         : (isDelivered ? 'order_details'.tr : 'track_order'.tr);
 
+    final isOrderControllerLoading = Get.isRegistered<OrderController>() &&
+        Get.find<OrderController>().status.value == ApiCallStatus.loading &&
+        Get.find<OrderController>().activeOrder.value == null;
+
     if (order == null) {
-      if (_isLoadingDetail) {
-        return Scaffold(
-          backgroundColor: theme.scaffoldBackgroundColor,
-          appBar: AppBar(
-            title: Text(titleText.isNotEmpty ? titleText : 'Order Details'),
-            centerTitle: true,
-          ),
-          body: const Center(
-            child: CircularProgressIndicator(),
-          ),
-        );
+      if (_isLoadingDetail || isOrderControllerLoading) {
+        return const ShimmerOrderTrackingSkeleton();
       }
       return Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
@@ -461,6 +465,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                           child: Obx(() {
                             final isDriverOnline = socket.isDriverOnline.value;
                             final liveMins = socket.estimatedMinutes.value;
+                            final isPlaced = order.status == OrderProgressStatus.placed;
                             final isAccepted = order.status == OrderProgressStatus.accepted;
                             final isDriverToShop = order.status == OrderProgressStatus.driverToShop;
                             final isDriverToYou = order.status == OrderProgressStatus.driverToYou;
@@ -472,6 +477,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                               arrivalText = 'order_cancelled'.tr;
                             } else if (isDelivered) {
                               arrivalText = 'delivered'.tr;
+                            } else if (isPlaced) {
+                              arrivalText = 'waiting_for_driver'.tr.isNotEmpty &&
+                                      'waiting_for_driver'.tr != 'waiting_for_driver'
+                                  ? 'waiting_for_driver'.tr
+                                  : 'Waiting for driver to accept';
                             } else if (isAccepted) {
                               arrivalText = '${'order_accepted'.tr} (~${order.estimatedArrival})';
                             } else if (isDriverToShop) {
@@ -490,7 +500,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                 ? Colors.red
                                 : (isDelivered
                                     ? Colors.green
-                                    : (isDriverOnline ? Colors.green.shade700 : AppColors.primary));
+                                    : (isPlaced
+                                        ? Colors.amber.shade800
+                                        : (isDriverOnline ? Colors.green.shade700 : AppColors.primary)));
 
                             final IconData statusIcon = isCancelled
                                 ? Icons.cancel_rounded
@@ -500,21 +512,34 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                         ? Icons.two_wheeler_rounded
                                         : (isDriverToShop
                                             ? Icons.storefront_rounded
-                                            : Icons.receipt_long_rounded)));
+                                            : (isAccepted
+                                                ? Icons.check_circle_outline_rounded
+                                                : Icons.hourglass_top_rounded))));
 
                             return Row(
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: statusColor.withValues(alpha: 0.12),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    statusIcon,
-                                    color: statusColor,
-                                    size: 26,
-                                  ),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: order.storeImageUrl.isNotEmpty &&
+                                          order.storeImageUrl != AppAssets.parcelBoxItem
+                                      ? AppNetworkImage(
+                                          imageUrl: order.storeImageUrl,
+                                          width: 48,
+                                          height: 48,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: statusColor.withValues(alpha: 0.12),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(
+                                            statusIcon,
+                                            color: statusColor,
+                                            size: 26,
+                                          ),
+                                        ),
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(
@@ -626,11 +651,35 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                         child: Column(
                           children: [
                             _ProgressStep(
+                              title: 'order_status_placed'.tr.isNotEmpty &&
+                                      'order_status_placed'.tr != 'order_status_placed'
+                                  ? 'order_status_placed'.tr
+                                  : 'Order Placed',
+                              subtitle: order.status == OrderProgressStatus.placed
+                                  ? ('waiting_for_driver'.tr.isNotEmpty &&
+                                          'waiting_for_driver'.tr != 'waiting_for_driver'
+                                      ? 'waiting_for_driver'.tr
+                                      : 'Waiting for driver to accept')
+                                  : ('order_sent_to_store'.tr.isNotEmpty &&
+                                          'order_sent_to_store'.tr != 'order_sent_to_store'
+                                      ? 'order_sent_to_store'.tr
+                                      : 'Order has been placed'),
+                              isCompleted: order.status.code >= 0,
+                              isCurrent: order.status == OrderProgressStatus.placed,
+                              icon: Icons.assignment_turned_in_rounded,
+                            ),
+                            _ProgressLine(
+                              isCompleted: order.status.code >= 1,
+                            ),
+                            _ProgressStep(
                               title: 'order_accepted'.tr,
-                              subtitle: 'order_accepted_sub'.tr,
+                              subtitle: 'driver_accepted_sub'.tr.isNotEmpty &&
+                                      'driver_accepted_sub'.tr != 'driver_accepted_sub'
+                                  ? 'driver_accepted_sub'.tr
+                                  : 'Driver accepted your order',
                               isCompleted: order.status.code >= 1,
                               isCurrent: order.status == OrderProgressStatus.accepted,
-                              icon: Icons.receipt_long_rounded,
+                              icon: Icons.check_circle_outline_rounded,
                             ),
                             _ProgressLine(
                               isCompleted: order.status.code >= 2,
@@ -847,12 +896,33 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                 const SizedBox(width: 8),
                                 Flexible(
                                   flex: 3,
-                                  child: Text(
-                                    order.storeName,
-                                    textAlign: TextAlign.end,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      if (order.storeImageUrl.isNotEmpty &&
+                                          order.storeImageUrl != AppAssets.parcelBoxItem) ...[
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(6),
+                                          child: AppNetworkImage(
+                                            imageUrl: order.storeImageUrl,
+                                            width: 20,
+                                            height: 20,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                      ],
+                                      Flexible(
+                                        child: Text(
+                                          order.storeName,
+                                          textAlign: TextAlign.end,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],

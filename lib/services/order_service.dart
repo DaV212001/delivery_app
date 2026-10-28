@@ -214,9 +214,15 @@ class OrderService {
   }
 
   /// Fetch full order details
-  static Future<OrderModel?> fetchOrderDetail(dynamic orderId) async {
+  static Future<OrderModel?> fetchOrderDetail(
+    dynamic orderId, {
+    OrderModel? existingOrder,
+  }) async {
     final cleanId = orderId.toString().replaceAll(RegExp(r'[^0-9]'), '');
     final targetId = cleanId.isNotEmpty ? cleanId : orderId.toString();
+
+    // Ensure properties are cached for store name & logo resolution
+    await PropertyService.ensurePropertiesCached();
 
     OrderModel? order;
     await DioService.dioGet(
@@ -224,13 +230,35 @@ class OrderService {
       onSuccess: (response) async {
         final resData = response.data;
         if (resData is Map<String, dynamic>) {
-          final itemsList = resData['data'] is List ? resData['data'] as List : [];
-          final statusMap = resData['order_status'] is Map<String, dynamic>
-              ? resData['order_status'] as Map<String, dynamic>
-              : (itemsList.isNotEmpty && itemsList.first is Map ? itemsList.first as Map<String, dynamic> : <String, dynamic>{});
+          List<dynamic> itemsList = [];
+          Map<String, dynamic> statusMap = {};
+
+          if (resData['data'] is List) {
+            itemsList = resData['data'] as List;
+          } else if (resData['data'] is Map<String, dynamic>) {
+            final dataMap = resData['data'] as Map<String, dynamic>;
+            statusMap = Map<String, dynamic>.from(dataMap);
+            if (dataMap['items'] is List) {
+              itemsList = dataMap['items'] as List;
+            } else if (dataMap['menu_items'] is List) {
+              itemsList = dataMap['menu_items'] as List;
+            } else if (dataMap.containsKey('item_name') ||
+                dataMap.containsKey('menu_id') ||
+                dataMap.containsKey('price')) {
+              itemsList = [dataMap];
+            }
+          }
+
+          if (resData['order_status'] is Map<String, dynamic>) {
+            statusMap = resData['order_status'] as Map<String, dynamic>;
+          } else if (statusMap.isEmpty && itemsList.isNotEmpty && itemsList.first is Map) {
+            statusMap = itemsList.first as Map<String, dynamic>;
+          }
 
           final propId = statusMap['property_id']?.toString() ??
-              (itemsList.isNotEmpty && itemsList.first is Map ? itemsList.first['property_id']?.toString() : null);
+              (itemsList.isNotEmpty && itemsList.first is Map
+                  ? itemsList.first['property_id']?.toString()
+                  : existingOrder?.items.firstOrNull?.item.storeId);
 
           Store? store;
           if (propId != null && propId.isNotEmpty) {
@@ -246,6 +274,8 @@ class OrderService {
             statusJson: statusMap,
             itemsList: itemsList,
             fallbackStore: store,
+            orderId: targetId,
+            existingOrder: existingOrder,
           );
         }
       },

@@ -8,6 +8,7 @@ import 'package:delivery_app/models/delivery_item.dart';
 import 'package:delivery_app/models/special_offer.dart';
 import 'package:delivery_app/controllers/my_property_controller.dart';
 import 'package:delivery_app/controllers/auth_controller.dart';
+import 'package:delivery_app/utils/currency_utils.dart';
 import 'package:get/get.dart';
 
 void main() {
@@ -275,6 +276,39 @@ void main() {
         'currency': 'XYZ',
       });
       expect(controller.getCurrencyIdForProperty(unknownProp), 2);
+    });
+
+    test('persists property currency in ConfigPreference and restores on backend null response', () async {
+      await ConfigPreference.setPropertyCurrency(150, 'USD');
+      await ConfigPreference.setPropertyCurrencyId(150, 3);
+
+      expect(ConfigPreference.getPropertyCurrency(150), 'USD');
+      expect(ConfigPreference.getPropertyCurrencyId(150), 3);
+
+      // Simulating backend response where currencies is null
+      final apiJson = {
+        'id': 150,
+        'property_name': 'Kolfe Watch Store',
+        'currencies': null,
+      };
+      final restoredProp = MyPropertyModel.fromJson(apiJson);
+      expect(restoredProp.currency, 'USD');
+      expect(controller.getPropertyCurrencyCode(restoredProp), 'USD');
+      expect(controller.getCurrencyIdForProperty(restoredProp), 3);
+    });
+
+    test('CurrencyUtils resolves code and ID accurately', () {
+      expect(CurrencyUtils.resolveCode('3'), 'USD');
+      expect(CurrencyUtils.resolveCode('1'), 'ETB');
+      expect(CurrencyUtils.resolveCode('2'), 'AED');
+      expect(CurrencyUtils.resolveCode('4'), 'Yuan');
+
+      expect(CurrencyUtils.resolveId('USD'), 3);
+      expect(CurrencyUtils.resolveId('\$'), 3);
+      expect(CurrencyUtils.resolveId('ETB'), 1);
+      expect(CurrencyUtils.resolveId('Br'), 1);
+      expect(CurrencyUtils.resolveId('AED'), 2);
+      expect(CurrencyUtils.resolveId('Yuan'), 4);
     });
   });
 }

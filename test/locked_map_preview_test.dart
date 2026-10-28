@@ -31,10 +31,10 @@ void main() {
         ),
       );
 
-      // Verify container height and locked indicator
+      // Verify container renders center pin marker without Locked Map badge
       expect(find.byType(LockedMapPreview), findsOneWidget);
-      expect(find.text('Locked Map'), findsOneWidget);
-      expect(find.byIcon(Icons.lock_rounded), findsOneWidget);
+      expect(find.text('Locked Map'), findsNothing);
+      expect(find.byIcon(Icons.lock_rounded), findsNothing);
       expect(find.byIcon(Icons.location_on_rounded), findsOneWidget);
     });
 
@@ -90,9 +90,9 @@ void main() {
       // 1. Header is rendered
       expect(find.text('Pinned Location'), findsOneWidget);
 
-      // 2. Locked map preview is rendered
+      // 2. Locked map preview is rendered without badge
       expect(find.byType(LockedMapPreview), findsOneWidget);
-      expect(find.text('Locked Map'), findsOneWidget);
+      expect(find.text('Locked Map'), findsNothing);
 
       // 3. Reverse geocoded address is rendered underneath the map view
       expect(find.text('Bole Medhanialem, Addis Ababa'), findsOneWidget);

@@ -7,6 +7,7 @@ import '../models/my_menu_category_model.dart';
 import '../models/my_menu_item_model.dart';
 import '../models/my_property_model.dart';
 import '../models/paginated_properties.dart';
+import '../models/property_order_model.dart';
 import '../models/property_schedule.dart';
 import '../models/store.dart';
 import '../utils/currency_utils.dart';
@@ -905,5 +906,101 @@ class PropertyService {
     );
 
     return ok;
+  }
+
+  /// Fetch all orders placed for a specific property
+  static Future<List<PropertyOrderModel>> fetchOrdersByPropertyId(dynamic propertyId) async {
+    final list = <PropertyOrderModel>[];
+    await DioService.dioGet(
+      path: ApiEndpoints.orderByPropertyId(propertyId),
+      onSuccess: (response) {
+        final resData = response.data;
+        final rawList = resData is Map<String, dynamic>
+            ? (resData['data'] is List ? resData['data'] : null)
+            : (resData is List ? resData : null);
+
+        if (rawList is List) {
+          for (final item in rawList) {
+            if (item is Map<String, dynamic>) {
+              try {
+                list.add(PropertyOrderModel.fromJson(item));
+              } catch (_) {}
+            }
+          }
+        }
+      },
+      onFailure: (err, res) {
+        // AMN API returns 404 with {"message":"No  Order found","data":[]} when 0 orders exist.
+      },
+    );
+
+    // Sort newest orders first (descending by id / createdAt)
+    list.sort((a, b) {
+      if (b.id != a.id) {
+        return b.id.compareTo(a.id);
+      }
+      final dateB = b.createdAt ?? b.date;
+      final dateA = a.createdAt ?? a.date;
+      return dateB.compareTo(dateA);
+    });
+
+    return list;
+  }
+
+  /// Fetch full details for a property order (including customer info & items)
+  static Future<PropertyOrderModel?> fetchPropertyOrderDetail(
+    dynamic orderId, {
+    PropertyOrderModel? initial,
+  }) async {
+    final cleanId = orderId.toString().replaceAll(RegExp(r'[^0-9]'), '');
+    final targetId = cleanId.isNotEmpty ? cleanId : orderId.toString();
+
+    PropertyOrderModel? result = initial;
+    await DioService.dioGet(
+      path: ApiEndpoints.orderDetail(targetId),
+      onSuccess: (response) {
+        final resData = response.data;
+        if (resData is Map<String, dynamic>) {
+          final data = resData['data'];
+          if (data is Map<String, dynamic>) {
+            final firstName = data['customer_first_name']?.toString();
+            final lastName = data['customer_last_name']?.toString();
+            final phone = data['customer_phone']?.toString();
+            final hasItem = data['item_name'] != null && data['item_name'].toString().isNotEmpty;
+
+            if (result != null) {
+              result = result!.copyWith(
+                customerFirstName: firstName ?? result!.customerFirstName,
+                customerLastName: lastName ?? result!.customerLastName,
+                customerPhone: phone ?? result!.customerPhone,
+                items: hasItem
+                    ? [PropertyOrderItemModel.fromJson(data)]
+                    : result!.items,
+              );
+            } else {
+              result = PropertyOrderModel.fromJson(data);
+            }
+          } else if (data is List && data.isNotEmpty) {
+            final first = data.first is Map<String, dynamic> ? data.first as Map<String, dynamic> : null;
+            final itemsList = data
+                .whereType<Map<String, dynamic>>()
+                .map((m) => PropertyOrderItemModel.fromJson(m))
+                .toList();
+
+            if (result != null) {
+              result = result!.copyWith(
+                customerFirstName: first?['customer_first_name']?.toString() ?? result!.customerFirstName,
+                customerLastName: first?['customer_last_name']?.toString() ?? result!.customerLastName,
+                customerPhone: first?['customer_phone']?.toString() ?? result!.customerPhone,
+                items: itemsList.isNotEmpty ? itemsList : result!.items,
+              );
+            } else if (first != null) {
+              result = PropertyOrderModel.fromJson(first).copyWith(items: itemsList);
+            }
+          }
+        }
+      },
+    );
+    return result;
   }
 }

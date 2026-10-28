@@ -9,12 +9,13 @@ import '../models/order.dart';
 import '../models/store.dart';
 import '../screens/wallet/payment_webview_screen.dart';
 import '../services/gebeta_location_service.dart';
+import '../services/order_notification_retry_service.dart';
 import '../services/order_service.dart';
 import '../utils/api_call_status.dart';
 import 'profile_controller.dart';
 
 class OrderController extends GetxController {
-  final status = ApiCallStatus.success.obs;
+  final status = ApiCallStatus.loading.obs;
   final Rx<OrderModel?> activeOrder = Rx<OrderModel?>(null);
   final activeOrders = <OrderModel>[].obs;
   final pastOrders = <OrderModel>[].obs;
@@ -214,26 +215,33 @@ class OrderController extends GetxController {
             total: total,
             deliveryAddress: deliveryAddress,
             destinationFriendlyLocation: resolvedDestinationFriendly,
-            status: OrderProgressStatus.accepted,
-            estimatedArrival: '25 mins',
+            status: OrderProgressStatus.placed,
+            estimatedArrival: 'Finding Driver',
             storeType: storeType,
             storeLatitude: effectivePropLat,
             storeLongitude: effectivePropLng,
             deliveryLatitude: effectiveCustLat,
             deliveryLongitude: effectiveCustLng,
-            driver: const DriverInfo(
-              name: 'Alex M.',
-              vehicle: 'Silver Honda Civic',
-              plateNumber: 'ABC-123',
-              rating: 4.9,
-              photoUrl: AppAssets.driverAvatar,
-              phone: '+251 911 058 179',
-            ),
+            driver: null,
           );
 
           activeOrder.value = newOrder;
           activeOrders.removeWhere((o) => o.orderId == newOrder.orderId);
           activeOrders.insert(0, newOrder);
+
+          // Track order notification retry: check if status changes to 1 in 2 minutes (up to 2 retries)
+          final parsedId = int.tryParse(orderIdNum);
+          if (parsedId != null && parsedId > 0) {
+            OrderNotificationRetryService.instance.trackNormalOrder(
+              orderId: parsedId,
+              amount: total,
+              storeName: effectiveName,
+              destination: resolvedDestinationFriendly.isNotEmpty
+                  ? resolvedDestinationFriendly
+                  : deliveryAddress,
+              cityId: 1,
+            );
+          }
 
           // If payment gateway returned a checkout URL fallback
           String? checkoutUrl = OrderService.findCheckoutUrl(data);
@@ -279,13 +287,13 @@ class OrderController extends GetxController {
               total: total,
               deliveryAddress: deliveryAddress,
               destinationFriendlyLocation: resolvedDestinationFriendly,
-              status: OrderProgressStatus.accepted,
-              estimatedArrival: '25 mins',
+              status: OrderProgressStatus.placed,
+              estimatedArrival: 'Finding Driver',
               storeType: storeType,
             );
             activeOrder.value = newOrder;
-          activeOrders.removeWhere((o) => o.orderId == newOrder.orderId);
-          activeOrders.insert(0, newOrder);
+            activeOrders.removeWhere((o) => o.orderId == newOrder.orderId);
+            activeOrders.insert(0, newOrder);
           } else {
             success = false;
             Get.snackbar(
@@ -321,7 +329,11 @@ class OrderController extends GetxController {
   Future<void> fetchDetail(dynamic orderId) async {
     final cleanId = orderId.toString().replaceAll(RegExp(r'[^0-9]'), '');
     final targetId = cleanId.isNotEmpty ? cleanId : orderId.toString();
-    final detail = await OrderService.fetchOrderDetail(targetId);
+    final existing = activeOrders.firstWhereOrNull(
+      (o) => o.orderId.replaceAll(RegExp(r'[^0-9]'), '') == targetId,
+    ) ?? (activeOrder.value?.orderId.replaceAll(RegExp(r'[^0-9]'), '') == targetId ? activeOrder.value : null);
+
+    final detail = await OrderService.fetchOrderDetail(targetId, existingOrder: existing);
     if (detail != null) {
       final index = activeOrders.indexWhere(
         (o) => o.orderId.replaceAll(RegExp(r'[^0-9]'), '') == targetId,

@@ -7,6 +7,7 @@ import '../controllers/order_controller.dart';
 import '../models/order.dart';
 import '../models/saved_order.dart';
 import 'gebeta_location_service.dart';
+import 'order_notification_retry_service.dart';
 import 'order_service.dart';
 
 class SavedOrderService {
@@ -147,6 +148,19 @@ class SavedOrderService {
         // Mark as submitted
         order.status = 'submitted';
         await saveOrder(order);
+
+        // Track notification retry
+        final rawId = (data['data'] is Map ? data['data']['id'] : null) ?? data['order_id'] ?? data['id'];
+        final parsedId = rawId != null ? int.tryParse(rawId.toString()) : null;
+        if (parsedId != null && parsedId > 0) {
+          OrderNotificationRetryService.instance.trackNormalOrder(
+            orderId: parsedId,
+            amount: order.total,
+            storeName: order.storeName,
+            destination: destinationFriendly.isNotEmpty ? destinationFriendly : order.deliveryAddress,
+            cityId: 1,
+          );
+        }
 
         // Notify user
         Get.snackbar(

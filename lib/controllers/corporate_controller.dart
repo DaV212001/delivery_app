@@ -5,6 +5,7 @@ import '../controllers/auth_controller.dart';
 import '../models/corporate_model.dart';
 import '../services/corporate_service.dart';
 import '../services/gebeta_location_service.dart';
+import '../services/order_notification_retry_service.dart';
 import '../utils/api_call_status.dart';
 import '../utils/location_utils.dart';
 
@@ -282,6 +283,24 @@ class CorporateController extends GetxController {
           colorText: Colors.white,
         );
         await refreshOrders();
+
+        // Track notification retry
+        final rawId = (data['data'] is Map ? data['data']['id'] : null) ??
+            data['order_id'] ??
+            data['id'];
+        final parsedId = int.tryParse(rawId?.toString() ?? '') ??
+            pendingOrders.firstOrNull?.id;
+        if (parsedId != null && parsedId > 0) {
+          OrderNotificationRetryService.instance.trackCorporateOrder(
+            orderId: parsedId,
+            userId: _userId,
+            amount: calculatedTotalPrice.value,
+            fromBranch: fromFriendly.isNotEmpty ? fromFriendly : (sender?.branchName ?? 'Sender Branch'),
+            toBranch: toFriendly.isNotEmpty ? toFriendly : receiver.branchName,
+            cityId: 1,
+          );
+        }
+
         onSuccess();
       },
       onFailure: (error) {

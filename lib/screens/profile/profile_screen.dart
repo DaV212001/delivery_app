@@ -65,41 +65,6 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  void _showFaqsDialog(BuildContext context, ProfileController profileController) {
-    Get.dialog(
-      AlertDialog(
-        title: Text('faqs'.tr),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 400,
-          child: Obx(
-            () => profileController.faqs.isEmpty
-                ? Center(child: Text('loading'.tr))
-                : ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: profileController.faqs.length,
-                    itemBuilder: (ctx, i) {
-                      final f = profileController.faqs[i];
-                      return ExpansionTile(
-                        title: Text(f.questionText, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            child: Text(f.answerText, style: const TextStyle(fontSize: 13)),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Get.back(), child: Text('done'.tr)),
-        ],
-      ),
-    );
-  }
-
   void _showFavoriteSpotsSheet(BuildContext context, RestaurantController restaurantController) {
     final theme = Theme.of(context);
 
@@ -203,56 +168,6 @@ class ProfileScreen extends StatelessWidget {
         ),
       ),
       isScrollControlled: true,
-    );
-  }
-
-  void _showPrivacyPolicyDialog(BuildContext context, ProfileController profileController) {
-    Get.dialog(
-      AlertDialog(
-        title: Text('privacy_policy'.tr),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 400,
-          child: SingleChildScrollView(
-            child: Obx(
-              () => Text(
-                profileController.privacyPolicy.value.isNotEmpty
-                    ? profileController.privacyPolicy.value
-                    : 'AMN Delivery is committed to protecting your privacy and security. We collect and process your personal data in accordance with applicable laws to provide seamless food and grocery delivery services.',
-                style: const TextStyle(fontSize: 13, height: 1.4),
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Get.back(), child: Text('done'.tr)),
-        ],
-      ),
-    );
-  }
-
-  void _showTermsDialog(BuildContext context, ProfileController profileController) {
-    Get.dialog(
-      AlertDialog(
-        title: Text('terms_and_conditions'.tr),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 400,
-          child: SingleChildScrollView(
-            child: Obx(
-              () => Text(
-                profileController.termsAndConditions.value.isNotEmpty
-                    ? profileController.termsAndConditions.value
-                    : 'By using our service, you agree to AMN Delivery standard terms and delivery policies. All orders and payments are subject to service availability and merchant operating hours.',
-                style: const TextStyle(fontSize: 13, height: 1.4),
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Get.back(), child: Text('done'.tr)),
-        ],
-      ),
     );
   }
 
@@ -402,6 +317,7 @@ class ProfileScreen extends StatelessWidget {
               children: [
                 // Bento Profile Card
                 Container(
+                  width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     color: isDark ? AppColors.darkSurfaceContainerLowest : Colors.white,
@@ -455,16 +371,6 @@ class ProfileScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 16),
-
-                      // Stats Row
-                      Center(
-                        child: _StatChip(
-                          icon: Icons.shopping_bag_outlined,
-                          iconColor: AppColors.primary,
-                          label: '${user.totalOrders} ${'orders_count'.tr}',
-                        ),
-                      ),
-                      const SizedBox(height: 14),
 
                       // Edit Profile Button
                       OutlinedButton.icon(
@@ -761,19 +667,19 @@ class ProfileScreen extends StatelessWidget {
           icon: Icons.help_outline_rounded,
           title: 'faq'.tr,
           subtitle: 'faqs_support_sub'.tr,
-          onTap: () => _showFaqsDialog(context, profileController),
+          onTap: () => Get.toNamed(AppRoutes.faq),
         ),
         _SettingsTile(
           icon: Icons.privacy_tip_outlined,
           title: 'privacy_policy'.tr,
           subtitle: 'privacy_sub'.tr,
-          onTap: () => _showPrivacyPolicyDialog(context, profileController),
+          onTap: () => Get.toNamed(AppRoutes.privacyPolicy),
         ),
         _SettingsTile(
           icon: Icons.description_outlined,
           title: 'terms_and_conditions'.tr,
           subtitle: 'terms_sub'.tr,
-          onTap: () => _showTermsDialog(context, profileController),
+          onTap: () => Get.toNamed(AppRoutes.termsAndConditions),
         ),
         _SettingsTile(
           icon: Icons.system_security_update_rounded,
@@ -795,95 +701,58 @@ class ProfileScreen extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
           child: SafeArea(
-            child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: Text(
-                  'select_language'.tr,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              ...LocalizationController.supportedLanguages.map(
-                (opt) => Obx(() {
-                  final isSelected = LocalizationController.currentLanguageCode.value == opt.codeString;
-                  return ListTile(
-                    leading: Text(opt.flag, style: const TextStyle(fontSize: 24)),
-                    title: Text(
-                      opt.nativeName,
-                      style: TextStyle(
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                        color: isSelected ? AppColors.primary : null,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Text(
+                      'select_language'.tr,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    subtitle: Text(opt.name),
-                    trailing: isSelected
-                        ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
-                        : null,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    tileColor: isSelected
-                        ? AppColors.primary.withValues(alpha: 0.08)
-                        : Colors.transparent,
-                    onTap: () async {
-                      Get.back();
-                      await LocalizationController.changeLanguage(opt.locale);
-                    },
-                  );
-                }),
+                  ),
+                  const SizedBox(height: 8),
+                  ...LocalizationController.supportedLanguages.map(
+                    (opt) => Obx(() {
+                      final isSelected = LocalizationController.currentLanguageCode.value == opt.codeString;
+                      return ListTile(
+                        leading: Text(opt.flag, style: const TextStyle(fontSize: 24)),
+                        title: Text(
+                          opt.nativeName,
+                          style: TextStyle(
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                            color: isSelected ? AppColors.primary : null,
+                          ),
+                        ),
+                        subtitle: Text(opt.name),
+                        trailing: isSelected
+                            ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
+                            : null,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        tileColor: isSelected
+                            ? AppColors.primary.withValues(alpha: 0.08)
+                            : Colors.transparent,
+                        onTap: () async {
+                          Get.back();
+                          await LocalizationController.changeLanguage(opt.locale);
+                        },
+                      );
+                    }),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
       ),
     ),
     isScrollControlled: true,
   );
-  }
-}
-
-class _StatChip extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String label;
-
-  const _StatChip({
-    required this.icon,
-    required this.iconColor,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurfaceContainerLow : AppColors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: iconColor),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: theme.textTheme.labelMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 

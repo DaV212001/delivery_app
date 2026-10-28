@@ -270,4 +270,25 @@ class ConfigPreference {
     await sharedPreferencesInstance.remove('pending_reset_otp');
     await sharedPreferencesInstance.remove('pending_reset_step');
   }
+
+  // Merchant Property Currency Persistence
+  static String? getPropertyCurrency(int propertyId) {
+    if (!isInitialized) return null;
+    return sharedPreferencesInstance.getString('property_currency_$propertyId');
+  }
+
+  static Future<void> setPropertyCurrency(int propertyId, String currencyCode) async {
+    if (!isInitialized) return;
+    await sharedPreferencesInstance.setString('property_currency_$propertyId', currencyCode);
+  }
+
+  static int? getPropertyCurrencyId(int propertyId) {
+    if (!isInitialized) return null;
+    return sharedPreferencesInstance.getInt('property_currency_id_$propertyId');
+  }
+
+  static Future<void> setPropertyCurrencyId(int propertyId, int currencyId) async {
+    if (!isInitialized) return;
+    await sharedPreferencesInstance.setInt('property_currency_id_$propertyId', currencyId);
+  }
 }

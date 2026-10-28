@@ -159,5 +159,121 @@ void main() {
       );
       expect(orderYuan.displayCurrency, 'Yuan');
     });
+
+    test('Parses real backend single-item map payload with order_header_id, store name, and logo', () {
+      final backendItemMap = {
+        'id': 38,
+        'order_header_id': '24',
+        'property_id': '3',
+        'property': 'Dr Tyre',
+        'property_logo': 'https://sales.amnplc.com/public/storage/logo/1790947071.png',
+        'item_name': '205/55R16',
+        'item_image': 'https://erp.amnplc.com/public/storage/menu/1790968090.webp',
+        'price': '19750',
+        'quantity': '1',
+        'item_total_price': '21728.39',
+        'status': '0',
+        'location': 'niyo',
+        'customer_latitude': '9.032',
+        'customer_longitude': '38.7469',
+      };
+
+      final orderDetail = OrderModel.fromOrderDetailJson(
+        statusJson: backendItemMap,
+        itemsList: [backendItemMap],
+        orderId: '24',
+      );
+
+      // Verify ID is #AMN-24, not empty or #AMN-38
+      expect(orderDetail.orderId, '#AMN-24');
+      expect(orderDetail.storeName, 'Dr Tyre');
+      expect(orderDetail.storeImageUrl, 'https://sales.amnplc.com/public/storage/logo/1790947071.png');
+      expect(orderDetail.total, 21728.39);
+      expect(orderDetail.subtotal, 19750.0);
+      expect(orderDetail.items.length, 1);
+      expect(orderDetail.items.first.item.name, '205/55R16');
+      expect(orderDetail.items.first.item.imageUrl, 'https://erp.amnplc.com/public/storage/menu/1790968090.webp');
+      expect(orderDetail.deliveryAddress, 'niyo');
+    });
+
+    test('Preserves existing order info if statusJson has partial or missing store name/logo', () {
+      final existing = OrderModel(
+        orderId: '#AMN-99',
+        storeName: 'Chanoly Noodles',
+        storeImageUrl: 'https://example.com/chanoly.png',
+        orderDate: DateTime.now(),
+        items: const [],
+        subtotal: 150,
+        deliveryFee: 30,
+        taxAndFees: 0,
+        total: 180,
+        deliveryAddress: 'Bole Road',
+        status: OrderProgressStatus.accepted,
+        estimatedArrival: '20 mins',
+      );
+
+      // Detail returns empty statusMap and no property
+      final orderDetail = OrderModel.fromOrderDetailJson(
+        statusJson: {'status': '1'},
+        itemsList: const [],
+        orderId: '99',
+        existingOrder: existing,
+      );
+
+      expect(orderDetail.orderId, '#AMN-99');
+      expect(orderDetail.storeName, 'Chanoly Noodles');
+      expect(orderDetail.storeImageUrl, 'https://example.com/chanoly.png');
+      expect(orderDetail.total, 180.0);
+    });
+
+    test('Driver info is null and status is placed when backend payload has driver_id: null and status: 0', () {
+      final activeOrder = OrderModel.fromActiveOrderJson({
+        'id': '24',
+        'property_id': '3',
+        'property': 'Dr Tyre',
+        'driver_id': null,
+        'status': '0',
+      });
+      expect(activeOrder.driver, isNull);
+      expect(activeOrder.status, OrderProgressStatus.placed);
+      expect(activeOrder.statusLabel, 'Order Placed');
+
+      final orderDetail = OrderModel.fromOrderDetailJson(
+        statusJson: {
+          'order_header_id': '24',
+          'status': '0',
+          'driver_id': null,
+        },
+        itemsList: const [],
+        orderId: '24',
+        existingOrder: activeOrder,
+      );
+      expect(orderDetail.driver, isNull);
+      expect(orderDetail.status, OrderProgressStatus.placed);
+      expect(orderDetail.statusLabel, 'Order Placed');
+    });
+
+    test('Driver info is parsed accurately when driver details are provided', () {
+      final orderWithDriver = OrderModel.fromOrderDetailJson(
+        statusJson: {
+          'order_header_id': '25',
+          'status': '2',
+          'driver_id': '42',
+          'driver_f_name': 'Abebe',
+          'driver_l_name': 'Bikila',
+          'driver_phone': '+251 911 223344',
+          'driver_vehicle': 'Yamaha Motorbike',
+          'driver_plate': 'ET-3-98765',
+        },
+        itemsList: const [],
+        orderId: '25',
+      );
+
+      expect(orderWithDriver.driver, isNotNull);
+      expect(orderWithDriver.driver!.name, 'Abebe Bikila');
+      expect(orderWithDriver.driver!.phone, '+251 911 223344');
+      expect(orderWithDriver.driver!.vehicle, 'Yamaha Motorbike');
+      expect(orderWithDriver.driver!.plateNumber, 'ET-3-98765');
+    });
   });
 }

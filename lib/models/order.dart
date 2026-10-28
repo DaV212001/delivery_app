@@ -7,6 +7,7 @@ import 'delivery_item.dart';
 import 'store.dart';
 
 enum OrderProgressStatus {
+  placed,        // 0: Order placed / Waiting for driver
   accepted,      // 1: Accepted
   driverToShop,  // 2: Driver on the way to shop
   driverToYou,   // 3: Driver on the way to you
@@ -21,6 +22,8 @@ enum OrderProgressStatus {
   /// Numeric status code
   int get code {
     switch (this) {
+      case OrderProgressStatus.placed:
+        return 0;
       case OrderProgressStatus.accepted:
         return 1;
       case OrderProgressStatus.driverToShop:
@@ -35,6 +38,7 @@ enum OrderProgressStatus {
   }
 
   bool get isActive =>
+      this == OrderProgressStatus.placed ||
       this == OrderProgressStatus.accepted ||
       this == OrderProgressStatus.driverToShop ||
       this == OrderProgressStatus.driverToYou;
@@ -59,6 +63,53 @@ class DriverInfo {
     required this.photoUrl,
     required this.phone,
   });
+
+  static DriverInfo? tryParse(Map<String, dynamic>? json) {
+    if (json == null) return null;
+
+    final rawDriverId = json['driver_id']?.toString().trim();
+    final hasDriverId = rawDriverId != null &&
+        rawDriverId.isNotEmpty &&
+        rawDriverId != '0' &&
+        rawDriverId.toLowerCase() != 'null';
+
+    final fName = json['driver_f_name']?.toString().trim();
+    final lName = json['driver_l_name']?.toString().trim();
+    final combinedName = [fName, lName].where((s) => s != null && s.isNotEmpty).join(' ');
+
+    String? nestedName;
+    String? nestedPhone;
+    if (json['driver'] is Map) {
+      final driverMap = json['driver'] as Map;
+      nestedName = driverMap['name']?.toString().trim();
+      nestedPhone = driverMap['phone']?.toString().trim();
+    }
+
+    final rawName = (combinedName.isNotEmpty ? combinedName : null) ??
+        json['driver_name']?.toString().trim() ??
+        nestedName;
+
+    // If there is no driver ID and no driver name/details, there is no driver assigned
+    if (!hasDriverId && (rawName == null || rawName.isEmpty)) {
+      return null;
+    }
+
+    final name = (rawName != null && rawName.isNotEmpty) ? rawName : 'Driver';
+    final phone = (json['driver_phone'] ?? nestedPhone)?.toString().trim() ?? '';
+    final vehicle = (json['driver_vehicle'] ?? json['car_type'])?.toString().trim() ?? 'Delivery Vehicle';
+    final plateNumber = (json['driver_plate'] ?? json['plate_number'])?.toString().trim() ?? '';
+    final photoUrl = (json['driver_photo'] ?? json['driver_image'] ?? json['photo_url'])?.toString().trim() ?? AppAssets.driverAvatar;
+    final rating = double.tryParse(json['driver_rating']?.toString() ?? '') ?? 4.9;
+
+    return DriverInfo(
+      name: name,
+      vehicle: vehicle,
+      plateNumber: plateNumber,
+      rating: rating,
+      photoUrl: photoUrl,
+      phone: phone,
+    );
+  }
 }
 
 class OrderCreateRequest {
@@ -243,6 +294,10 @@ class OrderModel {
 
   String get statusLabel {
     switch (status) {
+      case OrderProgressStatus.placed:
+        return 'order_status_placed'.tr.isNotEmpty && 'order_status_placed'.tr != 'order_status_placed'
+            ? 'order_status_placed'.tr
+            : 'Order Placed';
       case OrderProgressStatus.accepted:
         return 'order_accepted'.tr.isNotEmpty && 'order_accepted'.tr != 'order_accepted'
             ? 'order_accepted'.tr
@@ -267,20 +322,27 @@ class OrderModel {
   }
 
   /// Parses status codes from API / Socket:
+  /// 0: Order placed / Waiting for driver
   /// 1: Accepted
   /// 2: Driver on the way to shop
   /// 3: Driver on the way to you
   /// 4: Delivered
   /// 5: Cancelled
   static OrderProgressStatus parseStatus(dynamic raw) {
-    if (raw == null) return OrderProgressStatus.accepted;
+    if (raw == null) return OrderProgressStatus.placed;
     final s = raw.toString().trim().toLowerCase();
     switch (s) {
+      case '0':
+      case 'placed':
+      case 'order_placed':
+      case 'pending':
+      case 'waiting_for_driver':
+        return OrderProgressStatus.placed;
       case '1':
       case 'accepted':
       case 'order_accepted':
+      case 'driver_accepted':
       case 'preparing':
-      case 'placed':
         return OrderProgressStatus.accepted;
       case '2':
       case 'driver_to_shop':
@@ -308,7 +370,7 @@ class OrderModel {
       case 'canceled':
         return OrderProgressStatus.cancelled;
       default:
-        return OrderProgressStatus.accepted;
+        return OrderProgressStatus.placed;
     }
   }
 
@@ -441,20 +503,15 @@ class OrderModel {
           ? 'Delivered'
           : (orderStatus == OrderProgressStatus.cancelled
               ? 'Cancelled'
-              : (orderStatus == OrderProgressStatus.accepted ? '25 mins' : '15 mins')),
+              : (orderStatus == OrderProgressStatus.placed
+                  ? 'Finding Driver'
+                  : (orderStatus == OrderProgressStatus.accepted ? '25 mins' : '15 mins'))),
       storeType: cachedStore?.type ?? StoreType.restaurant,
       storeLatitude: double.tryParse(json['store_latitude']?.toString() ?? '') ?? cachedStore?.latitude,
       storeLongitude: double.tryParse(json['store_longitude']?.toString() ?? '') ?? cachedStore?.longitude,
       deliveryLatitude: double.tryParse(json['latitude']?.toString() ?? ''),
       deliveryLongitude: double.tryParse(json['longitude']?.toString() ?? ''),
-      driver: const DriverInfo(
-        name: 'Alex M.',
-        vehicle: 'Silver Honda Civic',
-        plateNumber: 'ABC-123',
-        rating: 4.9,
-        photoUrl: AppAssets.driverAvatar,
-        phone: '+251 911 058 179',
-      ),
+      driver: DriverInfo.tryParse(json),
       currency: rawCurrency,
     );
   }
@@ -463,15 +520,52 @@ class OrderModel {
     required Map<String, dynamic> statusJson,
     required List<dynamic> itemsList,
     Store? fallbackStore,
+    dynamic orderId,
+    OrderModel? existingOrder,
   }) {
     final orderStatus = parseStatus(statusJson['status']);
 
-    final id = statusJson['id']?.toString() ?? '';
-    final friendlyDest = statusJson['destination_friendly_location']?.toString();
+    // Order ID Resolution: check orderId arg, order_header_id, order_id, itemsList, existingOrder, id
+    String? rawId;
+    if (orderId != null && orderId.toString().trim().isNotEmpty) {
+      final clean = orderId.toString().replaceAll(RegExp(r'[^0-9]'), '');
+      if (clean.isNotEmpty) rawId = clean;
+    }
+    rawId ??= statusJson['order_header_id']?.toString().trim();
+    rawId ??= statusJson['order_id']?.toString().trim();
+    rawId ??= statusJson['header_id']?.toString().trim();
+    if (rawId == null || rawId.isEmpty || rawId.toLowerCase() == 'null') {
+      for (final raw in itemsList) {
+        if (raw is Map<String, dynamic>) {
+          final hId = (raw['order_header_id'] ?? raw['order_id'])?.toString().trim();
+          if (hId != null && hId.isNotEmpty && hId.toLowerCase() != 'null') {
+            rawId = hId;
+            break;
+          }
+        }
+      }
+    }
+    if ((rawId == null || rawId.isEmpty || rawId.toLowerCase() == 'null') && existingOrder != null) {
+      final clean = existingOrder.orderId.replaceAll(RegExp(r'[^0-9]'), '');
+      if (clean.isNotEmpty) rawId = clean;
+    }
+    if (rawId == null || rawId.isEmpty || rawId.toLowerCase() == 'null') {
+      rawId = statusJson['id']?.toString().trim();
+    }
+    final cleanId = (rawId != null && rawId.toLowerCase() != 'null')
+        ? rawId.replaceAll(RegExp(r'[^0-9]'), '')
+        : '';
+    final finalOrderId = cleanId.isNotEmpty
+        ? '#AMN-$cleanId'
+        : (existingOrder?.orderId.isNotEmpty == true ? existingOrder!.orderId : '#AMN');
+
+    final friendlyDest = statusJson['destination_friendly_location']?.toString() ?? statusJson['friendly_location']?.toString();
     final loc = (friendlyDest != null && friendlyDest.trim().isNotEmpty)
         ? friendlyDest.trim()
-        : (statusJson['location']?.toString() ?? 'Addis Ababa');
-    final propId = statusJson['property_id']?.toString();
+        : (statusJson['location']?.toString() ?? existingOrder?.deliveryAddress ?? 'Addis Ababa');
+    final propId = statusJson['property_id']?.toString() ??
+        (itemsList.isNotEmpty && itemsList.first is Map ? itemsList.first['property_id']?.toString() : null) ??
+        existingOrder?.items.firstOrNull?.item.storeId;
     final cachedStore = fallbackStore ?? PropertyService.getCachedProperty(propId);
 
     String storeName = '';
@@ -480,35 +574,63 @@ class OrderModel {
     // 1. Scan itemsList: each item in /my_order_detail/{id} has "property" and "property_logo"
     for (final raw in itemsList) {
       if (raw is Map<String, dynamic>) {
-        final p = raw['property']?.toString().trim();
-        if (p != null && p.isNotEmpty && p.toLowerCase() != 'null') {
+        final p = (raw['property'] ?? raw['property_name'] ?? raw['store_name'] ?? raw['restaurant_name'])?.toString().trim();
+        if (p != null && p.isNotEmpty && p.toLowerCase() != 'null' && p.toLowerCase() != 'store') {
           storeName = p;
         }
-        final logo = raw['property_logo']?.toString().trim();
+        final logo = (raw['property_logo'] ?? raw['store_logo'] ?? raw['logo'] ?? raw['logo_url'])?.toString().trim();
         if (logo != null && logo.isNotEmpty && logo.toLowerCase() != 'null') {
           storeLogo = logo;
         }
+        if (storeName.isNotEmpty && storeLogo.isNotEmpty) break;
       }
     }
 
     // 2. Next check statusJson
-    if (storeName.isEmpty) {
-      final pStatus = (statusJson['property_name'] ?? statusJson['property'] ?? statusJson['store_name'])?.toString().trim();
-      if (pStatus != null && pStatus.isNotEmpty && pStatus.toLowerCase() != 'null') {
+    if (storeName.isEmpty || storeName.toLowerCase() == 'store') {
+      final pStatus = (statusJson['property_name'] ?? statusJson['property'] ?? statusJson['store_name'] ?? statusJson['restaurant_name'])?.toString().trim();
+      if (pStatus != null && pStatus.isNotEmpty && pStatus.toLowerCase() != 'null' && pStatus.toLowerCase() != 'store') {
         storeName = pStatus;
       }
     }
 
-    // 3. Fallback to cachedStore
-    if (storeName.isEmpty && cachedStore != null && cachedStore.name.isNotEmpty) {
-      storeName = cachedStore.name;
-    }
-    if (storeName.isEmpty) {
-      storeName = 'Store';
+    if (storeLogo.isEmpty) {
+      final lStatus = (statusJson['property_logo'] ?? statusJson['store_logo'] ?? statusJson['logo'] ?? statusJson['logo_url'] ?? statusJson['store_image_url'] ?? statusJson['restaurant_image_url'])?.toString().trim();
+      if (lStatus != null && lStatus.isNotEmpty && lStatus.toLowerCase() != 'null') {
+        storeLogo = lStatus;
+      }
     }
 
+    // 3. Fallback to existingOrder if valid
+    if ((storeName.isEmpty || storeName.toLowerCase() == 'store') &&
+        existingOrder != null &&
+        existingOrder.storeName.isNotEmpty &&
+        existingOrder.storeName.toLowerCase() != 'store') {
+      storeName = existingOrder.storeName;
+    }
+    if ((storeLogo.isEmpty || storeLogo == AppAssets.parcelBoxItem) &&
+        existingOrder != null &&
+        existingOrder.storeImageUrl.isNotEmpty &&
+        existingOrder.storeImageUrl != AppAssets.parcelBoxItem) {
+      storeLogo = existingOrder.storeImageUrl;
+    }
+
+    // 4. Fallback to cachedStore
+    if ((storeName.isEmpty || storeName.toLowerCase() == 'store') && cachedStore != null && cachedStore.name.isNotEmpty) {
+      storeName = cachedStore.name;
+    }
+    if ((storeLogo.isEmpty || storeLogo == AppAssets.parcelBoxItem) && cachedStore != null) {
+      final cachedLogo = cachedStore.logoUrl ?? cachedStore.heroImageUrl;
+      if (cachedLogo.isNotEmpty) {
+        storeLogo = cachedLogo;
+      }
+    }
+
+    if (storeName.isEmpty) {
+      storeName = existingOrder?.storeName.isNotEmpty == true ? existingOrder!.storeName : 'Store';
+    }
     if (storeLogo.isEmpty) {
-      storeLogo = cachedStore?.logoUrl ?? cachedStore?.heroImageUrl ?? AppAssets.parcelBoxItem;
+      storeLogo = existingOrder?.storeImageUrl.isNotEmpty == true ? existingOrder!.storeImageUrl : AppAssets.parcelBoxItem;
     }
 
     String? orderCurrency;
@@ -612,46 +734,62 @@ class OrderModel {
         ? (effectiveTotal - subtotal - deliveryFee)
         : 0.0;
 
-    DriverInfo? driverInfo;
-    final driverId = statusJson['driver_id']?.toString();
-    if (driverId != null && driverId.isNotEmpty && driverId != '0' && driverId.toLowerCase() != 'null') {
-      final driverName = (statusJson['driver_name'] ?? statusJson['driver']?['name'])?.toString() ?? 'Alex M.';
-      final driverPhone = (statusJson['driver_phone'] ?? statusJson['driver']?['phone'])?.toString() ?? '+251 911 058 179';
-      driverInfo = DriverInfo(
-        name: driverName,
-        vehicle: statusJson['driver_vehicle']?.toString() ?? 'Delivery Motorcycle',
-        plateNumber: statusJson['driver_plate']?.toString() ?? 'AA-2-12345',
-        rating: 4.9,
-        photoUrl: AppAssets.driverAvatar,
-        phone: driverPhone,
+    final driverInfo = DriverInfo.tryParse(statusJson);
+    final bool hasExplicitDriverField = statusJson.containsKey('driver_id') ||
+        statusJson.containsKey('driver') ||
+        statusJson.containsKey('driver_f_name');
+
+    DriverInfo? effectiveDriver = driverInfo;
+    if (effectiveDriver == null) {
+      if (!hasExplicitDriverField) {
+        effectiveDriver = existingOrder?.driver;
+      }
+    } else if (existingOrder?.driver != null) {
+      effectiveDriver = DriverInfo(
+        name: effectiveDriver.name != 'Driver' ? effectiveDriver.name : existingOrder!.driver!.name,
+        vehicle: effectiveDriver.vehicle != 'Delivery Vehicle' ? effectiveDriver.vehicle : existingOrder!.driver!.vehicle,
+        plateNumber: effectiveDriver.plateNumber.isNotEmpty ? effectiveDriver.plateNumber : existingOrder!.driver!.plateNumber,
+        rating: effectiveDriver.rating != 4.9 ? effectiveDriver.rating : existingOrder!.driver!.rating,
+        photoUrl: effectiveDriver.photoUrl != AppAssets.driverAvatar ? effectiveDriver.photoUrl : existingOrder!.driver!.photoUrl,
+        phone: effectiveDriver.phone.isNotEmpty ? effectiveDriver.phone : existingOrder!.driver!.phone,
       );
     }
 
+    final finalItems = parsedItems.isNotEmpty
+        ? parsedItems
+        : (existingOrder?.items ?? <CartItem>[]);
+    final finalSubtotal = (subtotal > 0.0) ? subtotal : (existingOrder?.subtotal ?? 0.0);
+    final finalDeliveryFee = (deliveryFee > 0.0) ? deliveryFee : (existingOrder?.deliveryFee ?? 0.0);
+    final finalTotal = (effectiveTotal > 0.0) ? effectiveTotal : (existingOrder?.total ?? (finalSubtotal + finalDeliveryFee));
+    final finalTaxAndFees = (taxAndFees > 0.0) ? taxAndFees : (existingOrder?.taxAndFees ?? 0.0);
+
     return OrderModel(
-      orderId: '#AMN-$id',
+      orderId: finalOrderId,
       storeName: storeName,
       storeImageUrl: storeLogo,
       orderDate: date,
-      items: parsedItems,
-      subtotal: subtotal,
-      deliveryFee: deliveryFee,
-      taxAndFees: taxAndFees,
-      total: effectiveTotal,
+      items: finalItems,
+      subtotal: finalSubtotal,
+      deliveryFee: finalDeliveryFee,
+      taxAndFees: finalTaxAndFees,
+      total: finalTotal,
       deliveryAddress: loc,
-      destinationFriendlyLocation: friendlyDest,
+      destinationFriendlyLocation: friendlyDest ?? existingOrder?.destinationFriendlyLocation,
       status: orderStatus,
       estimatedArrival: orderStatus == OrderProgressStatus.delivered
           ? 'Delivered'
           : (orderStatus == OrderProgressStatus.cancelled
               ? 'Cancelled'
-              : (orderStatus == OrderProgressStatus.accepted ? '25 mins' : '15 mins')),
-      storeType: cachedStore?.type ?? StoreType.restaurant,
-      storeLatitude: double.tryParse(statusJson['store_latitude']?.toString() ?? statusJson['restaurant_latitude']?.toString() ?? '') ?? cachedStore?.latitude,
-      storeLongitude: double.tryParse(statusJson['store_longitude']?.toString() ?? statusJson['restaurant_longitude']?.toString() ?? '') ?? cachedStore?.longitude,
-      deliveryLatitude: double.tryParse(statusJson['latitude']?.toString() ?? ''),
-      deliveryLongitude: double.tryParse(statusJson['longitude']?.toString() ?? ''),
-      driver: driverInfo,
-      currency: orderCurrency,
+              : (orderStatus == OrderProgressStatus.placed
+                  ? 'Finding Driver'
+                  : (orderStatus == OrderProgressStatus.accepted ? '25 mins' : '15 mins'))),
+      storeType: cachedStore?.type ?? existingOrder?.storeType ?? StoreType.restaurant,
+      storeLatitude: double.tryParse(statusJson['store_latitude']?.toString() ?? statusJson['restaurant_latitude']?.toString() ?? statusJson['property_latitude']?.toString() ?? '') ?? existingOrder?.storeLatitude ?? cachedStore?.latitude,
+      storeLongitude: double.tryParse(statusJson['store_longitude']?.toString() ?? statusJson['restaurant_longitude']?.toString() ?? statusJson['property_longitude']?.toString() ?? statusJson['property_longtude']?.toString() ?? '') ?? existingOrder?.storeLongitude ?? cachedStore?.longitude,
+      deliveryLatitude: double.tryParse(statusJson['latitude']?.toString() ?? statusJson['customer_latitude']?.toString() ?? '') ?? existingOrder?.deliveryLatitude,
+      deliveryLongitude: double.tryParse(statusJson['longitude']?.toString() ?? statusJson['customer_longitude']?.toString() ?? '') ?? existingOrder?.deliveryLongitude,
+      driver: effectiveDriver,
+      currency: orderCurrency ?? existingOrder?.currency,
     );
   }
 
