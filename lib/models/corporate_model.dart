@@ -1,3 +1,6 @@
+import 'order.dart';
+import 'store.dart';
+
 class CompanyModel {
   final int id;
   final String name;
@@ -138,6 +141,11 @@ class CompanyOrderModel {
   final double totalPrice;
   final String? dateTime;
 
+  final double? fromLatitude;
+  final double? fromLongitude;
+  final double? toLatitude;
+  final double? toLongitude;
+
   const CompanyOrderModel({
     required this.id,
     required this.status,
@@ -145,6 +153,10 @@ class CompanyOrderModel {
     this.toBranch,
     this.fromFriendlyLocation,
     this.toFriendlyLocation,
+    this.fromLatitude,
+    this.fromLongitude,
+    this.toLatitude,
+    this.toLongitude,
     this.item,
     this.senderFName,
     this.senderLName,
@@ -163,13 +175,26 @@ class CompanyOrderModel {
   });
 
   factory CompanyOrderModel.fromJson(Map<String, dynamic> json) {
+    final fromLat = double.tryParse(json['from_latitude']?.toString() ?? '');
+    final fromLng = double.tryParse(
+      json['from_longtude']?.toString() ?? json['from_longitude']?.toString() ?? '',
+    );
+    final toLat = double.tryParse(json['to_latitude']?.toString() ?? '');
+    final toLng = double.tryParse(
+      json['to_longtude']?.toString() ?? json['to_longitude']?.toString() ?? '',
+    );
+
     return CompanyOrderModel(
       id: int.tryParse(json['id']?.toString() ?? '0') ?? 0,
-      status: json['status']?.toString() ?? '0',
+      status: json['status']?.toString() ?? json['satus']?.toString() ?? '0',
       fromBranch: json['from_branch']?.toString(),
       toBranch: json['to_branch']?.toString(),
       fromFriendlyLocation: json['from_friendly_location']?.toString(),
       toFriendlyLocation: json['to_friendly_location']?.toString(),
+      fromLatitude: fromLat,
+      fromLongitude: fromLng,
+      toLatitude: toLat,
+      toLongitude: toLng,
       item: json['item']?.toString(),
       senderFName: json['sender_f_name']?.toString(),
       senderLName: json['sender_l_name']?.toString(),
@@ -213,4 +238,60 @@ class CompanyOrderModel {
 
   bool get isPending => status == '0';
   bool get isFinished => status != '0';
+
+  /// Converts corporate order to unified OrderModel for seamless map and driver tracking
+  OrderModel toOrderModel() {
+    final progStatus = OrderModel.parseStatus(status);
+    final driverInfo = hasDriver
+        ? DriverInfo(
+            name: driverFullName!,
+            vehicle: carType ?? 'Corporate Transport',
+            plateNumber: '',
+            rating: 4.9,
+            photoUrl: '',
+            phone: driverPhone ?? '',
+          )
+        : null;
+
+    final pickupTitle = fromBranch?.isNotEmpty == true
+        ? fromBranch!
+        : (fromFriendlyLocation?.isNotEmpty == true
+            ? fromFriendlyLocation!
+            : 'Corporate Dispatch');
+
+    final dropoffTitle = toBranch?.isNotEmpty == true
+        ? toBranch!
+        : (toFriendlyLocation?.isNotEmpty == true
+            ? toFriendlyLocation!
+            : 'Corporate Destination');
+
+    DateTime orderDt = DateTime.now();
+    if (dateTime != null) {
+      final parsed = DateTime.tryParse(dateTime!.replaceAll('/', '-'));
+      if (parsed != null) orderDt = parsed;
+    }
+
+    return OrderModel(
+      orderId: id.toString(),
+      storeName: pickupTitle,
+      storeImageUrl: '',
+      storeLatitude: fromLatitude != 0.0 ? fromLatitude : null,
+      storeLongitude: fromLongitude != 0.0 ? fromLongitude : null,
+      deliveryAddress: dropoffTitle,
+      destinationFriendlyLocation: toFriendlyLocation ?? toBranch,
+      deliveryLatitude: toLatitude != 0.0 ? toLatitude : null,
+      deliveryLongitude: toLongitude != 0.0 ? toLongitude : null,
+      status: progStatus,
+      estimatedArrival: '30-45 mins',
+      driver: driverInfo,
+      items: const [],
+      subtotal: totalPrice > 0 ? totalPrice : 0.0,
+      deliveryFee: (kmPrice * totalKm) > 0 ? (kmPrice * totalKm) : totalPrice,
+      taxAndFees: 0.0,
+      total: totalPrice,
+      currency: 'ETB',
+      storeType: StoreType.corporate,
+      orderDate: orderDt,
+    );
+  }
 }

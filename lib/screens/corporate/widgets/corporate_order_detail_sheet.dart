@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../constants/pages.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../models/corporate_model.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -332,6 +333,28 @@ class CorporateOrderDetailSheet extends StatelessWidget {
                     ),
                   ),
                 ],
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Get.back();
+                      Get.toNamed(AppRoutes.tracking, arguments: order.toOrderModel());
+                    },
+                    icon: const Icon(Icons.location_searching_rounded, size: 20),
+                    label: const Text(
+                      'Track Driver Progress',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      elevation: 2,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),

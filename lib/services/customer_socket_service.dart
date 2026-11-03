@@ -215,7 +215,7 @@ class CustomerSocketService extends GetxService {
   }
 
   /// Authenticate and join order tracking room
-  void joinOrder(String orderId, {Function(bool success, dynamic data)? onResult}) {
+  void joinOrder(String orderId, {Function(bool success, dynamic data)? onResult, String? orderType}) {
     currentOrderId.value = orderId;
 
     if (isTestMode || isInTest) {
@@ -235,7 +235,7 @@ class CustomerSocketService extends GetxService {
     final userId = ConfigPreference.getUserId()?.toString() ?? '';
     final token = ConfigPreference.getAccessToken() ?? '';
 
-    _logger.i('Requesting tracking join for Order #$orderId (customer: $userId)...');
+    _logger.i('Requesting tracking join for Order #$orderId (customer: $userId, type: ${orderType ?? "delivery"})...');
 
     _socket?.emitWithAck(
       'order:join',
@@ -243,6 +243,7 @@ class CustomerSocketService extends GetxService {
         'orderId': orderId,
         'userId': userId,
         'role': 'customer',
+        if (orderType != null && orderType.isNotEmpty) 'orderType': orderType,
         'token': token,
       },
       ack: (response) {

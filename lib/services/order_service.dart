@@ -1,4 +1,7 @@
+import '../config/dio_config.dart';
 import '../constants/api_endpoints.dart';
+import '../models/corporate_model.dart';
+import '../models/courier_model.dart';
 import '../models/order.dart';
 import '../models/property_delivery_option.dart';
 import '../models/store.dart';
@@ -217,6 +220,7 @@ class OrderService {
   static Future<OrderModel?> fetchOrderDetail(
     dynamic orderId, {
     OrderModel? existingOrder,
+    String? orderType,
   }) async {
     final cleanId = orderId.toString().replaceAll(RegExp(r'[^0-9]'), '');
     final targetId = cleanId.isNotEmpty ? cleanId : orderId.toString();
@@ -225,6 +229,47 @@ class OrderService {
     await PropertyService.ensurePropertiesCached();
 
     OrderModel? order;
+    final isCourierReq = orderType?.toLowerCase().contains('courier') == true ||
+        orderType?.toLowerCase().contains('courir') == true;
+    final isCorporateReq = orderType?.toLowerCase().contains('company') == true ||
+        orderType?.toLowerCase().contains('corporate') == true;
+
+    if (isCourierReq) {
+      await DioService.dioGet(
+        path: ApiEndpoints.courierOrderDetail(targetId),
+        onSuccess: (response) {
+          final resData = response.data;
+          if (resData is Map<String, dynamic>) {
+            final rawData = resData['data'];
+            if (rawData is List && rawData.isNotEmpty && rawData.first is Map<String, dynamic>) {
+              order = CourierOrderModel.fromJson(rawData.first).toOrderModel();
+            } else if (rawData is Map<String, dynamic>) {
+              order = CourierOrderModel.fromJson(rawData).toOrderModel();
+            }
+          }
+        },
+      );
+      return order;
+    }
+
+    if (isCorporateReq) {
+      await DioService.dioGet(
+        path: ApiEndpoints.corporateOrderDetail(targetId),
+        onSuccess: (response) {
+          final resData = response.data;
+          if (resData is Map<String, dynamic>) {
+            final rawData = resData['data'];
+            if (rawData is List && rawData.isNotEmpty && rawData.first is Map<String, dynamic>) {
+              order = CompanyOrderModel.fromJson(rawData.first).toOrderModel();
+            } else if (rawData is Map<String, dynamic>) {
+              order = CompanyOrderModel.fromJson(rawData).toOrderModel();
+            }
+          }
+        },
+      );
+      return order;
+    }
+
     await DioService.dioGet(
       path: ApiEndpoints.orderDetail(targetId),
       onSuccess: (response) async {
@@ -280,6 +325,42 @@ class OrderService {
         }
       },
     );
+
+    // Fallback chain for non-standard orders when orderType is unspecified and not in test mode
+    if ((order == null || (order!.items.isEmpty && order!.storeName.isEmpty)) &&
+        orderType == null &&
+        !DioConfig.isTestMode) {
+      // Try Courier endpoint: GET /courirer-order/{id}
+      await DioService.dioGet(
+        path: '${ApiEndpoints.courierOrder}/$targetId',
+        onSuccess: (response) {
+          final resData = response.data;
+          if (resData is Map<String, dynamic> && resData['data'] is List && (resData['data'] as List).isNotEmpty) {
+            final first = (resData['data'] as List).first;
+            if (first is Map<String, dynamic>) {
+              order = CourierOrderModel.fromJson(first).toOrderModel();
+            }
+          }
+        },
+      );
+
+      if (order == null || (order!.items.isEmpty && order!.storeName.isEmpty)) {
+        // Try Corporate endpoint: GET /company-order/{id}
+        await DioService.dioGet(
+          path: '${ApiEndpoints.companyOrder}/$targetId',
+          onSuccess: (response) {
+            final resData = response.data;
+            if (resData is Map<String, dynamic> && resData['data'] is List && (resData['data'] as List).isNotEmpty) {
+              final first = (resData['data'] as List).first;
+              if (first is Map<String, dynamic>) {
+                order = CompanyOrderModel.fromJson(first).toOrderModel();
+              }
+            }
+          },
+        );
+      }
+    }
+
     return order;
   }
 }

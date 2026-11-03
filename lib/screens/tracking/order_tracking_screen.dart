@@ -6,6 +6,7 @@ import '../../controllers/order_controller.dart';
 import '../../constants/pages.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/order.dart';
+import '../../models/store.dart';
 import '../../services/customer_socket_service.dart';
 import '../../services/order_service.dart';
 import '../../utils/api_call_status.dart';
@@ -53,7 +54,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       final targetId = cleanId.isNotEmpty ? cleanId : order.orderId;
       _joinedOrderId = targetId;
       if (Get.isRegistered<CustomerSocketService>()) {
-        CustomerSocketService.to.joinOrder(targetId);
+        final orderType = order.storeType == StoreType.courier
+            ? 'courier'
+            : (order.storeType == StoreType.corporate ? 'corporate' : 'delivery');
+        CustomerSocketService.to.joinOrder(targetId, orderType: orderType);
       }
     }
   }

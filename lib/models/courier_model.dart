@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../core/theme/app_colors.dart';
+import 'order.dart';
+import 'store.dart';
 
 /// Request body for creating a courier delivery order: POST /courirer-order
 class CourierOrderCreateRequest {
@@ -342,5 +344,59 @@ class CourierOrderModel {
     } catch (_) {
       return dateTime!;
     }
+  }
+
+  /// Converts courier order to unified OrderModel for seamless map and driver tracking
+  OrderModel toOrderModel() {
+    final progStatus = OrderModel.parseStatus(status);
+    final driverInfo = hasDriverAssigned
+        ? DriverInfo(
+            name: driverFullName,
+            vehicle: carType,
+            plateNumber: '',
+            rating: 4.9,
+            photoUrl: '',
+            phone: driverPhone ?? '',
+          )
+        : null;
+
+    final pickupTitle = (fromAddress != null && fromAddress!.trim().isNotEmpty)
+        ? fromAddress!
+        : (senderFullName.isNotEmpty && senderFullName != 'Sender'
+            ? 'Pickup ($senderFullName)'
+            : 'Courier Pickup');
+
+    final dropoffTitle = (toAddress != null && toAddress!.trim().isNotEmpty)
+        ? toAddress!
+        : (receiverName.isNotEmpty ? 'Dropoff ($receiverName)' : 'Courier Delivery Point');
+
+    DateTime orderDt = DateTime.now();
+    if (dateTime != null) {
+      final parsed = DateTime.tryParse(dateTime!.replaceAll('/', '-'));
+      if (parsed != null) orderDt = parsed;
+    }
+
+    return OrderModel(
+      orderId: id.toString(),
+      storeName: pickupTitle,
+      storeImageUrl: '',
+      storeLatitude: fromLatitude != 0.0 ? fromLatitude : null,
+      storeLongitude: fromLongitude != 0.0 ? fromLongitude : null,
+      deliveryAddress: dropoffTitle,
+      destinationFriendlyLocation: toFriendlyLocation ?? toAddress,
+      deliveryLatitude: toLatitude != 0.0 ? toLatitude : null,
+      deliveryLongitude: toLongitude != 0.0 ? toLongitude : null,
+      status: progStatus,
+      estimatedArrival: '25-35 mins',
+      driver: driverInfo,
+      items: const [],
+      subtotal: totalPrice > (kmPrice * totalKm) ? totalPrice - (kmPrice * totalKm) : totalPrice,
+      deliveryFee: (kmPrice * totalKm) > 0 ? (kmPrice * totalKm) : totalPrice,
+      taxAndFees: 0.0,
+      total: totalPrice,
+      currency: 'ETB',
+      storeType: StoreType.courier,
+      orderDate: orderDt,
+    );
   }
 }

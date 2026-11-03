@@ -310,46 +310,74 @@ class OrderNotificationRetryService {
         return false;
 
       case OrderNotificationType.corporate:
-        final uid = userId ?? ConfigPreference.getUserId() ?? 0;
-        if (uid <= 0) return false;
-
+        // 1. Primary: Direct single-order detail check at GET /company-order/$orderId
         try {
-          final pending = await CorporateService.fetchPendingOrders(uid);
-          final match = pending.where((o) => o.id == orderId).firstOrNull;
-          if (match != null) {
-            // Status != '0' or driver assigned means status is 1 or beyond
-            return match.status != '0' || match.hasDriver;
-          }
-
-          // If not in pending, check finished
-          final finished = await CorporateService.fetchFinishedOrders(uid);
-          if (finished.any((o) => o.id == orderId)) {
-            return true;
+          final corporateOrder = await CorporateService.fetchCompanyOrderDetail(orderId);
+          if (corporateOrder != null) {
+            final rawStatus = corporateOrder.status.trim().toLowerCase();
+            final isNotPending = rawStatus != '0' && rawStatus != 'pending' && rawStatus != 'placed';
+            if (isNotPending || corporateOrder.hasDriver) {
+              _logger.i('✅ Corporate order $orderId status is $rawStatus (hasDriver: ${corporateOrder.hasDriver}) via direct /company-order endpoint');
+              return true;
+            }
           }
         } catch (e) {
-          _logger.w('Failed checking corporate order status: $e');
+          _logger.w('Direct corporate order detail check at /company-order/$orderId failed: $e');
+        }
+
+        // 2. Secondary fallback: Check user's pending and finished corporate lists
+        final uid = userId ?? ConfigPreference.getUserId() ?? 0;
+        if (uid > 0) {
+          try {
+            final pending = await CorporateService.fetchPendingOrders(uid);
+            final match = pending.where((o) => o.id == orderId).firstOrNull;
+            if (match != null) {
+              return match.status != '0' || match.hasDriver;
+            }
+
+            final finished = await CorporateService.fetchFinishedOrders(uid);
+            if (finished.any((o) => o.id == orderId)) {
+              return true;
+            }
+          } catch (e) {
+            _logger.w('Fallback corporate list check failed: $e');
+          }
         }
         return false;
 
       case OrderNotificationType.courier:
-        final uid = userId ?? ConfigPreference.getUserId() ?? 0;
-        if (uid <= 0) return false;
-
+        // 1. Primary: Direct single-order detail check at GET /courirer-order/$orderId
         try {
-          final active = await CourierService.fetchActiveOrders(uid);
-          final match = active.where((o) => o.id == orderId).firstOrNull;
-          if (match != null) {
-            // Status != '0' or rider assigned means status is 1 or beyond
-            return match.status != '0' || match.hasDriverAssigned;
-          }
-
-          // If not in active, check past orders
-          final past = await CourierService.fetchPastOrders(uid);
-          if (past.any((o) => o.id == orderId)) {
-            return true;
+          final courierOrder = await CourierService.fetchCourierOrderDetail(orderId);
+          if (courierOrder != null) {
+            final rawStatus = courierOrder.status.trim().toLowerCase();
+            final isNotPending = rawStatus != '0' && rawStatus != 'pending' && rawStatus != 'placed';
+            if (isNotPending || courierOrder.hasDriverAssigned) {
+              _logger.i('✅ Courier order $orderId status is $rawStatus (hasDriver: ${courierOrder.hasDriverAssigned}) via direct /courirer-order endpoint');
+              return true;
+            }
           }
         } catch (e) {
-          _logger.w('Failed checking courier order status: $e');
+          _logger.w('Direct courier order detail check at /courirer-order/$orderId failed: $e');
+        }
+
+        // 2. Secondary fallback: Check user's active and past courier lists
+        final uid = userId ?? ConfigPreference.getUserId() ?? 0;
+        if (uid > 0) {
+          try {
+            final active = await CourierService.fetchActiveOrders(uid);
+            final match = active.where((o) => o.id == orderId).firstOrNull;
+            if (match != null) {
+              return match.status != '0' || match.hasDriverAssigned;
+            }
+
+            final past = await CourierService.fetchPastOrders(uid);
+            if (past.any((o) => o.id == orderId)) {
+              return true;
+            }
+          } catch (e) {
+            _logger.w('Fallback courier list check failed: $e');
+          }
         }
         return false;
     }

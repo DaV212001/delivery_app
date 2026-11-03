@@ -113,6 +113,30 @@ class CorporateService {
     return list;
   }
 
+  /// Fetch details of a single corporate order: GET /company-order/$orderId
+  static Future<CompanyOrderModel?> fetchCompanyOrderDetail(dynamic orderId) async {
+    CompanyOrderModel? order;
+    await DioService.dioGet(
+      path: ApiEndpoints.corporateOrderDetail(orderId),
+      onSuccess: (response) {
+        final resData = response.data;
+        if (resData is Map<String, dynamic>) {
+          final rawData = resData['data'];
+          if (rawData is List && rawData.isNotEmpty) {
+            final first = rawData.first;
+            if (first is Map<String, dynamic>) {
+              order = CompanyOrderModel.fromJson(first);
+            }
+          } else if (rawData is Map<String, dynamic>) {
+            order = CompanyOrderModel.fromJson(rawData);
+          }
+        }
+      },
+      onFailure: (error, response) {},
+    );
+    return order;
+  }
+
   /// Create a new corporate delivery order
   static Future<void> createCompanyOrder({
     required int receiverBranchId,

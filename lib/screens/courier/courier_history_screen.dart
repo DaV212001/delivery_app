@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../constants/pages.dart';
 import '../../controllers/courier_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/courier_model.dart';
@@ -379,13 +380,36 @@ class CourierOrderCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Text(
-                '${order.totalPrice.toStringAsFixed(2)} ETB',
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${order.totalPrice.toStringAsFixed(2)} ETB',
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                  if (order.status != '4' && order.status != '5' && order.status != '-1') ...[
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      height: 32,
+                      child: ElevatedButton.icon(
+                        onPressed: () => Get.toNamed(AppRoutes.tracking, arguments: order.toOrderModel()),
+                        icon: const Icon(Icons.location_searching_rounded, size: 14),
+                        label: const Text('Track Live', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),

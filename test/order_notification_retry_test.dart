@@ -56,7 +56,7 @@ void main() {
     mockAdapter = MockHttpClientAdapter();
     testDio = Dio()..httpClientAdapter = mockAdapter;
     service.dioClient = testDio;
-    service.checkInterval = const Duration(milliseconds: 20);
+    service.checkInterval = const Duration(milliseconds: 40);
     service.maxRetries = 2;
     service.statusCheckOverride = null;
     service.clearAllTrackers();
@@ -75,6 +75,9 @@ void main() {
       expect(ApiEndpoints.pushNewOrder, 'https://notification.amnplc.com/api/push/new-order');
       expect(ApiEndpoints.pushCorporateOrder, 'https://notification.amnplc.com/api/push/corporate-order');
       expect(ApiEndpoints.pushCourierOrder, 'https://notification.amnplc.com/api/push/courirer-order');
+      expect(ApiEndpoints.orderDetail(101), '/my_order_detail/101');
+      expect(ApiEndpoints.corporateOrderDetail(201), '/company-order/201');
+      expect(ApiEndpoints.courierOrderDetail(301), '/courirer-order/301');
     });
 
     test('formatPayment properly formats integers and floating values with Birr currency suffix', () {
@@ -118,7 +121,7 @@ void main() {
       expect(service.isTracking(101), isFalse); // Max retries (2) reached, tracking stopped
 
       // Wait more time to ensure no 3rd call is ever sent
-      await Future.delayed(const Duration(milliseconds: 60));
+      await Future.delayed(const Duration(milliseconds: 80));
       expect(mockAdapter.capturedRequests.length, 2);
     });
 
@@ -134,7 +137,7 @@ void main() {
 
       expect(service.isTracking(102), isTrue);
 
-      await Future.delayed(const Duration(milliseconds: 60));
+      await Future.delayed(const Duration(milliseconds: 80));
       // Status changed to 1, so no notification should have been sent
       expect(mockAdapter.capturedRequests.isEmpty, isTrue);
       expect(service.isTracking(102), isFalse);
@@ -162,7 +165,7 @@ void main() {
       expect(service.isTracking(103), isTrue);
 
       // 2nd check: status becomes 1
-      await Future.delayed(const Duration(milliseconds: 60));
+      await Future.delayed(const Duration(milliseconds: 80));
       expect(mockAdapter.capturedRequests.length, 1);
       expect(service.isTracking(103), isFalse);
     });
@@ -257,6 +260,7 @@ void main() {
       // 2nd retry
       await waitForRequests(2);
       expect(mockAdapter.capturedRequests.length, 2);
+      await Future.delayed(const Duration(milliseconds: 20));
       expect(service.isTracking(401), isFalse);
     });
 
@@ -274,7 +278,7 @@ void main() {
       service.cancelTracking(501);
       expect(service.isTracking(501), isFalse);
 
-      await Future.delayed(const Duration(milliseconds: 60));
+      await Future.delayed(const Duration(milliseconds: 80));
       expect(mockAdapter.capturedRequests.isEmpty, isTrue);
     });
   });

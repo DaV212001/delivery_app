@@ -285,4 +285,28 @@ class CourierService {
     );
     return list;
   }
+
+  /// Fetch details of a single courier order: GET /courirer-order/$orderId
+  static Future<CourierOrderModel?> fetchCourierOrderDetail(dynamic orderId) async {
+    CourierOrderModel? order;
+    await DioService.dioGet(
+      path: ApiEndpoints.courierOrderDetail(orderId),
+      onSuccess: (response) {
+        final resData = response.data;
+        if (resData is Map<String, dynamic>) {
+          final rawData = resData['data'];
+          if (rawData is List && rawData.isNotEmpty) {
+            final first = rawData.first;
+            if (first is Map<String, dynamic>) {
+              order = CourierOrderModel.fromJson(first);
+            }
+          } else if (rawData is Map<String, dynamic>) {
+            order = CourierOrderModel.fromJson(rawData);
+          }
+        }
+      },
+      onFailure: (error, response) {},
+    );
+    return order;
+  }
 }

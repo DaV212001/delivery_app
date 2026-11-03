@@ -12,6 +12,7 @@ enum StoreType {
   flowers,
   restaurant,
   courier,
+  corporate,
   retail,
 }
 

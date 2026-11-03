@@ -80,12 +80,15 @@ class ApiEndpoints {
   static const String itemList = '/item-list';
   static String companyDeliveryOptions(dynamic companyId) => '/company-delivery-options-by-company-id/$companyId';
   static const String companyOrder = '/company-order';
+  static String corporateOrderDetail(dynamic orderId) => '/company-order/$orderId';
+  static String updateCorporateOrder(dynamic orderId) => '/corporate-order/$orderId/update-order';
   static String pendingCompanyOrders(dynamic userId) => '/pending-company-order/$userId';
   static String finishedCompanyOrders(dynamic userId) => '/finihsed-company-order/$userId';
   static String branchByUserId(dynamic userId) => '/branch-by-user-id/$userId';
 
   // Courier endpoints
   static const String courierOrder = '/courirer-order';
+  static String courierOrderDetail(dynamic orderId) => '/courirer-order/$orderId';
   static String activeCourierOrders(dynamic userId) => '/my_active_courirer_order/$userId';
   static String pastCourierOrders(dynamic userId) => '/my_past_courirer_order/$userId';
   static const String courierDeliveryOptions = '/courirer_delivery_option';
