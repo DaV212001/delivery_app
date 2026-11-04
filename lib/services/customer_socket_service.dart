@@ -146,9 +146,10 @@ class CustomerSocketService extends GetxService {
         if (data is Map) {
           final status = data['status']?.toString();
           final statusName = data['statusName']?.toString();
+          final rawOrderId = data['orderId']?.toString();
           if (status != null) {
             liveOrderStatus.value = status;
-            _syncOrderStatus(status);
+            _syncOrderStatus(status, orderId: rawOrderId);
             final progress = OrderModel.parseStatus(status);
             _showNotification(
               'Order Update',
@@ -180,6 +181,10 @@ class CustomerSocketService extends GetxService {
             'Your delivery driver is now broadcasting live location.',
             Colors.green.shade700,
           );
+          final targetId = currentOrderId.value;
+          if (targetId.isNotEmpty && Get.isRegistered<OrderController>()) {
+            Get.find<OrderController>().fetchDetail(targetId);
+          }
         }
       });
 
@@ -336,11 +341,15 @@ class CustomerSocketService extends GetxService {
     isDriverOnline.value = false;
   }
 
-  void _syncOrderStatus(String status) {
+  void _syncOrderStatus(String status, {String? orderId}) {
     if (!Get.isRegistered<OrderController>()) return;
     final orderCtrl = Get.find<OrderController>();
     final parsedStatus = OrderModel.parseStatus(status);
-    orderCtrl.updateActiveOrderStatus(parsedStatus);
+    final targetId = orderId ?? (currentOrderId.value.isNotEmpty ? currentOrderId.value : null);
+    orderCtrl.updateActiveOrderStatus(parsedStatus, orderId: targetId);
+    if (targetId != null && targetId.isNotEmpty) {
+      orderCtrl.fetchDetail(targetId);
+    }
   }
 
   String _getStatusNotificationMessage(OrderProgressStatus status) {

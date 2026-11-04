@@ -349,7 +349,7 @@ class OrderController extends GetxController {
     }
   }
 
-  void updateActiveOrderStatus(OrderProgressStatus newStatus, {String? orderId}) {
+  void updateActiveOrderStatus(OrderProgressStatus newStatus, {String? orderId, bool refetch = false}) {
     if (orderId != null) {
       final clean = orderId.replaceAll(RegExp(r'[^0-9]'), '');
       final idx = activeOrders.indexWhere(
@@ -364,6 +364,12 @@ class OrderController extends GetxController {
     if (activeOrder.value != null) {
       activeOrder.value = activeOrder.value!.copyWith(status: newStatus);
       activeOrder.refresh();
+    }
+    if (refetch) {
+      final targetId = orderId ?? activeOrder.value?.orderId;
+      if (targetId != null && targetId.isNotEmpty) {
+        fetchDetail(targetId);
+      }
     }
   }
 

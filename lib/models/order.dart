@@ -45,6 +45,15 @@ enum OrderProgressStatus {
 
   bool get isDelivered => this == OrderProgressStatus.delivered;
   bool get isCancelled => this == OrderProgressStatus.cancelled;
+
+  /// True if order has progressed to accepted, picked up / on the way, or delivered
+  bool get hasDriverAccepted =>
+      this == OrderProgressStatus.accepted ||
+      this == OrderProgressStatus.driverToShop ||
+      this == OrderProgressStatus.driverToYou ||
+      this == OrderProgressStatus.delivered;
+
+  bool get isAcceptedOrBeyond => hasDriverAccepted;
 }
 
 class DriverInfo {
@@ -321,6 +330,10 @@ class OrderModel {
     }
   }
 
+  /// True if order has been accepted by a driver (code >= 1 and not cancelled)
+  bool get hasDriverAccepted => status.hasDriverAccepted;
+  bool get isAccepted => status.hasDriverAccepted;
+
   /// Parses status codes from API / Socket:
   /// 0: Order placed / Waiting for driver
   /// 1: Accepted
@@ -511,7 +524,7 @@ class OrderModel {
       storeLongitude: double.tryParse(json['store_longitude']?.toString() ?? '') ?? cachedStore?.longitude,
       deliveryLatitude: double.tryParse(json['latitude']?.toString() ?? ''),
       deliveryLongitude: double.tryParse(json['longitude']?.toString() ?? ''),
-      driver: DriverInfo.tryParse(json),
+      driver: orderStatus == OrderProgressStatus.placed ? null : DriverInfo.tryParse(json),
       currency: rawCurrency,
     );
   }
@@ -734,13 +747,17 @@ class OrderModel {
         ? (effectiveTotal - subtotal - deliveryFee)
         : 0.0;
 
-    final driverInfo = DriverInfo.tryParse(statusJson);
+    final driverInfo = orderStatus == OrderProgressStatus.placed
+        ? null
+        : DriverInfo.tryParse(statusJson);
     final bool hasExplicitDriverField = statusJson.containsKey('driver_id') ||
         statusJson.containsKey('driver') ||
         statusJson.containsKey('driver_f_name');
 
     DriverInfo? effectiveDriver = driverInfo;
-    if (effectiveDriver == null) {
+    if (orderStatus == OrderProgressStatus.placed) {
+      effectiveDriver = null;
+    } else if (effectiveDriver == null) {
       if (!hasExplicitDriverField) {
         effectiveDriver = existingOrder?.driver;
       }

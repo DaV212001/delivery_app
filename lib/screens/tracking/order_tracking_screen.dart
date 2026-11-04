@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../constants/app_assets.dart';
@@ -8,6 +9,7 @@ import '../../core/theme/app_colors.dart';
 import '../../models/order.dart';
 import '../../models/store.dart';
 import '../../services/customer_socket_service.dart';
+import '../../services/notification_service.dart';
 import '../../services/order_service.dart';
 import '../../utils/api_call_status.dart';
 import '../../widgets/common/app_widgets.dart';
@@ -27,6 +29,83 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   OrderModel? _orderDetail;
   bool _isLoadingDetail = false;
 
+  StreamSubscription? _fcmNotificationSub;
+  Worker? _socketStatusWorker;
+  Worker? _socketDriverWorker;
+  Worker? _activeOrderWorker;
+
+  String get _targetOrderId {
+    final order = _orderDetail ??
+        (Get.arguments is OrderModel ? Get.arguments as OrderModel : null) ??
+        (Get.isRegistered<OrderController>()
+            ? Get.find<OrderController>().activeOrder.value
+            : null);
+    if (order != null) {
+      final cleanId = order.orderId.replaceAll(RegExp(r'[^0-9]'), '');
+      return cleanId.isNotEmpty ? cleanId : order.orderId;
+    } else if (Get.arguments is String) {
+      final cleanId = (Get.arguments as String).replaceAll(RegExp(r'[^0-9]'), '');
+      return cleanId.isNotEmpty ? cleanId : (Get.arguments as String);
+    } else if (Get.arguments is Map && Get.arguments['id'] != null) {
+      final cleanId = Get.arguments['id'].toString().replaceAll(RegExp(r'[^0-9]'), '');
+      return cleanId.isNotEmpty ? cleanId : Get.arguments['id'].toString();
+    }
+    return '';
+  }
+
+  bool _isMatchingOrder(OrderModel candidate) {
+    final target = _targetOrderId;
+    if (target.isEmpty) return true;
+    final candidateId = candidate.orderId.replaceAll(RegExp(r'[^0-9]'), '');
+    return candidateId.isEmpty || candidateId == target;
+  }
+
+  void _setupNotificationListeners() {
+    // 1. FCM status update push notification listener
+    _fcmNotificationSub = NotificationService.instance.onOrderStatusNotification.listen((data) {
+      if (!mounted) return;
+      final rawOrderId = data['order_id'] ?? data['orderId'] ?? data['id'] ?? data['orderCode'];
+      if (rawOrderId == null) {
+        _fetchFullOrderDetail();
+      } else {
+        final clean = rawOrderId.toString().replaceAll(RegExp(r'[^0-9]'), '');
+        final target = _targetOrderId;
+        if (clean.isEmpty || target.isEmpty || clean == target) {
+          _fetchFullOrderDetail();
+        }
+      }
+    });
+
+    // 2. Real-time socket status updates
+    if (Get.isRegistered<CustomerSocketService>()) {
+      final socket = CustomerSocketService.to;
+      _socketStatusWorker = ever(socket.liveOrderStatus, (status) {
+        if (status.isNotEmpty && mounted) {
+          _fetchFullOrderDetail();
+        }
+      });
+      _socketDriverWorker = ever(socket.isDriverOnline, (online) {
+        if (online && mounted) {
+          _fetchFullOrderDetail();
+        }
+      });
+    }
+
+    // 3. Keep local state synchronized with active order changes
+    if (Get.isRegistered<OrderController>()) {
+      final oc = Get.find<OrderController>();
+      _activeOrderWorker = ever(oc.activeOrder, (updated) {
+        if (updated != null && mounted && _isMatchingOrder(updated)) {
+          if (_orderDetail != updated) {
+            setState(() {
+              _orderDetail = updated;
+            });
+          }
+        }
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -40,6 +119,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _joinActiveOrder();
       _fetchFullOrderDetail();
+      _setupNotificationListeners();
     });
   }
 
@@ -113,6 +193,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
   @override
   void dispose() {
+    _fcmNotificationSub?.cancel();
+    _socketStatusWorker?.dispose();
+    _socketDriverWorker?.dispose();
+    _activeOrderWorker?.dispose();
     if (_joinedOrderId != null && Get.isRegistered<CustomerSocketService>()) {
       CustomerSocketService.to.leaveOrder(_joinedOrderId!);
     }
@@ -220,7 +304,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
     return Obx(() {
       final active = orderController.activeOrder.value;
-      final currentOrder = _orderDetail ?? active;
+      final isMatchingActive = active != null && _isMatchingOrder(active);
+      final currentOrder = isMatchingActive ? active : (_orderDetail ?? active);
 
       return _buildScaffold(
         context: context,
@@ -719,8 +804,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                         ),
                       ),
 
-                    // Courier Card (If available)
-                    if (order.driver != null)
+                    // Courier Card (Only visible once the order has been accepted by a driver)
+                    if (order.status.hasDriverAccepted && order.driver != null)
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 6.0),
                         child: Container(
@@ -790,7 +875,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      '${order.driver!.vehicle} • ${order.driver!.plateNumber}',
+                                      order.driver!.plateNumber.isNotEmpty
+                                          ? '${order.driver!.vehicle} • ${order.driver!.plateNumber}'
+                                          : order.driver!.vehicle,
                                       style: theme.textTheme.bodySmall?.copyWith(
                                         color: theme.colorScheme.onSurfaceVariant,
                                       ),

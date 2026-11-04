@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -8,7 +9,9 @@ import 'package:logger/logger.dart';
 
 import '../config/storage_config.dart';
 import '../constants/api_endpoints.dart';
+import '../controllers/order_controller.dart';
 import '../firebase_options.dart';
+import '../models/order.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -35,6 +38,13 @@ class NotificationService {
   final Logger _logger = Logger();
   final Rx<String?> fcmToken = Rx<String?>(null);
   final RxBool isFetchingToken = false.obs;
+
+  final StreamController<Map<String, dynamic>> _orderStatusNotificationController =
+      StreamController<Map<String, dynamic>>.broadcast();
+
+  /// Stream of incoming push notification payloads for order status transitions
+  Stream<Map<String, dynamic>> get onOrderStatusNotification =>
+      _orderStatusNotificationController.stream;
 
   final Dio _dio = Dio(
     BaseOptions(
@@ -276,6 +286,8 @@ class NotificationService {
     final title = message.notification?.title ?? message.data['title']?.toString() ?? 'AMN Delivery Update';
     final body = message.notification?.body ?? message.data['body']?.toString() ?? 'You have a new update for your order.';
 
+    _processOrderStatusUpdate(message.data);
+
     if (!isInTest && Get.context != null) {
       Get.snackbar(
         title,
@@ -292,10 +304,38 @@ class NotificationService {
   }
 
   void _handleNotificationTap(RemoteMessage message) {
-    // Navigate or route based on message.data if order_id is present
     final orderId = message.data['order_id'] ?? message.data['orderId'];
     if (orderId != null) {
       _logger.i('Notification tapped with orderId: $orderId');
     }
+    _processOrderStatusUpdate(message.data);
+  }
+
+  void _processOrderStatusUpdate(Map<String, dynamic> data) {
+    if (data.isEmpty) return;
+    _logger.i('🔔 Received order notification payload: $data');
+    _orderStatusNotificationController.add(data);
+
+    final rawOrderId = data['order_id'] ??
+        data['orderId'] ??
+        data['id'] ??
+        data['orderCode'];
+    final statusStr = data['status']?.toString();
+
+    if (Get.isRegistered<OrderController>()) {
+      final orderCtrl = Get.find<OrderController>();
+      final targetId = rawOrderId?.toString() ?? orderCtrl.activeOrder.value?.orderId;
+      if (statusStr != null) {
+        final parsedStatus = OrderModel.parseStatus(statusStr);
+        orderCtrl.updateActiveOrderStatus(parsedStatus, orderId: targetId);
+      } else if (targetId != null && targetId.isNotEmpty) {
+        orderCtrl.fetchDetail(targetId);
+      }
+    }
+  }
+
+  @visibleForTesting
+  void emitNotificationForTesting(Map<String, dynamic> data) {
+    _processOrderStatusUpdate(data);
   }
 }
