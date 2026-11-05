@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -6,6 +7,7 @@ import '../config/dio_config.dart';
 import '../config/storage_config.dart';
 import '../controllers/cart_controller.dart';
 import '../controllers/restaurant_controller.dart';
+import '../utils/location_utils.dart';
 import 'gebeta_location_service.dart';
 
 class UserLocationService extends GetxService with WidgetsBindingObserver {
@@ -17,8 +19,11 @@ class UserLocationService extends GetxService with WidgetsBindingObserver {
   final currentAddress = ''.obs;
 
   final isUpdatingLocation = false.obs;
+  final isTrackingLocation = false.obs;
   final locationPermissionDenied = false.obs;
   final locationServiceDisabled = false.obs;
+
+  StreamSubscription<Position>? _positionStreamSubscription;
 
   static bool get isInTest =>
       Get.testMode || Platform.environment.containsKey('FLUTTER_TEST');
@@ -30,10 +35,12 @@ class UserLocationService extends GetxService with WidgetsBindingObserver {
     loadCachedLocation();
     // Automatically update location when service initializes (app opens)
     updateLocation();
+    startLocationTracking();
   }
 
   @override
   void onClose() {
+    stopLocationTracking();
     WidgetsBinding.instance.removeObserver(this);
     super.onClose();
   }
@@ -42,7 +49,59 @@ class UserLocationService extends GetxService with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       updateLocation();
+      startLocationTracking();
+    } else if (state == AppLifecycleState.paused) {
+      stopLocationTracking();
     }
+  }
+
+  /// Start continuous GPS location tracking with a sensible distance filter
+  void startLocationTracking() {
+    if (isInTest || DioConfig.isTestMode) return;
+    if (_positionStreamSubscription != null) return;
+
+    try {
+      const locationSettings = LocationSettings(
+        accuracy: LocationAccuracy.medium,
+        distanceFilter: 25, // Update when user moves 25 meters
+      );
+
+      _positionStreamSubscription = Geolocator.getPositionStream(
+        locationSettings: locationSettings,
+      ).listen(
+        (pos) {
+          _onTrackedPositionUpdate(pos);
+        },
+        onError: (_) {
+          isTrackingLocation.value = false;
+        },
+      );
+      isTrackingLocation.value = true;
+    } catch (_) {
+      isTrackingLocation.value = false;
+    }
+  }
+
+  /// Stop continuous GPS location tracking
+  void stopLocationTracking() {
+    _positionStreamSubscription?.cancel();
+    _positionStreamSubscription = null;
+    isTrackingLocation.value = false;
+  }
+
+  void _onTrackedPositionUpdate(Position pos) {
+    final oldPos = currentPosition.value;
+    if (oldPos != null) {
+      final distance = LocationUtils.calculateDistanceInKm(
+        lat1: oldPos.latitude,
+        lon1: oldPos.longitude,
+        lat2: pos.latitude,
+        lon2: pos.longitude,
+      );
+      // Ignore minor GPS jitter (< 20 meters)
+      if (distance < 0.02) return;
+    }
+    _onPositionObtained(pos, saveAddress: true);
   }
 
   /// Load cached location from persistent storage for immediate availability
@@ -57,7 +116,14 @@ class UserLocationService extends GetxService with WidgetsBindingObserver {
         currentLongitude.value = lng;
       }
       if (addr != null && addr.isNotEmpty) {
-        currentAddress.value = addr;
+        final prettified = LocationUtils.prettifyAddress(addr);
+        currentAddress.value = prettified;
+        if (Get.isRegistered<CartController>()) {
+          final cart = Get.find<CartController>();
+          if (cart.deliveryAddress.value.isEmpty) {
+            cart.deliveryAddress.value = prettified;
+          }
+        }
       }
     } catch (_) {}
   }
@@ -118,6 +184,7 @@ class UserLocationService extends GetxService with WidgetsBindingObserver {
         await _onPositionObtained(freshPos, saveAddress: true);
         locationPermissionDenied.value = false;
         locationServiceDisabled.value = false;
+        startLocationTracking();
         return freshPos;
       } else {
         final recheckService = await Geolocator.isLocationServiceEnabled();
@@ -165,17 +232,21 @@ class UserLocationService extends GetxService with WidgetsBindingObserver {
             pos.longitude,
           );
           if (resolved.isNotEmpty) {
-            addr = resolved;
+            addr = LocationUtils.prettifyAddress(resolved);
           }
         }
+        final previousAddress = currentAddress.value;
         currentAddress.value = addr;
         await ConfigPreference.setUserAddress(addr);
 
-        // Update cart delivery address if empty
+        // Update cart delivery address if empty or synced to current GPS address
         if (Get.isRegistered<CartController>()) {
           final cart = Get.find<CartController>();
-          if (cart.deliveryAddress.value.isEmpty) {
+          if (cart.deliveryAddress.value.isEmpty ||
+              cart.deliveryAddress.value == previousAddress) {
             cart.deliveryAddress.value = addr;
+            cart.customerLatitude.value = pos.latitude;
+            cart.customerLongitude.value = pos.longitude;
           }
         }
       } catch (_) {}

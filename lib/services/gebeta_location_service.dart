@@ -6,6 +6,7 @@ import 'package:gebeta_gl/gebeta_gl.dart';
 import '../config/dio_config.dart';
 import '../models/gebeta_place_suggestion.dart';
 import '../models/gebeta_route.dart';
+import '../utils/location_utils.dart';
 
 class GebetaLocationService {
   static const String apiKey =
@@ -82,7 +83,7 @@ class GebetaLocationService {
               .toList();
 
           if (parts.isNotEmpty) {
-            final formatted = parts.join(', ');
+            final formatted = LocationUtils.prettifyAddress(parts.join(', '));
             _addressCache[cacheKey] = formatted;
             return {
               'address': formatted,

@@ -8,6 +8,7 @@ import '../../utils/api_call_status.dart';
 import '../../utils/templates/loaded_widgets_template.dart';
 import '../../widgets/skeletons/skeleton_loaders.dart';
 import 'widgets/circular_categories_bar.dart';
+import 'widgets/delivery_address_pill.dart';
 import 'widgets/home_corporate_section.dart';
 import 'widgets/home_courier_section.dart';
 import 'widgets/home_filter_bottom_sheet.dart';
@@ -67,13 +68,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      body: RefreshIndicator(
-        color: AppColors.primary,
-        onRefresh: () async {
-          await restaurantController.loadRestaurants();
-          await restaurantController.requestLocationAndCalculateDistances();
-        },
-        child: ListView(
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            color: AppColors.primary,
+            onRefresh: () async {
+              await restaurantController.loadRestaurants();
+              await restaurantController.requestLocationAndCalculateDistances();
+            },
+            child: ListView(
           controller: _scrollController,
           padding: EdgeInsets.zero,
           children: [
@@ -454,7 +457,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ],
         ),
       ),
-    );
+
+      // 3. Floating Transparent Small Pill at Top of Home Screen
+      Positioned(
+        top: 0,
+        left: 0,
+        right: 0,
+        child: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 8.0, left: 16.0, right: 16.0),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.88,
+                ),
+                child: const DeliveryAddressPill(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ],
+  ),
+);
   }
 }
 
