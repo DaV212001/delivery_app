@@ -668,7 +668,7 @@ class _CartScreenState extends State<CartScreen> {
                                       final isSelected = cartController.selectedDeliveryOption.value?.name == opt.name ||
                                           (cartController.selectedDeliveryOption.value == null && i == 0);
                                       final dist = cartController.distanceInKm > 0 ? cartController.distanceInKm : 1.0;
-                                      final optTotal = double.parse((opt.kmPrice * dist).toStringAsFixed(2));
+                                      final optTotal = opt.calculateTotal(dist);
 
                                       return InkWell(
                                         onTap: () {

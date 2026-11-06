@@ -6,6 +6,7 @@ import '../models/cart_batch.dart';
 import '../models/cart_item.dart';
 import '../models/delivery_item.dart';
 import '../models/property_delivery_option.dart';
+import '../services/city_service.dart';
 import '../services/order_service.dart';
 import '../utils/location_utils.dart';
 import 'restaurant_controller.dart';
@@ -132,13 +133,12 @@ class CartController extends GetxController {
     );
   }
 
-  /// Total km price derived from km_price * haversine distance
+  /// Total delivery fee derived using Formula A: start_price + (km_price * haversine distance)
   double get totalKmPrice {
     if (items.isEmpty) return 0.0;
     final option = selectedDeliveryOption.value;
     if (option == null) return 0.0;
-    final dist = distanceInKm > 0 ? distanceInKm : 1.0;
-    return double.parse((option.kmPrice * dist).toStringAsFixed(2));
+    return option.calculateTotal(distanceInKm);
   }
 
   double get deliveryFee {
@@ -164,14 +164,33 @@ class CartController extends GetxController {
     return val > 0 ? val : 0.0;
   }
 
-  /// Fetch delivery options for property
-  Future<void> loadDeliveryOptionsForProperty(dynamic propertyId, {double? propLat, double? propLng}) async {
+  /// Fetch delivery options for property and resolve prices via delivery-price endpoint
+  Future<void> loadDeliveryOptionsForProperty(
+    dynamic propertyId, {
+    double? propLat,
+    double? propLng,
+    dynamic cityId,
+  }) async {
     if (propLat != null) propertyLatitude.value = propLat;
     if (propLng != null) propertyLongitude.value = propLng;
 
+    // Resolve store cityId if not directly passed
+    dynamic resolvedCityId = cityId;
+    if (resolvedCityId == null && Get.isRegistered<RestaurantController>()) {
+      final rc = Get.find<RestaurantController>();
+      final store = rc.getRestaurantById(propertyId.toString());
+      if (store?.cityId != null) {
+        resolvedCityId = store!.cityId;
+      }
+    }
+    resolvedCityId ??= CityService.defaultCityId;
+
     isLoadingDeliveryOptions.value = true;
     try {
-      final options = await OrderService.fetchPropertyDeliveryOptions(propertyId);
+      final options = await OrderService.fetchPropertyDeliveryOptions(
+        propertyId,
+        cityId: resolvedCityId,
+      );
       if (options.isNotEmpty) {
         propertyDeliveryOptions.assignAll(options);
         if (selectedDeliveryOption.value == null ||
@@ -183,7 +202,8 @@ class CartController extends GetxController {
           id: 1,
           image: '',
           name: 'Motorbike',
-          kmPrice: 13.0,
+          kmPrice: 17.08,
+          startPrice: 136.57,
         );
         propertyDeliveryOptions.assignAll([fallback]);
         if (selectedDeliveryOption.value == null) {
@@ -195,7 +215,8 @@ class CartController extends GetxController {
         id: 1,
         image: '',
         name: 'Motorbike',
-        kmPrice: 13.0,
+        kmPrice: 17.08,
+        startPrice: 136.57,
       );
       propertyDeliveryOptions.assignAll([fallback]);
       if (selectedDeliveryOption.value == null) {

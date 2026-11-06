@@ -6,12 +6,18 @@ import '../models/order.dart';
 import '../models/property_delivery_option.dart';
 import '../models/store.dart';
 import '../utils/templates/dio_template.dart';
+import 'city_service.dart';
+import 'delivery_pricing_service.dart';
 import 'gebeta_location_service.dart';
 import 'property_service.dart';
 
 class OrderService {
-  /// Fetch delivery options for a property
-  static Future<List<PropertyDeliveryOption>> fetchPropertyDeliveryOptions(dynamic propertyId) async {
+  /// Fetch delivery options for a property, resolving prices from the pricing endpoint
+  /// GET /delivery-price-by-car-and-city-id/{vehicle_id}/{city_id}
+  static Future<List<PropertyDeliveryOption>> fetchPropertyDeliveryOptions(
+    dynamic propertyId, {
+    dynamic cityId = CityService.defaultCityId,
+  }) async {
     final list = <PropertyDeliveryOption>[];
     await DioService.dioGet(
       path: ApiEndpoints.propertyDeliveryOptions(propertyId),
@@ -29,6 +35,21 @@ class OrderService {
         // Fallback handled by caller
       },
     );
+
+    // If options were returned, resolve their prices via the delivery-price endpoint
+    if (list.isNotEmpty) {
+      final updatedList = <PropertyDeliveryOption>[];
+      for (final opt in list) {
+        final resolved = await DeliveryPricingService.resolveDeliveryOptionPrice(
+          option: opt,
+          cityId: cityId,
+          isCourier: false,
+        );
+        updatedList.add(resolved);
+      }
+      return updatedList;
+    }
+
     return list;
   }
 

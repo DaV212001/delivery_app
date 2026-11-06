@@ -195,14 +195,14 @@ void main() {
       expect(activeList.first.orderId, '#AMN-12');
     });
 
-    test('OrderService fetches property delivery options correctly', () async {
+    test('OrderService fetches property delivery options correctly and resolves rates', () async {
       dioAdapter.onGet(
         ApiEndpoints.propertyDeliveryOptions(1),
         (server) => server.reply(200, {
           'message': 'delviery option retrieved successfully',
           'data': [
             {
-              'id': null,
+              'id': 1,
               'image': 'https://api.amnplc.com/assets/images%20(78).jpeg',
               'name': 'MoterBick',
               'km_price': '13',
@@ -214,7 +214,8 @@ void main() {
       final options = await OrderService.fetchPropertyDeliveryOptions(1);
       expect(options.length, 1);
       expect(options.first.name, 'MoterBick');
-      expect(options.first.kmPrice, 13.0);
+      expect(options.first.startPrice, 136.57);
+      expect(options.first.kmPrice, 17.08);
     });
 
     test('OrderService payOnChapa resolves recursive checkout_url', () async {

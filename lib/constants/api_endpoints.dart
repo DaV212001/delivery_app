@@ -98,9 +98,11 @@ class ApiEndpoints {
   // App Version
   static const String appVersion = '/app_version';
 
-  // Currency & City
+  // Currency & City & Delivery Pricing
   static const String currency = '/currency';
   static const String city = '/city';
+  static String deliveryPriceByCarAndCity(dynamic vehicleId, dynamic cityId) =>
+      '/delivery-price-by-car-and-city-id/$vehicleId/$cityId';
 
   // Real-Time Socket Server (Render)
   static const String socketServerUrl = 'https://amn-delivery-socket-server.onrender.com';

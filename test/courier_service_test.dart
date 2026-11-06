@@ -246,9 +246,19 @@ void main() {
       expect(controller.hasCoordinatesSelected, isTrue);
     });
 
-    test('CourierController enforces minimum base price for short trips', () {
+    test('CourierController calculates fare using Formula A (start_price + km * dist)', () {
       final controller = CourierController();
-      // Points very close to each other (< 100 meters)
+      // Select option with startPrice: 26.87, kmPrice: 7.46
+      const option = PropertyDeliveryOption(
+        id: 1,
+        image: '',
+        name: 'MoterBick',
+        startPrice: 26.87,
+        kmPrice: 7.46,
+      );
+      controller.selectDeliveryOption(option);
+
+      // Points very close to each other (< 100 meters, dist ~0.03km)
       controller.setLocation(
         isPickup: true,
         lat: 9.0209,
@@ -262,8 +272,8 @@ void main() {
         address: 'Point B',
       );
 
-      // Even for short distances, base fee is at least 50 ETB
-      expect(controller.calculatedTotalPrice.value, equals(50.0));
+      // Formula A: 26.87 + (0.03 * 7.46) = 27.09
+      expect(controller.calculatedTotalPrice.value, closeTo(27.09, 0.5));
     });
   });
 
@@ -393,7 +403,7 @@ void main() {
       DioConfig.resetDio();
     });
 
-    test('GET /courirer_delivery_option parses vehicle options and km_price', () async {
+    test('GET /courirer_delivery_option parses vehicle options and resolves rates via delivery price endpoint', () async {
       dioAdapter.onGet(
         ApiEndpoints.courierDeliveryOptions,
         (server) => server.reply(200, {
@@ -415,14 +425,58 @@ void main() {
         }),
       );
 
+      // Mock delivery price by car and city endpoint for vehicles 10 and 11
+      dioAdapter.onGet(
+        ApiEndpoints.deliveryPriceByCarAndCity(10, 1),
+        (server) => server.reply(200, {
+          'message': 'Delviery price by Car id List successfully',
+          'data': [
+            {
+              'id': 1,
+              'city_id': '1',
+              'currency_id': '1',
+              'car_type_id': '10',
+              'property_start_price': '136.57',
+              'property_km_price': '17.08',
+              'courirer_start_price': '26.87',
+              'courirer_km_price': '7.46',
+              'pickup_start_price': '168.66',
+              'pickup_km_price': '23.21',
+            }
+          ]
+        }),
+      );
+      dioAdapter.onGet(
+        ApiEndpoints.deliveryPriceByCarAndCity(11, 1),
+        (server) => server.reply(200, {
+          'message': 'Delviery price by Car id List successfully',
+          'data': [
+            {
+              'id': 2,
+              'city_id': '1',
+              'currency_id': '1',
+              'car_type_id': '11',
+              'property_start_price': '97.43',
+              'property_km_price': '18.25',
+              'courirer_start_price': '24.14',
+              'courirer_km_price': '13.99',
+              'pickup_start_price': '169.92',
+              'pickup_km_price': '10.9',
+            }
+          ]
+        }),
+      );
+
       final list = await CourierService.fetchCourierDeliveryOptions();
       expect(list.length, 2);
       expect(list[0].id, 10);
       expect(list[0].name, 'MoterBick');
-      expect(list[0].kmPrice, 13.0);
+      expect(list[0].startPrice, 26.87);
+      expect(list[0].kmPrice, 7.46);
       expect(list[1].id, 11);
       expect(list[1].name, 'Mini Van');
-      expect(list[1].kmPrice, 25.0);
+      expect(list[1].startPrice, 24.14);
+      expect(list[1].kmPrice, 13.99);
     });
 
     test('POST /courirer-pay-on-chapa sends request and resolves checkout_url', () async {

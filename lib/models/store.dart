@@ -43,6 +43,7 @@ class Store {
   final List<String> categories;
   final List<DeliveryItem> items;
   final String? currency;
+  final int? cityId;
 
   const Store({
     required this.id,
@@ -71,6 +72,7 @@ class Store {
     this.categories = const [],
     this.items = const [],
     this.currency,
+    this.cityId,
   });
 
   String get displayCurrency => CurrencyUtils.resolveCode(currency);
@@ -156,6 +158,10 @@ class Store {
         json['currency_id']?.toString() ??
         (json['currencies'] is Map ? json['currencies']['code']?.toString() : null);
 
+    final parsedCityId = int.tryParse(json['property_city_id']?.toString() ??
+        json['city_id']?.toString() ??
+        '');
+
     return Store(
       id: json['id']?.toString() ?? '',
       name: json['property_name']?.toString() ?? json['name']?.toString() ?? 'Store',
@@ -183,6 +189,7 @@ class Store {
       categories: [catDesc],
       items: items,
       currency: rawCurrency,
+      cityId: parsedCityId,
     );
   }
 
@@ -213,6 +220,7 @@ class Store {
     List<String>? categories,
     List<DeliveryItem>? items,
     String? currency,
+    int? cityId,
   }) {
     final newItems = items ?? this.items;
     double? newMinOrder = minOrder;
@@ -251,6 +259,7 @@ class Store {
       categories: categories ?? this.categories,
       items: newItems,
       currency: currency ?? this.currency,
+      cityId: cityId ?? this.cityId,
     );
   }
 

@@ -907,7 +907,7 @@ class _CourierScreenState extends State<CourierScreen> {
                                                 _courierController.selectedDeliveryOption.value?.id == opt.id) ||
                                             _courierController.selectedDeliveryOption.value?.name.toLowerCase() ==
                                                 opt.name.toLowerCase();
-                                        final optTotal = dist > 0 ? (dist * opt.kmPrice) : opt.kmPrice;
+                                        final optTotal = opt.calculateTotal(dist);
 
                                         return InkWell(
                                           onTap: () => _courierController.selectDeliveryOption(opt),

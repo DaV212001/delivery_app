@@ -3,6 +3,7 @@ import '../constants/api_endpoints.dart';
 import '../models/courier_model.dart';
 import '../models/property_delivery_option.dart';
 import '../services/city_service.dart';
+import '../services/delivery_pricing_service.dart';
 import '../services/gebeta_location_service.dart';
 import '../services/order_service.dart';
 import '../utils/templates/dio_template.dart';
@@ -101,8 +102,11 @@ class CourierService {
     return success;
   }
 
-  /// Fetch courier delivery options (vehicle types and km rates): GET /courirer_delivery_option
-  static Future<List<PropertyDeliveryOption>> fetchCourierDeliveryOptions() async {
+  /// Fetch courier delivery options (vehicle types) and resolve prices from the pricing endpoint:
+  /// GET /courirer_delivery_option + GET /delivery-price-by-car-and-city-id/{vehicle_id}/{city_id}
+  static Future<List<PropertyDeliveryOption>> fetchCourierDeliveryOptions({
+    dynamic cityId = CityService.defaultCityId,
+  }) async {
     final list = <PropertyDeliveryOption>[];
     await DioService.dioGet(
       path: ApiEndpoints.courierDeliveryOptions,
@@ -120,6 +124,21 @@ class CourierService {
         // Fallback handled by caller
       },
     );
+
+    // Resolve start_price and km_price from the delivery-price endpoint
+    if (list.isNotEmpty) {
+      final updatedList = <PropertyDeliveryOption>[];
+      for (final opt in list) {
+        final resolved = await DeliveryPricingService.resolveDeliveryOptionPrice(
+          option: opt,
+          cityId: cityId,
+          isCourier: true,
+        );
+        updatedList.add(resolved);
+      }
+      return updatedList;
+    }
+
     return list;
   }
 

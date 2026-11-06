@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../config/storage_config.dart';
@@ -44,6 +43,7 @@ class CourierController extends GetxController {
 
   // Pricing & Distance
   final calculatedDistanceKm = 0.0.obs;
+  final startPrice = 0.0.obs;
   final kmPrice = 35.0.obs;
   final calculatedTotalPrice = 0.0.obs;
   final carTypeId = 1.obs;
@@ -71,11 +71,13 @@ class CourierController extends GetxController {
     loadCourierDeliveryOptions();
   }
 
-  /// Load courier delivery options from backend: GET /courirer_delivery_option
-  Future<void> loadCourierDeliveryOptions() async {
+  /// Load courier delivery options from backend: GET /courirer_delivery_option + GET /delivery-price-by-car-and-city-id
+  Future<void> loadCourierDeliveryOptions({dynamic cityId}) async {
     isLoadingDeliveryOptions.value = true;
     try {
-      final options = await CourierService.fetchCourierDeliveryOptions();
+      final options = await CourierService.fetchCourierDeliveryOptions(
+        cityId: cityId ?? CityService.defaultCityId,
+      );
       if (options.isNotEmpty) {
         courierDeliveryOptions.assignAll(options);
         if (selectedDeliveryOption.value == null) {
@@ -107,13 +109,15 @@ class CourierController extends GetxController {
         id: 1,
         image: '',
         name: 'Motorbike',
-        kmPrice: 35.0,
+        kmPrice: 7.46,
+        startPrice: 26.87,
       ),
       const PropertyDeliveryOption(
-        id: 2,
+        id: 3,
         image: '',
         name: 'Car / Van',
-        kmPrice: 50.0,
+        kmPrice: 13.99,
+        startPrice: 24.14,
       ),
     ];
     courierDeliveryOptions.assignAll(defaults);
@@ -124,6 +128,7 @@ class CourierController extends GetxController {
 
   void selectDeliveryOption(PropertyDeliveryOption option) {
     selectedDeliveryOption.value = option;
+    startPrice.value = option.startPrice;
     kmPrice.value = option.kmPrice > 0 ? option.kmPrice : 35.0;
     carTypeName.value = option.name;
     final parsedId = int.tryParse(option.id?.toString() ?? '1') ?? 1;
@@ -205,11 +210,15 @@ class CourierController extends GetxController {
       );
       calculatedDistanceKm.value = double.parse(dist.toStringAsFixed(2));
 
-      // Calculate total price: distance * kmPrice, with minimum base fee of 50 ETB
-      final rate = selectedDeliveryOption.value?.kmPrice ?? kmPrice.value;
-      final effectiveRate = rate > 0 ? rate : 35.0;
-      final rawPrice = calculatedDistanceKm.value * effectiveRate;
-      calculatedTotalPrice.value = math.max(50.0, rawPrice).roundToDouble();
+      // Calculate total price using Formula A: start_price + (distance_km * km_price)
+      final option = selectedDeliveryOption.value;
+      if (option != null) {
+        calculatedTotalPrice.value = option.calculateTotal(calculatedDistanceKm.value);
+      } else {
+        final rate = kmPrice.value > 0 ? kmPrice.value : 35.0;
+        final base = startPrice.value;
+        calculatedTotalPrice.value = (base + (calculatedDistanceKm.value * rate)).roundToDouble();
+      }
     } else {
       calculatedDistanceKm.value = 0.0;
       calculatedTotalPrice.value = 0.0;
