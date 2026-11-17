@@ -17,9 +17,9 @@ void main() {
     test('DefaultFirebaseOptions has correct iOS config matching amn-driver-app project', () {
       final ios = DefaultFirebaseOptions.ios;
       expect(ios.projectId, 'amn-driver-app');
-      expect(ios.appId, '1:368083384192:ios:b6c2f617b54ddb73493365');
+      expect(ios.appId, '1:368083384192:ios:168717c411ea6b0e493365');
       expect(ios.messagingSenderId, '368083384192');
-      expect(ios.iosBundleId, 'com.freshbite.deliveryApp');
+      expect(ios.iosBundleId, 'com.amn.delivery');
     });
 
     test('NotificationService singleton initializes safely in test environment', () async {

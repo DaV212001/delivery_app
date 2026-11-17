@@ -9,7 +9,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.freshbite.deliveryApp</string>
+	<string>com.amn.delivery</string>
 	<key>PROJECT_ID</key>
 	<string>amn-driver-app</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:368083384192:ios:b6c2f617b54ddb73493365</string>
+	<string>1:368083384192:ios:168717c411ea6b0e493365</string>
 </dict>
 </plist>

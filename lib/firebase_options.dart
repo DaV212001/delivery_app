@@ -59,20 +59,20 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBnIo4oe7lT_Qg2ihmAe3V0wOWWy8U_5dU',
-    appId: '1:368083384192:ios:b6c2f617b54ddb73493365',
+    appId: '1:368083384192:ios:168717c411ea6b0e493365',
     messagingSenderId: '368083384192',
     projectId: 'amn-driver-app',
     storageBucket: 'amn-driver-app.firebasestorage.app',
-    iosBundleId: 'com.freshbite.deliveryApp',
+    iosBundleId: 'com.amn.delivery',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyBnIo4oe7lT_Qg2ihmAe3V0wOWWy8U_5dU',
-    appId: '1:368083384192:ios:b6c2f617b54ddb73493365',
+    appId: '1:368083384192:ios:168717c411ea6b0e493365',
     messagingSenderId: '368083384192',
     projectId: 'amn-driver-app',
     storageBucket: 'amn-driver-app.firebasestorage.app',
-    iosBundleId: 'com.freshbite.deliveryApp',
+    iosBundleId: 'com.amn.delivery',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
