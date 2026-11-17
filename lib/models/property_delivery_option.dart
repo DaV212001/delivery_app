@@ -21,12 +21,14 @@ class PropertyDeliveryOption {
       kmPrice: double.tryParse(
               json['km_price']?.toString() ??
               json['courirer_km_price']?.toString() ??
+              json['courier_km_price']?.toString() ??
               json['property_km_price']?.toString() ??
               '0') ??
           0.0,
       startPrice: double.tryParse(
               json['start_price']?.toString() ??
               json['courirer_start_price']?.toString() ??
+              json['courier_start_price']?.toString() ??
               json['property_start_price']?.toString() ??
               '0') ??
           0.0,

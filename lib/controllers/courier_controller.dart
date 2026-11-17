@@ -48,6 +48,7 @@ class CourierController extends GetxController {
   final calculatedTotalPrice = 0.0.obs;
   final carTypeId = 1.obs;
   final carTypeName = 'Motorbike'.obs;
+  int currentCityId = CityService.defaultCityId;
 
   int get currentUserId {
     if (Get.isRegistered<AuthController>()) {
@@ -170,12 +171,40 @@ class CourierController extends GetxController {
         dropoffAddress.value = result.address.isNotEmpty
             ? result.address
             : '${result.latitude.toStringAsFixed(4)}, ${result.longitude.toStringAsFixed(4)}';
+        updateCityFromCoordinates(
+          lat: result.latitude,
+          lng: result.longitude,
+          address: result.address,
+        );
       }
 
       _recalculateDistanceAndPrice();
       return true;
     }
     return false;
+  }
+
+  /// Update active city and pricing options when coordinates or address change
+  Future<void> updateCityFromCoordinates({
+    double? lat,
+    double? lng,
+    String? address,
+  }) async {
+    try {
+      int? matchedCityId;
+      if (address != null && address.trim().isNotEmpty) {
+        matchedCityId = await CityService.matchCityIdFromGeocode(address);
+      } else if (lat != null && lng != null) {
+        final rev = await GebetaLocationService.reverseGeocodeWithDetails(lat, lng);
+        final addr = rev['address']?.toString() ?? '';
+        final raw = rev['raw'] as Map<String, dynamic>?;
+        matchedCityId = await CityService.matchCityIdFromGeocode(addr, rawGebetaResponse: raw);
+      }
+      if (matchedCityId != null && matchedCityId != currentCityId) {
+        currentCityId = matchedCityId;
+        await loadCourierDeliveryOptions(cityId: matchedCityId);
+      }
+    } catch (_) {}
   }
 
   /// Set location programmatically (e.g. from GPS or saved address) with coordinates
@@ -193,6 +222,7 @@ class CourierController extends GetxController {
       dropoffLatitude.value = lat;
       dropoffLongitude.value = lng;
       dropoffAddress.value = address;
+      updateCityFromCoordinates(lat: lat, lng: lng, address: address);
     }
     _recalculateDistanceAndPrice();
   }
@@ -210,14 +240,16 @@ class CourierController extends GetxController {
       );
       calculatedDistanceKm.value = double.parse(dist.toStringAsFixed(2));
 
-      // Calculate total price using Formula A: start_price + (distance_km * km_price)
+      // Calculate total price using Formula: start_price + (distance_km * km_price)
       final option = selectedDeliveryOption.value;
       if (option != null) {
         calculatedTotalPrice.value = option.calculateTotal(calculatedDistanceKm.value);
       } else {
         final rate = kmPrice.value > 0 ? kmPrice.value : 35.0;
         final base = startPrice.value;
-        calculatedTotalPrice.value = (base + (calculatedDistanceKm.value * rate)).roundToDouble();
+        calculatedTotalPrice.value = double.parse(
+          (base + (calculatedDistanceKm.value * rate)).toStringAsFixed(2),
+        );
       }
     } else {
       calculatedDistanceKm.value = 0.0;
@@ -346,10 +378,12 @@ class CourierController extends GetxController {
         receiverName: receiverName.trim(),
         receiverPhone: receiverPhone.trim(),
         carTypeId: carTypeId.value,
+        basePrice: startPrice.value,
         kmPrice: kmPrice.value,
+        totalKm: calculatedDistanceKm.value,
         totalPrice: calculatedTotalPrice.value > 0
             ? calculatedTotalPrice.value
-            : 50.0,
+            : double.parse((startPrice.value + (calculatedDistanceKm.value * kmPrice.value)).toStringAsFixed(2)),
         paymentType: paymentType,
         description: description,
         fromAddress: pickupAddress.value,

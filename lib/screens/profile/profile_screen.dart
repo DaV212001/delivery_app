@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/localization_controller.dart';
 import '../../controllers/profile_controller.dart';
@@ -664,6 +665,12 @@ class ProfileScreen extends StatelessWidget {
           ),
         ),
         _SettingsTile(
+          icon: Icons.emergency_rounded,
+          title: 'emergency_support'.tr,
+          subtitle: 'emergency_support_sub'.tr,
+          onTap: () => _showEmergencyDialog(context),
+        ),
+        _SettingsTile(
           icon: Icons.help_outline_rounded,
           title: 'faq'.tr,
           subtitle: 'faqs_support_sub'.tr,
@@ -753,6 +760,169 @@ class ProfileScreen extends StatelessWidget {
     ),
     isScrollControlled: true,
   );
+  }
+
+  void _showEmergencyDialog(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    Get.bottomSheet(
+      Material(
+        color: theme.scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          child: SafeArea(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.support_agent_rounded,
+                          color: AppColors.primary,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'emergency_support'.tr,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'tap_to_call'.tr,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: isDark
+                                    ? AppColors.darkOnSurfaceVariant
+                                    : AppColors.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  _buildEmergencyTile(
+                    context,
+                    title: 'amn_hotline'.tr,
+                    number: '8896',
+                    icon: Icons.headset_mic_rounded,
+                    color: AppColors.primary,
+                    isHighlighted: true,
+                  ),
+                  const SizedBox(height: 10),
+                  _buildEmergencyTile(
+                    context,
+                    title: 'police_emergency'.tr,
+                    number: '991',
+                    icon: Icons.local_police_rounded,
+                    color: const Color(0xFF2563EB),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildEmergencyTile(
+                    context,
+                    title: 'ambulance_emergency'.tr,
+                    number: '907',
+                    icon: Icons.medical_services_rounded,
+                    color: const Color(0xFFDC2626),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      isScrollControlled: true,
+    );
+  }
+
+  Widget _buildEmergencyTile(
+    BuildContext context, {
+    required String title,
+    required String number,
+    required IconData icon,
+    required Color color,
+    bool isHighlighted = false,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isHighlighted
+            ? color.withValues(alpha: 0.08)
+            : (isDark ? AppColors.darkSurfaceContainerLow : AppColors.surfaceContainerLow),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isHighlighted
+              ? color.withValues(alpha: 0.3)
+              : (isDark ? AppColors.darkOutlineVariant : AppColors.outlineVariant),
+          width: isHighlighted ? 1.5 : 1.0,
+        ),
+      ),
+      child: ListTile(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.14),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: color, size: 22),
+        ),
+        title: Text(
+          title,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Text(
+          number,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
+        trailing: FilledButton.icon(
+          onPressed: () async {
+            final uri = Uri.parse('tel:$number');
+            if (await canLaunchUrl(uri)) {
+              await launchUrl(uri);
+            }
+          },
+          icon: const Icon(Icons.call_rounded, size: 16),
+          label: Text('call'.tr.isNotEmpty ? 'call'.tr : 'Call'),
+          style: FilledButton.styleFrom(
+            backgroundColor: color,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
+        onTap: () async {
+          final uri = Uri.parse('tel:$number');
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri);
+          }
+        },
+      ),
+    );
   }
 }
 

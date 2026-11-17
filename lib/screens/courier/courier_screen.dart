@@ -310,7 +310,9 @@ class _CourierScreenState extends State<CourierScreen> {
                     _SummaryRow(
                       label: 'Vehicle',
                       value: _courierController.selectedDeliveryOption.value?.name ?? _courierController.carTypeName.value,
-                      subValue: '${(_courierController.selectedDeliveryOption.value?.kmPrice ?? _courierController.kmPrice.value).toStringAsFixed(0)} ETB/km',
+                      subValue: _courierController.startPrice.value > 0
+                          ? '${_courierController.startPrice.value.toStringAsFixed(0)} Base + ${(_courierController.selectedDeliveryOption.value?.kmPrice ?? _courierController.kmPrice.value).toStringAsFixed(0)} ETB/km'
+                          : '${(_courierController.selectedDeliveryOption.value?.kmPrice ?? _courierController.kmPrice.value).toStringAsFixed(0)} ETB/km',
                       icon: Icons.two_wheeler_rounded,
                       iconColor: AppColors.primary,
                     ),
@@ -959,7 +961,9 @@ class _CourierScreenState extends State<CourierScreen> {
                                                         ),
                                                       ),
                                                       Text(
-                                                        '${opt.kmPrice.toStringAsFixed(0)} ETB/km',
+                                                        opt.startPrice > 0
+                                                            ? '${opt.startPrice.toStringAsFixed(0)} Base + ${opt.kmPrice.toStringAsFixed(0)} ETB/km'
+                                                            : '${opt.kmPrice.toStringAsFixed(0)} ETB/km',
                                                         style: theme.textTheme.bodySmall?.copyWith(
                                                           color: AppColors.onSurfaceVariant,
                                                           fontSize: 11,

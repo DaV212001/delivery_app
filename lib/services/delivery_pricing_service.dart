@@ -144,11 +144,11 @@ class DeliveryPricingService {
         path: ApiEndpoints.deliveryPriceByCarAndCity(vId, cId),
         onSuccess: (response) {
           final data = response.data;
-          if (data is Map<String, dynamic> && data['data'] is List) {
-            final list = data['data'] as List;
-            if (list.isNotEmpty && list.first is Map<String, dynamic>) {
-              result = DeliveryPriceRate.fromJson(list.first as Map<String, dynamic>);
-            }
+          final raw = data is Map ? (data['data'] ?? data) : data;
+          if (raw is List && raw.isNotEmpty && raw.first is Map) {
+            result = DeliveryPriceRate.fromJson(Map<String, dynamic>.from(raw.first as Map));
+          } else if (raw is Map) {
+            result = DeliveryPriceRate.fromJson(Map<String, dynamic>.from(raw));
           }
         },
         onFailure: (error, response) {

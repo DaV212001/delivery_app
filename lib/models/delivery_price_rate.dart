@@ -33,10 +33,16 @@ class DeliveryPriceRate {
           double.tryParse(json['property_start_price']?.toString() ?? '0') ?? 0.0,
       propertyKmPrice:
           double.tryParse(json['property_km_price']?.toString() ?? '0') ?? 0.0,
-      courierStartPrice:
-          double.tryParse(json['courirer_start_price']?.toString() ?? '0') ?? 0.0,
-      courierKmPrice:
-          double.tryParse(json['courirer_km_price']?.toString() ?? '0') ?? 0.0,
+      courierStartPrice: double.tryParse(
+              json['courirer_start_price']?.toString() ??
+                  json['courier_start_price']?.toString() ??
+                  '0') ??
+          0.0,
+      courierKmPrice: double.tryParse(
+              json['courirer_km_price']?.toString() ??
+                  json['courier_km_price']?.toString() ??
+                  '0') ??
+          0.0,
       pickupStartPrice:
           double.tryParse(json['pickup_start_price']?.toString() ?? '0') ?? 0.0,
       pickupKmPrice:

@@ -51,6 +51,25 @@ void main() {
       expect(rate.pickupKmPrice, 23.21);
     });
 
+    test('fromJson parses courier_start_price and courier_km_price standard spelling', () {
+      final json = {
+        'id': 2,
+        'city_id': '1',
+        'currency_id': '1',
+        'car_type_id': '1',
+        'property_start_price': '136.57',
+        'property_km_price': '17.08',
+        'courier_start_price': '26.87',
+        'courier_km_price': '7.46',
+        'pickup_start_price': '168.66',
+        'pickup_km_price': '23.21',
+      };
+
+      final rate = DeliveryPriceRate.fromJson(json);
+      expect(rate.courierStartPrice, 26.87);
+      expect(rate.courierKmPrice, 7.46);
+    });
+
     test('Formula A calculations compute start_price + (km * dist) with 2 decimals', () {
       const rate = DeliveryPriceRate(
         id: 1,

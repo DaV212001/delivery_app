@@ -36,8 +36,10 @@ void main() {
         receiverName: 'Bluye',
         receiverPhone: '+251911234567',
         carTypeId: 1,
+        basePrice: 26.87,
         kmPrice: 35.0,
-        totalPrice: 250.0,
+        totalKm: 5.5,
+        totalPrice: 219.37,
         description: 'Fragile electronics. Please call upon arrival.',
       );
 
@@ -51,8 +53,10 @@ void main() {
       expect(json['reciver_name'], 'Bluye'); // Note backend spelling: reciver_name
       expect(json['reciver_phone'], '+251911234567');
       expect(json['car_type_id'], 1);
+      expect(json['base_price'], 26.87);
       expect(json['km_price'], 35.0);
-      expect(json['total_price'], 250.0);
+      expect(json['total_km'], 5.5);
+      expect(json['total_price'], 219.37);
       expect(json['description'], 'Fragile electronics. Please call upon arrival.');
       expect(json['from_friendly_location'], '');
       expect(json['to_friendly_location'], '');
@@ -94,6 +98,34 @@ void main() {
 
       final json = request.toJson();
       expect(json['city_id'], 1);
+    });
+
+    test('CourierOrderCreateRequest strictly sends base_price, km_price, total_km, total_price', () {
+      const request = CourierOrderCreateRequest(
+        fromLatitude: 9.02497,
+        fromLongitude: 38.74689,
+        toLatitude: 8.98060,
+        toLongitude: 38.75780,
+        senderUserId: 42,
+        receiverName: 'Abebe',
+        receiverPhone: '0911002233',
+        carTypeId: 1,
+        basePrice: 26.87,
+        kmPrice: 7.46,
+        totalKm: 10.0,
+        totalPrice: 101.47,
+      );
+
+      final json = request.toJson();
+      expect(json.containsKey('base_price'), isTrue);
+      expect(json.containsKey('km_price'), isTrue);
+      expect(json.containsKey('total_km'), isTrue);
+      expect(json.containsKey('total_price'), isTrue);
+
+      expect(json['base_price'], 26.87);
+      expect(json['km_price'], 7.46);
+      expect(json['total_km'], 10.0);
+      expect(json['total_price'], 101.47);
     });
 
     test('CourierOrderModel deserializes backend active order response with longtude safely', () {

@@ -14,7 +14,9 @@ class CourierOrderCreateRequest {
   final String receiverName;
   final String receiverPhone;
   final int carTypeId;
+  final double basePrice;
   final double kmPrice;
+  final double totalKm;
   final double totalPrice;
   final String paymentType;
   final String? description;
@@ -33,7 +35,9 @@ class CourierOrderCreateRequest {
     required this.receiverName,
     required this.receiverPhone,
     this.carTypeId = 1,
+    this.basePrice = 0.0,
     this.kmPrice = 35.0,
+    this.totalKm = 0.0,
     required this.totalPrice,
     this.paymentType = '0',
     this.description,
@@ -53,7 +57,9 @@ class CourierOrderCreateRequest {
         'reciver_name': receiverName,
         'reciver_phone': receiverPhone,
         'car_type_id': carTypeId,
+        'base_price': basePrice,
         'km_price': kmPrice,
+        'total_km': totalKm,
         'total_price': totalPrice,
         'payment_type': paymentType,
         if (cityId != null) 'city_id': cityId,
@@ -95,6 +101,7 @@ class CourierOrderModel {
   final String? driverLName;
   final String? driverPhone;
   final String carType;
+  final double basePrice;
   final double kmPrice;
   final double totalKm;
   final double totalPrice;
@@ -121,6 +128,7 @@ class CourierOrderModel {
     this.driverLName,
     this.driverPhone,
     this.carType = 'Motorbike',
+    this.basePrice = 0.0,
     this.kmPrice = 35.0,
     this.totalKm = 0.0,
     required this.totalPrice,
@@ -148,6 +156,7 @@ class CourierOrderModel {
     String? driverLName,
     String? driverPhone,
     String? carType,
+    double? basePrice,
     double? kmPrice,
     double? totalKm,
     double? totalPrice,
@@ -174,6 +183,7 @@ class CourierOrderModel {
       driverLName: driverLName ?? this.driverLName,
       driverPhone: driverPhone ?? this.driverPhone,
       carType: carType ?? this.carType,
+      basePrice: basePrice ?? this.basePrice,
       kmPrice: kmPrice ?? this.kmPrice,
       totalKm: totalKm ?? this.totalKm,
       totalPrice: totalPrice ?? this.totalPrice,
@@ -221,6 +231,9 @@ class CourierOrderModel {
       driverLName: json['driver_l_name']?.toString(),
       driverPhone: json['driver_phone']?.toString(),
       carType: json['car_type']?.toString() ?? 'Motorbike',
+      basePrice: double.tryParse(
+              json['base_price']?.toString() ?? json['start_price']?.toString() ?? '0') ??
+          0.0,
       kmPrice: double.tryParse(json['km_price']?.toString() ?? '35') ?? 35.0,
       totalKm: double.tryParse(json['total_km']?.toString() ?? '0') ?? 0.0,
       totalPrice: double.tryParse(json['total_price']?.toString() ?? '0') ?? 0.0,
@@ -249,6 +262,7 @@ class CourierOrderModel {
         'driver_l_name': driverLName,
         'driver_phone': driverPhone,
         'car_type': carType,
+        'base_price': basePrice,
         'km_price': kmPrice,
         'total_km': totalKm,
         'total_price': totalPrice,
@@ -390,7 +404,11 @@ class CourierOrderModel {
       estimatedArrival: '25-35 mins',
       driver: driverInfo,
       items: const [],
-      subtotal: totalPrice > (kmPrice * totalKm) ? totalPrice - (kmPrice * totalKm) : totalPrice,
+      subtotal: basePrice > 0
+          ? basePrice
+          : (totalPrice > (kmPrice * totalKm)
+              ? totalPrice - (kmPrice * totalKm)
+              : totalPrice),
       deliveryFee: (kmPrice * totalKm) > 0 ? (kmPrice * totalKm) : totalPrice,
       taxAndFees: 0.0,
       total: totalPrice,
