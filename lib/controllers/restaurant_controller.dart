@@ -173,6 +173,7 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
   }
 
   /// Recalculates distance for all loaded restaurants from the user's current GPS location
+  /// and sorts restaurants by proximity so nearby properties are always on top.
   void recalculateStoreDistances() {
     final lat = userLat.value;
     final lng = userLng.value;
@@ -190,6 +191,9 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
         restaurants[i] = s.copyWith(distanceKm: d);
       }
     }
+
+    // Sort the underlying list by distanceKm ascending so closest stores are ordered first
+    restaurants.sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
     restaurants.refresh();
   }
 
@@ -327,11 +331,11 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
         specialOffers.clear();
       }
 
-      // 4. Properties / Stores
+      // 4. Properties / Stores: prioritize nearby properties first, followed by others
       final combinedStores = <Store>[];
       final seenIds = <String>{};
 
-      for (final s in [...apiFeatured, ...apiNearby.properties, ...apiProperties]) {
+      for (final s in [...apiNearby.properties, ...apiFeatured, ...apiProperties]) {
         if (!seenIds.contains(s.id)) {
           seenIds.add(s.id);
           combinedStores.add(s);
@@ -431,6 +435,19 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
       });
     } else if (sortBy.value == 'price') {
       list.sort((a, b) => (a.avgPricePerPerson ?? 0).compareTo(b.avgPricePerPerson ?? 0));
+    } else if (sortBy.value == 'recommended') {
+      // Default to sorting by real proximity (closest stores first)
+      final profileController =
+          Get.isRegistered<ProfileController>() && !Get.isPrepared<ProfileController>()
+              ? Get.find<ProfileController>()
+              : null;
+      final uLat = userLat.value ?? profileController?.activeLatitude;
+      final uLng = userLng.value ?? profileController?.activeLongitude;
+      list.sort((a, b) {
+        final distA = a.calculateDistanceTo(userLat: uLat, userLng: uLng) ?? a.distanceKm;
+        final distB = b.calculateDistanceTo(userLat: uLat, userLng: uLng) ?? b.distanceKm;
+        return distA.compareTo(distB);
+      });
     }
 
     return list;
@@ -576,6 +593,19 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
       });
     } else if (sortBy.value == 'price') {
       list.sort((a, b) => (a.avgPricePerPerson ?? 0).compareTo(b.avgPricePerPerson ?? 0));
+    } else if (sortBy.value == 'recommended') {
+      // Default to sorting by real proximity (closest stores first)
+      final profileController =
+          Get.isRegistered<ProfileController>() && !Get.isPrepared<ProfileController>()
+              ? Get.find<ProfileController>()
+              : null;
+      final uLat = userLat.value ?? profileController?.activeLatitude;
+      final uLng = userLng.value ?? profileController?.activeLongitude;
+      list.sort((a, b) {
+        final distA = a.calculateDistanceTo(userLat: uLat, userLng: uLng) ?? a.distanceKm;
+        final distB = b.calculateDistanceTo(userLat: uLat, userLng: uLng) ?? b.distanceKm;
+        return distA.compareTo(distB);
+      });
     }
 
     return list;
