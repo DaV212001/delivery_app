@@ -54,6 +54,12 @@ app.*.map.json
 *play-service-account*.json
 secrets/
 
+# iOS Signing & Release files
+*.p12
+*.mobileprovision
+*.p8
+*.mp4
+
 # Agent context handover
 .context/
 
