@@ -44,12 +44,12 @@ jobs:
           BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
-          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
-          PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
-          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          export CERTIFICATE_PATH="$RUNNER_TEMP/build_certificate.p12"
+          export PP_PATH="$RUNNER_TEMP/build_pp.mobileprovision"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
 
-          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o "$CERTIFICATE_PATH"
-          echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o "$PP_PATH"
+          python3 -c "import base64, os; open(os.environ['CERTIFICATE_PATH'], 'wb').write(base64.b64decode(os.environ['BUILD_CERTIFICATE_BASE64']))"
+          python3 -c "import base64, os; open(os.environ['PP_PATH'], 'wb').write(base64.b64decode(os.environ['BUILD_PROVISION_PROFILE_BASE64']))"
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
@@ -68,7 +68,7 @@ jobs:
           APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
         run: |
           mkdir -p ~/private_keys
-          echo -n "$APPSTORE_API_KEY_BASE64" | base64 --decode -o ~/private_keys/AuthKey_${APPSTORE_KEY_ID}.p8
+          python3 -c "import base64, os; open(os.path.expanduser('~/private_keys/AuthKey_' + os.environ['APPSTORE_KEY_ID'] + '.p8'), 'wb').write(base64.b64decode(os.environ['APPSTORE_API_KEY_BASE64']))"
 
       - name: Create ExportOptions.plist
         run: |
