@@ -67,8 +67,8 @@ jobs:
           APPSTORE_API_KEY_BASE64: ${{ secrets.APPSTORE_API_KEY_BASE64 }}
           APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
         run: |
-          mkdir -p ~/private_keys
-          python3 -c "import base64, os; open(os.path.expanduser('~/private_keys/AuthKey_' + os.environ['APPSTORE_KEY_ID'] + '.p8'), 'wb').write(base64.b64decode(os.environ['APPSTORE_API_KEY_BASE64']))"
+          mkdir -p ~/private_keys ~/.private_keys ~/.appstoreconnect/private_keys
+          python3 -c "import base64, os; data = base64.b64decode(os.environ['APPSTORE_API_KEY_BASE64']); [open(os.path.expanduser(f'{d}/AuthKey_{os.environ[\"APPSTORE_KEY_ID\"]}.p8'), 'wb').write(data) for d in ['~/private_keys', '~/.private_keys', '~/.appstoreconnect/private_keys']]"
 
       - name: Create ExportOptions.plist
         run: |
@@ -98,10 +98,8 @@ jobs:
 
       - name: Install Dependencies
         run: |
+          flutter precache --ios
           flutter pub get
-          cd ios
-          pod install --repo-update
-          cd ..
 
       - name: Build IPA
         run: |
