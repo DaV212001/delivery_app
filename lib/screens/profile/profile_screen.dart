@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -543,22 +542,20 @@ class ProfileScreen extends StatelessWidget {
 
                 const SizedBox(height: 24),
 
-                // iOS Account Deletion Section (Apple App Store Guideline 5.1.1(v))
-                if (Platform.isIOS) ...[
-                  _SettingsGroup(
-                    title: 'account_management'.tr,
-                    children: [
-                      _SettingsTile(
-                        icon: Icons.delete_forever_rounded,
-                        iconColor: Colors.redAccent,
-                        title: 'delete_account'.tr,
-                        subtitle: 'delete_account_sub'.tr,
-                        onTap: () => _requestAccountDeletion(context, authController),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                ],
+                // Account Deletion Section (Apple App Store Guideline 5.1.1(v) & Google Play User Data)
+                _SettingsGroup(
+                  title: 'account_management'.tr,
+                  children: [
+                    _SettingsTile(
+                      icon: Icons.delete_forever_rounded,
+                      iconColor: Colors.redAccent,
+                      title: 'delete_account'.tr,
+                      subtitle: 'delete_account_sub'.tr,
+                      onTap: () => _requestAccountDeletion(context, authController),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
 
                 // Logout Button
                 AppButton(
