@@ -103,6 +103,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
+          flutter config --no-enable-swift-package-manager
           flutter precache --ios
           flutter pub get
           cd ios
