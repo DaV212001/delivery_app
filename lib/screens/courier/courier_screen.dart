@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../config/storage_config.dart';
+import '../../constants/pages.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/courier_controller.dart';
 import '../../controllers/profile_controller.dart';
@@ -140,7 +141,42 @@ class _CourierScreenState extends State<CourierScreen> {
     await _courierController.selectLocationOnMap(isPickup: isPickup);
   }
 
+  bool _ensureAuthenticated() {
+    final authController = Get.isRegistered<AuthController>()
+        ? Get.find<AuthController>()
+        : Get.put(AuthController());
+    if (!authController.isLoggedIn) {
+      Get.dialog(
+        AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('sign_in_required'.tr),
+          content: Text('sign_in_to_order'.tr),
+          actions: [
+            TextButton(
+              onPressed: () => Get.back(),
+              child: Text('cancel'.tr),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Get.back();
+                Get.toNamed(AppRoutes.login);
+              },
+              child: Text('sign_in'.tr),
+            ),
+          ],
+        ),
+      );
+      return false;
+    }
+    return true;
+  }
+
   void _onContinue() {
+    if (!_ensureAuthenticated()) return;
     final pickupAddress = _courierController.pickupAddress.value;
     final dropoffAddress = _courierController.dropoffAddress.value;
 
@@ -388,6 +424,7 @@ class _CourierScreenState extends State<CourierScreen> {
                     onPressed: isSubmitting
                         ? null
                         : () async {
+                            if (!_ensureAuthenticated()) return;
                             final orderTotal = _courierController.calculatedTotalPrice.value;
                             final uid = _courierController.currentUserId;
                             final now = DateTime.now();
@@ -663,8 +700,10 @@ class _CourierScreenState extends State<CourierScreen> {
                                   color: Colors.white,
                                   size: 26,
                                 ),
-                                onPressed: () =>
-                                    Get.to(() => const CourierHistoryScreen()),
+                                onPressed: () {
+                                  if (!_ensureAuthenticated()) return;
+                                  Get.to(() => const CourierHistoryScreen());
+                                },
                               ),
                               if (activeCount > 0)
                                 Positioned(

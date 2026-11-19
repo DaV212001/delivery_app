@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/localization_controller.dart';
@@ -541,6 +543,23 @@ class ProfileScreen extends StatelessWidget {
 
                 const SizedBox(height: 24),
 
+                // iOS Account Deletion Section (Apple App Store Guideline 5.1.1(v))
+                if (Platform.isIOS) ...[
+                  _SettingsGroup(
+                    title: 'account_management'.tr,
+                    children: [
+                      _SettingsTile(
+                        icon: Icons.delete_forever_rounded,
+                        iconColor: Colors.redAccent,
+                        title: 'delete_account'.tr,
+                        subtitle: 'delete_account_sub'.tr,
+                        onTap: () => _requestAccountDeletion(context, authController),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                ],
+
                 // Logout Button
                 AppButton(
                   isSecondary: true,
@@ -924,6 +943,67 @@ class ProfileScreen extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _requestAccountDeletion(
+    BuildContext context,
+    AuthController authController,
+  ) async {
+    final confirmed = await Get.dialog<bool>(
+      AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 24),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'delete_account'.tr,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'delete_account_confirm'.tr,
+          style: const TextStyle(height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: Text('cancel'.tr),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Get.back(result: true),
+            child: Text('delete_account'.tr),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('delete_account_pending', true);
+      } catch (_) {}
+
+      await authController.logout();
+
+      Get.snackbar(
+        'request_submitted'.tr,
+        'account_deletion_pending'.tr,
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 5),
+        margin: const EdgeInsets.all(16),
+      );
+    }
+  }
 }
 
 class _SettingsGroup extends StatelessWidget {
@@ -977,12 +1057,14 @@ class _SettingsGroup extends StatelessWidget {
 
 class _SettingsTile extends StatelessWidget {
   final IconData icon;
+  final Color? iconColor;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
 
   const _SettingsTile({
     required this.icon,
+    this.iconColor,
     required this.title,
     required this.subtitle,
     required this.onTap,
@@ -991,15 +1073,16 @@ class _SettingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final effectiveColor = iconColor ?? AppColors.primary;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.1),
+          color: effectiveColor.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(icon, color: AppColors.primary, size: 20),
+        child: Icon(icon, color: effectiveColor, size: 20),
       ),
       title: Text(
         title,
