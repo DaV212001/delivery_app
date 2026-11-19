@@ -105,6 +105,9 @@ jobs:
         run: |
           flutter precache --ios
           flutter pub get
+          cd ios
+          pod install
+          cd ..
 
       - name: Build IPA
         run: |
