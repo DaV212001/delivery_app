@@ -141,3 +141,24 @@ If you need to set up API access for a new Google Play developer account:
 > [!TIP]
 > **App Signing Keystore**:
 > Ensure release signing is configured in `android/app/build.gradle.kts` (or `build.gradle`) pointing to your `.jks` keystore and `key.properties`. If signing is not configured, `flutter build appbundle --release` will produce an unsigned build that Google Play will reject.
+
+---
+
+# iOS TestFlight Cloud Release Tool (`tool/release_ios.dart`)
+
+For iOS builds, developers on Windows can build, sign, and upload production `.ipa` binaries directly to **Apple TestFlight / App Store Connect** with a single command:
+
+```powershell
+# Standard release (increments build number and deploys to TestFlight)
+dart run tool/release_ios.dart --bump=build
+
+# Patch release (e.g. 1.0.19 -> 1.0.20)
+dart run tool/release_ios.dart --bump=patch
+
+# Preview changes without modifying files or triggering cloud builds
+dart run tool/release_ios.dart --dry-run
+```
+
+For the complete iOS release architecture, GitHub Actions secrets, CocoaPods engineering, and App Store review checklists, see:
+👉 **[docs/IOS_RELEASE_PIPELINE.md](../docs/IOS_RELEASE_PIPELINE.md)**
+
