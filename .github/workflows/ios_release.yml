@@ -11,9 +11,6 @@ on:
         description: 'Version Name (e.g. 1.0.20)'
         required: false
         default: ''
-  push:
-    tags:
-      - 'v*'
 
 jobs:
   build-and-release:
