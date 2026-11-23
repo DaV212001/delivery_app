@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../core/theme/app_colors.dart';
+import '../utils/currency_utils.dart';
 import 'order.dart';
 import 'store.dart';
 
@@ -107,6 +108,7 @@ class CourierOrderModel {
   final double totalPrice;
   final String? dateTime;
   final String? description;
+  final String? currency;
 
   const CourierOrderModel({
     required this.id,
@@ -134,7 +136,10 @@ class CourierOrderModel {
     required this.totalPrice,
     this.dateTime,
     this.description,
+    this.currency,
   });
+
+  String get displayCurrency => CurrencyUtils.resolveCode(currency);
 
   CourierOrderModel copyWith({
     int? id,
@@ -162,6 +167,7 @@ class CourierOrderModel {
     double? totalPrice,
     String? dateTime,
     String? description,
+    String? currency,
   }) {
     return CourierOrderModel(
       id: id ?? this.id,
@@ -189,6 +195,7 @@ class CourierOrderModel {
       totalPrice: totalPrice ?? this.totalPrice,
       dateTime: dateTime ?? this.dateTime,
       description: description ?? this.description,
+      currency: currency ?? this.currency,
     );
   }
 
@@ -239,6 +246,9 @@ class CourierOrderModel {
       totalPrice: double.tryParse(json['total_price']?.toString() ?? '0') ?? 0.0,
       dateTime: json['date_time']?.toString(),
       description: json['description']?.toString(),
+      currency: json['currency']?.toString() ??
+          json['currency_code']?.toString() ??
+          json['currency_id']?.toString(),
     );
   }
 
@@ -412,7 +422,7 @@ class CourierOrderModel {
       deliveryFee: (kmPrice * totalKm) > 0 ? (kmPrice * totalKm) : totalPrice,
       taxAndFees: 0.0,
       total: totalPrice,
-      currency: 'ETB',
+      currency: currency ?? 'ETB',
       storeType: StoreType.courier,
       orderDate: orderDt,
     );

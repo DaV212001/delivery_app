@@ -1,5 +1,7 @@
+import 'package:get/get.dart';
 import '../config/dio_config.dart';
 import '../constants/api_endpoints.dart';
+import '../controllers/order_controller.dart';
 import '../models/corporate_model.dart';
 import '../models/courier_model.dart';
 import '../models/order.dart';
@@ -237,6 +239,32 @@ class OrderService {
     return list;
   }
 
+  static final Map<String, Map<String, dynamic>> _driverProfileCache = {};
+
+  /// Fetch driver profile from /driver-profile/{id} to enrich driver info in customer app
+  static Future<Map<String, dynamic>?> fetchDriverProfile(dynamic driverId) async {
+    if (driverId == null) return null;
+    final cleanId = driverId.toString().replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleanId.isEmpty || cleanId == '0') return null;
+
+    if (_driverProfileCache.containsKey(cleanId)) {
+      return _driverProfileCache[cleanId];
+    }
+
+    Map<String, dynamic>? result;
+    await DioService.dioGet(
+      path: ApiEndpoints.driverProfile(cleanId),
+      onSuccess: (response) {
+        final data = response.data;
+        if (data is Map<String, dynamic> && data['data'] is Map<String, dynamic>) {
+          result = data['data'] as Map<String, dynamic>;
+          _driverProfileCache[cleanId] = result!;
+        }
+      },
+    );
+    return result;
+  }
+
   /// Fetch full order details
   static Future<OrderModel?> fetchOrderDetail(
     dynamic orderId, {
@@ -248,6 +276,15 @@ class OrderService {
 
     // Ensure properties are cached for store name & logo resolution
     await PropertyService.ensurePropertiesCached();
+
+    // Resolve existing active order (authoritative source for live status)
+    OrderModel? effectiveExisting = existingOrder;
+    if (effectiveExisting == null && Get.isRegistered<OrderController>()) {
+      final oc = Get.find<OrderController>();
+      effectiveExisting = oc.activeOrders.firstWhereOrNull(
+        (o) => o.orderId.replaceAll(RegExp(r'[^0-9]'), '') == targetId,
+      ) ?? (oc.activeOrder.value?.orderId.replaceAll(RegExp(r'[^0-9]'), '') == targetId ? oc.activeOrder.value : null);
+    }
 
     OrderModel? order;
     final isCourierReq = orderType?.toLowerCase().contains('courier') == true ||
@@ -321,10 +358,60 @@ class OrderService {
             statusMap = itemsList.first as Map<String, dynamic>;
           }
 
+          // /my_active_order is the live source of truth for order status in the backend.
+          // If the order has an advanced active status, preserve it instead of stale order_details status.
+          if (effectiveExisting != null &&
+              effectiveExisting.status != OrderProgressStatus.placed &&
+              OrderModel.parseStatus(statusMap['status']) == OrderProgressStatus.placed) {
+            statusMap['status'] = effectiveExisting.status.code.toString();
+          }
+
+          final rawDriverId = statusMap['driver_id'] ??
+              (itemsList.isNotEmpty && itemsList.first is Map ? itemsList.first['driver_id'] : null) ??
+              effectiveExisting?.driver != null;
+          final cleanDriverId = rawDriverId?.toString().replaceAll(RegExp(r'[^0-9]'), '');
+
+          if (cleanDriverId != null && cleanDriverId.isNotEmpty && cleanDriverId != '0') {
+            if (effectiveExisting != null && effectiveExisting.status != OrderProgressStatus.placed) {
+              statusMap['status'] = effectiveExisting.status.code.toString();
+            }
+
+            // Enrich driver details from driver-profile if not already populated
+            if (!DioConfig.isTestMode &&
+                (!statusMap.containsKey('driver_name') || statusMap['driver_name'] == null)) {
+              final driverProfile = await fetchDriverProfile(cleanDriverId);
+              if (driverProfile != null) {
+                final fName = driverProfile['f_name']?.toString() ?? '';
+                final lName = driverProfile['l_name']?.toString() ?? '';
+                final fullName = '$fName $lName'.trim();
+                if (fullName.isNotEmpty) statusMap['driver_name'] = fullName;
+                if (driverProfile['phone'] != null) statusMap['driver_phone'] = driverProfile['phone'].toString();
+                if (driverProfile['plate_number'] != null) statusMap['driver_plate'] = driverProfile['plate_number'].toString();
+                final candidates = [
+                  driverProfile['profile_picture'],
+                  driverProfile['profile_image'],
+                  driverProfile['car_image'],
+                ];
+                for (final c in candidates) {
+                  final s = c?.toString().trim();
+                  if (s != null && s.isNotEmpty && s.toLowerCase() != 'null') {
+                    statusMap['driver_image'] = s;
+                    break;
+                  }
+                }
+                final vId = driverProfile['vehicle_id']?.toString();
+                if (vId != null && vId.isNotEmpty) {
+                  statusMap['vehicle_id'] = vId;
+                  statusMap['driver_vehicle'] = DriverInfo.resolveVehicleName(vId);
+                }
+              }
+            }
+          }
+
           final propId = statusMap['property_id']?.toString() ??
               (itemsList.isNotEmpty && itemsList.first is Map
                   ? itemsList.first['property_id']?.toString()
-                  : existingOrder?.items.firstOrNull?.item.storeId);
+                  : effectiveExisting?.items.firstOrNull?.item.storeId);
 
           Store? store;
           if (propId != null && propId.isNotEmpty) {
@@ -341,7 +428,7 @@ class OrderService {
             itemsList: itemsList,
             fallbackStore: store,
             orderId: targetId,
-            existingOrder: existingOrder,
+            existingOrder: effectiveExisting,
           );
         }
       },

@@ -9,6 +9,7 @@ import '../screens/corporate/corporate_dashboard_screen.dart';
 import '../screens/corporate/create_corporate_delivery_screen.dart';
 import '../screens/courier/courier_history_screen.dart';
 import '../screens/courier/courier_screen.dart';
+import '../screens/discover/discover_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/main_navigation.dart';
 import '../screens/orders/order_history_screen.dart';
@@ -61,6 +62,10 @@ class AppPages {
     GetPage(
       name: AppRoutes.home,
       page: () => const HomeScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.discover,
+      page: () => const DiscoverScreen(),
     ),
     GetPage(
       name: AppRoutes.search,

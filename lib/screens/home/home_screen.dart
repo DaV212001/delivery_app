@@ -9,8 +9,10 @@ import '../../utils/templates/loaded_widgets_template.dart';
 import '../../widgets/skeletons/skeleton_loaders.dart';
 import 'widgets/circular_categories_bar.dart';
 import 'widgets/delivery_address_pill.dart';
+import 'widgets/home_cart_pill.dart';
 import 'widgets/home_corporate_section.dart';
 import 'widgets/home_courier_section.dart';
+import 'widgets/home_delivery_types_section.dart';
 import 'widgets/home_filter_bottom_sheet.dart';
 import 'widgets/promotional_carousel_section.dart';
 import 'widgets/restaurant_list_item.dart';
@@ -186,9 +188,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       return const HomeCorporateSection();
                     }),
 
+                    const SizedBox(height: 20),
+
+                    // 4. Delivery Types with Images Section (Placed directly above All Nearby)
+                    const HomeDeliveryTypesSection(),
+
                     const SizedBox(height: 24),
 
-                    // 4. "All Restaurants Nearby" Section Header (Matching Screenshot)
+                    // 5. "All Restaurants Nearby" Section Header (Matching Screenshot)
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20.0),
                       child: Row(
@@ -458,7 +465,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
       ),
 
-      // 3. Floating Transparent Small Pill at Top of Home Screen
+      // 3. Floating Transparent Header Pills at Top of Home Screen (Delivery Address + Circular Cart Pill)
       Positioned(
         top: 0,
         left: 0,
@@ -467,14 +474,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           bottom: false,
           child: Padding(
             padding: const EdgeInsets.only(top: 8.0, left: 16.0, right: 16.0),
-            child: Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.88,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: const DeliveryAddressPill(),
+                  ),
                 ),
-                child: const DeliveryAddressPill(),
-              ),
+                const SizedBox(width: 10),
+                const HomeCartPill(),
+              ],
             ),
           ),
         ),

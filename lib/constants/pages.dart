@@ -4,6 +4,7 @@ class AppRoutes {
   static const String signup = '/signup';
   static const String mainNav = '/main';
   static const String home = '/home';
+  static const String discover = '/discover';
   static const String search = '/search';
   static const String restaurantDetail = '/restaurant-detail';
   static const String cart = '/cart';

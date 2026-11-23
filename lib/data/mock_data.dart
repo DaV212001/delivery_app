@@ -1,7 +1,9 @@
 import '../constants/app_assets.dart';
 import '../models/cart_item.dart';
+import '../models/category_model.dart';
 import '../models/delivery_item.dart';
 import 'package:flutter/material.dart';
+import '../models/multilingual_string.dart';
 import '../models/order.dart';
 import '../models/promotion.dart';
 import '../models/special_offer.dart';
@@ -902,6 +904,35 @@ class MockData {
       discountPercent: 15.0,
       imageUrl: AppAssets.avocadoItem,
       storeId: 'store_freshmart',
+    ),
+  ];
+
+  // Delivery Types with Images
+  static final List<CategoryModel> deliveryTypes = [
+    CategoryModel(
+      id: 1,
+      name: MultiLangString.fromJson({'en': 'Habesha Food'}),
+      image: 'https://images.unsplash.com/photo-1541518763669-27fef04b14ea?auto=format&fit=crop&w=600&q=80',
+    ),
+    CategoryModel(
+      id: 2,
+      name: MultiLangString.fromJson({'en': 'ELECTRONICS'}),
+      image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80',
+    ),
+    CategoryModel(
+      id: 3,
+      name: MultiLangString.fromJson({'en': 'MOBAILES AND ACCESSERIES'}),
+      image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02560?auto=format&fit=crop&w=600&q=80',
+    ),
+    CategoryModel(
+      id: 4,
+      name: MultiLangString.fromJson({'en': 'SUPER MARKETS'}),
+      image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=600&q=80',
+    ),
+    CategoryModel(
+      id: 5,
+      name: MultiLangString.fromJson({'en': 'MEDICATIONS'}),
+      image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=600&q=80',
     ),
   ];
 }

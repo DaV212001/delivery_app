@@ -1,3 +1,4 @@
+import '../utils/currency_utils.dart';
 import 'order.dart';
 import 'store.dart';
 
@@ -96,18 +97,25 @@ class CompanyDeliveryOptionModel {
   final int id;
   final String carName;
   final double kmPrice;
+  final String? currency;
 
   const CompanyDeliveryOptionModel({
     required this.id,
     required this.carName,
     required this.kmPrice,
+    this.currency,
   });
+
+  String get displayCurrency => CurrencyUtils.resolveCode(currency);
 
   factory CompanyDeliveryOptionModel.fromJson(Map<String, dynamic> json) {
     return CompanyDeliveryOptionModel(
       id: int.tryParse(json['id']?.toString() ?? '0') ?? 0,
       carName: json['car_name']?.toString() ?? '',
       kmPrice: double.tryParse(json['km_price']?.toString() ?? '0') ?? 0.0,
+      currency: json['currency']?.toString() ??
+          json['currency_code']?.toString() ??
+          json['currency_id']?.toString(),
     );
   }
 
@@ -115,6 +123,7 @@ class CompanyDeliveryOptionModel {
         'id': id,
         'car_name': carName,
         'km_price': kmPrice,
+        if (currency != null) 'currency': currency,
       };
 }
 
@@ -140,6 +149,7 @@ class CompanyOrderModel {
   final double totalKm;
   final double totalPrice;
   final String? dateTime;
+  final String? currency;
 
   final double? fromLatitude;
   final double? fromLongitude;
@@ -172,7 +182,10 @@ class CompanyOrderModel {
     this.totalKm = 0.0,
     this.totalPrice = 0.0,
     this.dateTime,
+    this.currency,
   });
+
+  String get displayCurrency => CurrencyUtils.resolveCode(currency);
 
   factory CompanyOrderModel.fromJson(Map<String, dynamic> json) {
     final fromLat = double.tryParse(json['from_latitude']?.toString() ?? '');
@@ -210,6 +223,9 @@ class CompanyOrderModel {
       totalKm: double.tryParse(json['total_km']?.toString() ?? '0') ?? 0.0,
       totalPrice: double.tryParse(json['total_price']?.toString() ?? '0') ?? 0.0,
       dateTime: json['date_time']?.toString(),
+      currency: json['currency']?.toString() ??
+          json['currency_code']?.toString() ??
+          json['currency_id']?.toString(),
     );
   }
 
@@ -289,7 +305,7 @@ class CompanyOrderModel {
       deliveryFee: (kmPrice * totalKm) > 0 ? (kmPrice * totalKm) : totalPrice,
       taxAndFees: 0.0,
       total: totalPrice,
-      currency: 'ETB',
+      currency: currency ?? 'ETB',
       storeType: StoreType.corporate,
       orderDate: orderDt,
     );

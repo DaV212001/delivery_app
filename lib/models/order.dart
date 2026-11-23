@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import '../config/storage_config.dart';
 import '../constants/app_assets.dart';
 import '../services/property_service.dart';
 import '../utils/currency_utils.dart';
@@ -105,9 +106,16 @@ class DriverInfo {
 
     final name = (rawName != null && rawName.isNotEmpty) ? rawName : 'Driver';
     final phone = (json['driver_phone'] ?? nestedPhone)?.toString().trim() ?? '';
-    final vehicle = (json['driver_vehicle'] ?? json['car_type'])?.toString().trim() ?? 'Delivery Vehicle';
+    String vehicle = (json['driver_vehicle'] ?? json['car_type'])?.toString().trim() ?? '';
+    if (vehicle.startsWith('http://') || vehicle.startsWith('https://') || vehicle.isEmpty) {
+      final vId = json['vehicle_id']?.toString() ?? json['vehicle_type_id']?.toString();
+      vehicle = resolveVehicleName(vId);
+    }
     final plateNumber = (json['driver_plate'] ?? json['plate_number'])?.toString().trim() ?? '';
-    final photoUrl = (json['driver_photo'] ?? json['driver_image'] ?? json['photo_url'])?.toString().trim() ?? AppAssets.driverAvatar;
+    String photoUrl = (json['driver_photo'] ?? json['driver_image'] ?? json['car_image'] ?? json['photo_url'])?.toString().trim() ?? '';
+    if (photoUrl.isEmpty) {
+      photoUrl = AppAssets.driverAvatar;
+    }
     final rating = double.tryParse(json['driver_rating']?.toString() ?? '') ?? 4.9;
 
     return DriverInfo(
@@ -118,6 +126,28 @@ class DriverInfo {
       photoUrl: photoUrl,
       phone: phone,
     );
+  }
+
+  static String resolveVehicleName(dynamic vehicleId) {
+    final id = vehicleId?.toString().replaceAll(RegExp(r'[^0-9]'), '');
+    switch (id) {
+      case '1':
+        return 'Motorbike';
+      case '2':
+        return 'Bajaj';
+      case '3':
+        return 'Car';
+      case '5':
+        return 'Isuzu truck';
+      case '6':
+        return 'ISUZU';
+      case '7':
+        return 'PICK UP';
+      case '8':
+        return 'LOWBED';
+      default:
+        return 'Delivery Vehicle';
+    }
   }
 }
 
@@ -141,6 +171,7 @@ class OrderCreateRequest {
   final num kmPrice;
   final num totalKmPrice;
   final String? destinationFriendlyLocation;
+  final String? currency;
 
   const OrderCreateRequest({
     required this.customerId,
@@ -162,6 +193,7 @@ class OrderCreateRequest {
     this.kmPrice = 13,
     required this.totalKmPrice,
     this.destinationFriendlyLocation,
+    this.currency,
   });
 
   Map<String, dynamic> toJson() => {
@@ -183,6 +215,11 @@ class OrderCreateRequest {
         'delivery_option': deliveryOption,
         'km_price': kmPrice,
         'total_km_price': totalKmPrice,
+        if (currency != null && currency!.trim().isNotEmpty) ...{
+          'currency': currency,
+          if (CurrencyUtils.resolveId(currency) != null)
+            'currency_id': CurrencyUtils.resolveId(currency),
+        },
         'destination_friendly_location': (destinationFriendlyLocation != null &&
                 destinationFriendlyLocation!.trim().isNotEmpty)
             ? destinationFriendlyLocation!.trim()
@@ -421,6 +458,8 @@ class OrderModel {
     return 38.7525;
   }
 
+  factory OrderModel.fromJson(Map<String, dynamic> json) => OrderModel.fromActiveOrderJson(json);
+
   factory OrderModel.fromActiveOrderJson(Map<String, dynamic> json) {
     final orderStatus = parseStatus(json['status']);
 
@@ -453,10 +492,13 @@ class OrderModel {
 
     final propId = json['property_id']?.toString();
     final cachedStore = PropertyService.getCachedProperty(propId);
+    final pid = int.tryParse(propId ?? '');
+    final savedCurrency = pid != null ? ConfigPreference.getPropertyCurrency(pid) : null;
     final rawCurrency = json['currency']?.toString() ??
         json['currency_code']?.toString() ??
         json['currency_id']?.toString() ??
-        cachedStore?.currency;
+        cachedStore?.currency ??
+        savedCurrency;
 
     String rawStoreName = json['property_name']?.toString() ?? json['property']?.toString() ?? '';
     if (rawStoreName.trim().isEmpty || rawStoreName.toLowerCase() == 'null' || rawStoreName.toLowerCase() == 'store') {
@@ -536,7 +578,16 @@ class OrderModel {
     dynamic orderId,
     OrderModel? existingOrder,
   }) {
-    final orderStatus = parseStatus(statusJson['status']);
+    final detailStatus = parseStatus(statusJson['status']);
+    OrderProgressStatus orderStatus = detailStatus;
+
+    // In AMN delivery, /my_active_order is the live source of truth for order status
+    // because /my_order_detail reads from order_details where status is often stale "0".
+    if (existingOrder != null &&
+        existingOrder.status != OrderProgressStatus.placed &&
+        orderStatus == OrderProgressStatus.placed) {
+      orderStatus = existingOrder.status;
+    }
 
     // Order ID Resolution: check orderId arg, order_header_id, order_id, itemsList, existingOrder, id
     String? rawId;
@@ -664,6 +715,12 @@ class OrderModel {
     }
     if (orderCurrency == null || orderCurrency.isEmpty) {
       orderCurrency = cachedStore?.currency;
+    }
+    if (orderCurrency == null || orderCurrency.isEmpty) {
+      final pid = int.tryParse(propId ?? '');
+      if (pid != null) {
+        orderCurrency = ConfigPreference.getPropertyCurrency(pid);
+      }
     }
 
     final parsedItems = <CartItem>[];

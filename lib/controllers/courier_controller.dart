@@ -9,6 +9,7 @@ import '../services/courier_service.dart';
 import '../services/gebeta_location_service.dart';
 import '../services/order_notification_retry_service.dart';
 import '../utils/api_call_status.dart';
+import '../utils/currency_utils.dart';
 import '../utils/location_utils.dart';
 import '../widgets/map/property_location_picker_screen.dart';
 
@@ -46,9 +47,12 @@ class CourierController extends GetxController {
   final startPrice = 0.0.obs;
   final kmPrice = 35.0.obs;
   final calculatedTotalPrice = 0.0.obs;
+  final currency = 'ETB'.obs;
   final carTypeId = 1.obs;
   final carTypeName = 'Motorbike'.obs;
   int currentCityId = CityService.defaultCityId;
+
+  String get displayCurrency => CurrencyUtils.resolveCode(currency.value);
 
   int get currentUserId {
     if (Get.isRegistered<AuthController>()) {
@@ -131,6 +135,9 @@ class CourierController extends GetxController {
     selectedDeliveryOption.value = option;
     startPrice.value = option.startPrice;
     kmPrice.value = option.kmPrice > 0 ? option.kmPrice : 35.0;
+    if (option.currency != null && option.currency!.isNotEmpty) {
+      currency.value = option.currency!;
+    }
     carTypeName.value = option.name;
     final parsedId = int.tryParse(option.id?.toString() ?? '1') ?? 1;
     carTypeId.value = parsedId;

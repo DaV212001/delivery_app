@@ -5,6 +5,9 @@ import 'package:delivery_app/models/currency_model.dart';
 import 'package:delivery_app/models/my_property_model.dart';
 import 'package:delivery_app/models/my_menu_item_model.dart';
 import 'package:delivery_app/models/delivery_item.dart';
+import 'package:delivery_app/models/corporate_model.dart';
+import 'package:delivery_app/models/courier_model.dart';
+import 'package:delivery_app/models/order.dart';
 import 'package:delivery_app/models/special_offer.dart';
 import 'package:delivery_app/controllers/my_property_controller.dart';
 import 'package:delivery_app/controllers/auth_controller.dart';
@@ -309,6 +312,72 @@ void main() {
       expect(CurrencyUtils.resolveId('Br'), 1);
       expect(CurrencyUtils.resolveId('AED'), 2);
       expect(CurrencyUtils.resolveId('Yuan'), 4);
+    });
+
+    test('CourierOrderModel and CompanyOrderModel parse dynamic currency and transfer to OrderModel', () {
+      final courierJson = {
+        'id': 101,
+        'receiver_name': 'Abebe',
+        'receiver_phone': '0911223344',
+        'total_price': 150.0,
+        'currency': 'USD',
+      };
+      final courierOrder = CourierOrderModel.fromJson(courierJson);
+      expect(courierOrder.currency, 'USD');
+      expect(courierOrder.displayCurrency, 'USD');
+      final courierUnified = courierOrder.toOrderModel();
+      expect(courierUnified.currency, 'USD');
+      expect(courierUnified.displayCurrency, 'USD');
+
+      final companyJson = {
+        'id': 202,
+        'total_price': 500.0,
+        'currency_code': 'AED',
+      };
+      final companyOrder = CompanyOrderModel.fromJson(companyJson);
+      expect(companyOrder.currency, 'AED');
+      expect(companyOrder.displayCurrency, 'AED');
+      final companyUnified = companyOrder.toOrderModel();
+      expect(companyUnified.currency, 'AED');
+      expect(companyUnified.displayCurrency, 'AED');
+    });
+
+    test('OrderCreateRequest serializes dynamic currency and currency_id', () {
+      final req = OrderCreateRequest(
+        customerId: 1,
+        location: 'Bole Atlas',
+        date: '2026-11-23',
+        totalQuantity: 2,
+        menuIds: [10],
+        quantities: [2],
+        prices: [50.0],
+        itemTotalPrice: 100.0,
+        totalItem: 1,
+        propertyId: 88,
+        customerLatitude: 9.0,
+        customerLongitude: 38.7,
+        propertyLatitude: 9.0,
+        propertyLongitude: 38.7,
+        totalKmPrice: 30.0,
+        currency: 'USD',
+      );
+      final json = req.toJson();
+      expect(json['currency'], 'USD');
+      expect(json['currency_id'], 3);
+    });
+
+    test('OrderModel.fromJson restores persisted property currency when API omits currency', () async {
+      await ConfigPreference.setPropertyCurrency(88, 'AED');
+      final orderJson = {
+        'id': 999,
+        'property_id': 88,
+        'property_name': 'Dubai Fragrances',
+        'total_price': 250.0,
+        // currency is omitted by backend
+      };
+      final order = OrderModel.fromJson(orderJson);
+      expect(order.currency, 'AED');
+      expect(order.displayCurrency, 'AED');
     });
   });
 }

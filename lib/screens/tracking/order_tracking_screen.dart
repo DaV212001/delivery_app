@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../constants/app_assets.dart';
 import '../../controllers/cart_controller.dart';
 import '../../controllers/order_controller.dart';
@@ -30,6 +31,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   bool _isLoadingDetail = false;
 
   StreamSubscription? _fcmNotificationSub;
+  Timer? _pollTimer;
   Worker? _socketStatusWorker;
   Worker? _socketDriverWorker;
   Worker? _activeOrderWorker;
@@ -104,6 +106,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         }
       });
     }
+
+    // 4. Polling fallback: periodic refresh every 10 seconds while tracking an active order
+    _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (!mounted) return;
+      if (_orderDetail?.status.isDelivered == true || _orderDetail?.status.isCancelled == true) {
+        _pollTimer?.cancel();
+        return;
+      }
+      _fetchFullOrderDetail();
+    });
   }
 
   @override
@@ -170,15 +182,24 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         existingOrder: order,
       );
       if (detail != null && mounted) {
+        final effectiveDetail = (order != null &&
+                order.status != OrderProgressStatus.placed &&
+                detail.status == OrderProgressStatus.placed)
+            ? detail.copyWith(
+                status: order.status,
+                driver: detail.driver ?? order.driver,
+              )
+            : detail;
+
         setState(() {
-          _orderDetail = detail;
+          _orderDetail = effectiveDetail;
         });
         if (Get.isRegistered<OrderController>()) {
           final oc = Get.find<OrderController>();
           if (oc.activeOrder.value == null ||
-              oc.activeOrder.value!.orderId == detail.orderId ||
+              oc.activeOrder.value!.orderId == effectiveDetail.orderId ||
               oc.activeOrder.value!.orderId.replaceAll(RegExp(r'[^0-9]'), '') == targetId) {
-            oc.activeOrder.value = detail;
+            oc.activeOrder.value = effectiveDetail;
           }
         }
       }
@@ -193,6 +214,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _fcmNotificationSub?.cancel();
     _socketStatusWorker?.dispose();
     _socketDriverWorker?.dispose();
@@ -203,92 +225,34 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     super.dispose();
   }
 
-  void _showQuickChatSheet(BuildContext context, String rawOrderId, String driverName) {
-    final cleanId = rawOrderId.replaceAll(RegExp(r'[^0-9]'), '');
-    final orderId = cleanId.isNotEmpty ? cleanId : rawOrderId;
-    final textController = TextEditingController();
-
-    Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.chat_bubble_rounded, color: AppColors.primary, size: 22),
-                const SizedBox(width: 8),
-                Text(
-                  'Message $driverName',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded),
-                  onPressed: () => Get.back(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                "I'm at the main gate",
-                "Please call when outside",
-                "Leave at door",
-                "Take your time!",
-              ].map((msg) {
-                return ActionChip(
-                  label: Text(msg, style: const TextStyle(fontSize: 12)),
-                  onPressed: () {
-                    if (Get.isRegistered<CustomerSocketService>()) {
-                      CustomerSocketService.to.sendChatMessage(orderId, msg);
-                      Get.back();
-                      Get.snackbar('Sent to $driverName', msg, snackPosition: SnackPosition.TOP);
-                    }
-                  },
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: textController,
-                    decoration: InputDecoration(
-                      hintText: 'Type a message...',
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton.filled(
-                  icon: const Icon(Icons.send_rounded),
-                  onPressed: () {
-                    final text = textController.text.trim();
-                    if (text.isNotEmpty && Get.isRegistered<CustomerSocketService>()) {
-                      CustomerSocketService.to.sendChatMessage(orderId, text);
-                      Get.back();
-                      Get.snackbar('Sent to $driverName', text, snackPosition: SnackPosition.TOP);
-                    }
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-      isScrollControlled: true,
-    );
+  Future<void> _callDriver(String phone) async {
+    final clean = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (clean.isEmpty) {
+      Get.snackbar(
+        'phone_number'.tr,
+        'Phone number not available',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+    String dialNumber = clean;
+    if (!dialNumber.startsWith('+') && dialNumber.startsWith('251')) {
+      dialNumber = '+$dialNumber';
+    }
+    final uri = Uri.parse('tel:$dialNumber');
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {
+      Get.snackbar(
+        'phone_number'.tr,
+        'Could not open dialer for $phone',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
   }
 
   @override
@@ -884,48 +848,53 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
+                                    if (order.driver!.phone.isNotEmpty) ...[
+                                      const SizedBox(height: 2),
+                                      InkWell(
+                                        onTap: () => _callDriver(order.driver!.phone),
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.phone_rounded,
+                                              size: 13,
+                                              color: theme.colorScheme.primary,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Flexible(
+                                              child: Text(
+                                                order.driver!.phone,
+                                                style: theme.textTheme.bodySmall?.copyWith(
+                                                  color: theme.colorScheme.primary,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                     const SizedBox(height: 4),
                                     RatingBadge(rating: order.driver!.rating),
                                   ],
                                 ),
                               ),
-                              const SizedBox(width: 4),
-                              // Chat with Driver button
-                              CircleAvatar(
-                                radius: 16,
-                                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                                child: IconButton(
-                                  padding: EdgeInsets.zero,
-                                  iconSize: 16,
-                                  icon: const Icon(
-                                    Icons.chat_bubble_outline_rounded,
-                                    color: AppColors.primary,
-                                  ),
-                                  onPressed: () => _showQuickChatSheet(
-                                    context,
-                                    order.orderId,
-                                    order.driver!.name,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 8),
                               // Call Driver button
                               CircleAvatar(
-                                radius: 16,
+                                radius: 18,
                                 backgroundColor: AppColors.primary.withValues(alpha: 0.12),
                                 child: IconButton(
                                   padding: EdgeInsets.zero,
-                                  iconSize: 16,
+                                  iconSize: 18,
                                   icon: const Icon(
                                     Icons.call_rounded,
                                     color: AppColors.primary,
                                   ),
-                                  onPressed: () {
-                                    Get.snackbar(
-                                      'calling_driver'.tr,
-                                      '${'calling'.tr} ${order.driver!.name} at ${order.driver!.phone}...',
-                                    );
-                                  },
+                                  onPressed: () => _callDriver(order.driver!.phone),
                                 ),
                               ),
                             ],

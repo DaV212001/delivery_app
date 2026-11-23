@@ -73,12 +73,23 @@ class UserProfile {
         ? '$firstName $lastName'.trim()
         : (rawName.isNotEmpty ? rawName : 'User');
 
-    final photo = json['profile_picture']?.toString() ??
-        json['profile_image']?.toString() ??
-        json['avatarUrl']?.toString() ??
-        rawJson['profile_picture']?.toString() ??
-        rawJson['profile_image']?.toString() ??
-        '';
+    String photo = '';
+    for (final candidate in [
+      json['profile_picture'],
+      json['profile_image'],
+      json['avatarUrl'],
+      json['avatar'],
+      rawJson['profile_picture'],
+      rawJson['profile_image'],
+      rawJson['avatarUrl'],
+      rawJson['avatar'],
+    ]) {
+      final s = candidate?.toString().trim();
+      if (s != null && s.isNotEmpty && s.toLowerCase() != 'null') {
+        photo = s;
+        break;
+      }
+    }
 
     final wallet = double.tryParse(json['wallet_amount']?.toString() ??
             rawJson['wallet_amount']?.toString() ??

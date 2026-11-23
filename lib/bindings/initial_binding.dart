@@ -10,6 +10,7 @@ import '../controllers/profile_controller.dart';
 import '../controllers/restaurant_controller.dart';
 import '../core/theme/theme_controller.dart';
 import '../services/customer_socket_service.dart';
+import '../services/property_service.dart';
 import '../services/user_location_service.dart';
 
 class InitialBinding extends Bindings {
@@ -21,6 +22,9 @@ class InitialBinding extends Bindings {
     Get.put(AuthController(), permanent: true);
     Get.put(CartController(), permanent: true);
     Get.put(UserLocationService(), permanent: true);
+
+    // Preload & register supported currencies globally
+    PropertyService.fetchCurrencies();
 
     // 2. Domain controllers lazily initialized via onInit on the screens that need them
     Get.lazyPut<RestaurantController>(() => RestaurantController(), fenix: true);

@@ -4,6 +4,7 @@ import '../../../controllers/restaurant_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../models/special_offer.dart';
 import '../../../utils/api_call_status.dart';
+import '../../../utils/string_utils.dart';
 import '../../../widgets/common/app_widgets.dart';
 import '../../../widgets/skeletons/skeleton_loaders.dart';
 import '../../category/category_stores_screen.dart';
@@ -160,13 +161,13 @@ class _CircularCategoryItemState extends State<_CircularCategoryItem> {
               ),
               const SizedBox(height: 6),
               Text(
-                widget.category.name,
+                StringUtils.normalizeCategoryTitle(widget.category.name),
                 maxLines: 2,
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
                   fontSize: 11,
-                  fontWeight: widget.isSelected ? FontWeight.w700 : FontWeight.w500,
+                  fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.normal,
                   height: 1.15,
                   color: widget.isSelected
                       ? AppColors.primary

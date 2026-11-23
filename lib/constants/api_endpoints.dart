@@ -63,6 +63,7 @@ class ApiEndpoints {
 
   // Profile endpoints
   static String profile(dynamic customerId) => '/profile/$customerId';
+  static String driverProfile(dynamic driverId) => '/driver-profile/$driverId';
   static String walletAmount(dynamic customerId) => '/my_wallet_amount/$customerId';
   static String walletTransactions(dynamic customerId) => '/my_wallet_transaction/$customerId';
   static String deliveryAddresses(dynamic customerId) => '/my-delivery-adress/$customerId';

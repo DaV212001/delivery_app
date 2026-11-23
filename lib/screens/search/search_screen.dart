@@ -29,7 +29,32 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    restaurantController.selectedCategory.value = 'All';
+    restaurantController.searchQuery.value = '';
+    restaurantController.filterRating45.value = false;
+    restaurantController.filterUnder30Min.value = false;
+    restaurantController.filterOffers.value = false;
     super.dispose();
+  }
+
+  List<String> _getCategories() {
+    final list = <String>['All'];
+    if (restaurantController.circularCategories.isNotEmpty) {
+      for (final c in restaurantController.circularCategories) {
+        final name = c.name.trim();
+        if (name.isNotEmpty &&
+            !list.any((existing) => existing.toLowerCase() == name.toLowerCase())) {
+          list.add(name);
+        }
+      }
+    } else {
+      for (final cat in restaurantController.categories) {
+        if (!list.any((existing) => existing.toLowerCase() == cat.toLowerCase())) {
+          list.add(cat);
+        }
+      }
+    }
+    return list;
   }
 
   @override
@@ -85,9 +110,45 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
 
-            // Filter Pills Row
+            // 1. Category Filter Pills Row
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              padding: const EdgeInsets.only(top: 2.0, bottom: 4.0),
+              child: SizedBox(
+                height: 38,
+                child: Obx(() {
+                  final categories = _getCategories();
+                  final selectedCategory = restaurantController.selectedCategory.value;
+
+                  return ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: categories.length,
+                    separatorBuilder: (context, index) => const SizedBox(width: 8),
+                    itemBuilder: (context, index) {
+                      final category = categories[index];
+                      final isSelected =
+                          selectedCategory.toLowerCase() == category.toLowerCase();
+
+                      return PillChip(
+                        label: category == 'All' ? 'all'.tr : category,
+                        isSelected: isSelected,
+                        onTap: () {
+                          if (isSelected && category != 'All') {
+                            restaurantController.selectedCategory.value = 'All';
+                          } else {
+                            restaurantController.selectedCategory.value = category;
+                          }
+                        },
+                      );
+                    },
+                  );
+                }),
+              ),
+            ),
+
+            // 2. Secondary Filter Pills Row
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 20),

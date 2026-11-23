@@ -5,6 +5,7 @@ import '../config/dio_config.dart';
 import '../config/storage_config.dart';
 import '../constants/app_assets.dart';
 import '../data/mock_data.dart';
+import '../models/cart_item.dart';
 import '../models/order.dart';
 import '../models/store.dart';
 import '../screens/wallet/payment_webview_screen.dart';
@@ -12,6 +13,7 @@ import '../services/gebeta_location_service.dart';
 import '../services/order_notification_retry_service.dart';
 import '../services/order_service.dart';
 import '../utils/api_call_status.dart';
+import 'cart_controller.dart';
 import 'profile_controller.dart';
 
 class OrderController extends GetxController {
@@ -116,6 +118,7 @@ class OrderController extends GetxController {
     double? storeLatitude,
     double? storeLongitude,
     String? destinationFriendlyLocation,
+    String? currency,
   }) async {
     final uid = currentCustomerId;
     if (uid == null) {
@@ -172,6 +175,17 @@ class OrderController extends GetxController {
       final effectiveQuantities = (quantities != null && quantities.isNotEmpty) ? quantities : [1];
       final effectivePrices = (prices != null && prices.isNotEmpty) ? prices : [subtotal];
 
+      String? resolvedCurrency = (currency != null && currency.trim().isNotEmpty)
+          ? currency.trim()
+          : null;
+      if (resolvedCurrency == null && Get.isRegistered<CartController>()) {
+        final cart = Get.find<CartController>();
+        if (cart.items.isNotEmpty) {
+          resolvedCurrency = cart.displayCurrency;
+        }
+      }
+      resolvedCurrency ??= ConfigPreference.getPropertyCurrency(propertyId) ?? 'ETB';
+
       final request = OrderCreateRequest(
         customerId: uid,
         location: deliveryAddress,
@@ -192,6 +206,7 @@ class OrderController extends GetxController {
         kmPrice: kmPrice,
         totalKmPrice: effectiveTotalKmPrice,
         destinationFriendlyLocation: resolvedDestinationFriendly,
+        currency: resolvedCurrency,
       );
 
       await OrderService.createOrder(
@@ -203,12 +218,16 @@ class OrderController extends GetxController {
           final orderIdNum = (resData is Map ? resData['id'] : null)?.toString() ??
               '${1000 + DateTime.now().millisecond * 7}';
 
+          final cartItems = Get.isRegistered<CartController>()
+              ? List<CartItem>.from(Get.find<CartController>().items)
+              : <CartItem>[];
+
           final newOrder = OrderModel(
             orderId: '#AMN-$orderIdNum',
             storeName: effectiveName,
             storeImageUrl: effectiveImage,
             orderDate: DateTime.now(),
-            items: [],
+            items: cartItems,
             subtotal: subtotal,
             deliveryFee: effectiveTotalKmPrice.toDouble(),
             taxAndFees: taxAndFees,
@@ -223,6 +242,7 @@ class OrderController extends GetxController {
             deliveryLatitude: effectiveCustLat,
             deliveryLongitude: effectiveCustLng,
             driver: null,
+            currency: resolvedCurrency,
           );
 
           activeOrder.value = newOrder;
@@ -335,15 +355,24 @@ class OrderController extends GetxController {
 
     final detail = await OrderService.fetchOrderDetail(targetId, existingOrder: existing);
     if (detail != null) {
+      final effectiveDetail = (existing != null &&
+              existing.status != OrderProgressStatus.placed &&
+              detail.status == OrderProgressStatus.placed)
+          ? detail.copyWith(
+              status: existing.status,
+              driver: detail.driver ?? existing.driver,
+            )
+          : detail;
+
       final index = activeOrders.indexWhere(
         (o) => o.orderId.replaceAll(RegExp(r'[^0-9]'), '') == targetId,
       );
       if (index != -1) {
-        activeOrders[index] = detail;
+        activeOrders[index] = effectiveDetail;
       }
       if (activeOrder.value == null ||
           activeOrder.value!.orderId.replaceAll(RegExp(r'[^0-9]'), '') == targetId) {
-        activeOrder.value = detail;
+        activeOrder.value = effectiveDetail;
         activeOrder.refresh();
       }
     }

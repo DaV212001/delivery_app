@@ -201,7 +201,7 @@ class CorporateOrderDetailSheet extends StatelessWidget {
                       const Divider(height: 18),
                       _DetailRow(
                         label: 'Rate',
-                        value: '${order.kmPrice.toStringAsFixed(2)} ETB / km',
+                        value: '${order.kmPrice.toStringAsFixed(2)} ${order.displayCurrency} / km',
                         icon: Icons.price_change_outlined,
                       ),
                       const Divider(height: 18),
@@ -215,7 +215,7 @@ class CorporateOrderDetailSheet extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            '${order.totalPrice.toStringAsFixed(2)} ETB',
+                            '${order.totalPrice.toStringAsFixed(2)} ${order.displayCurrency}',
                             style: const TextStyle(
                               color: AppColors.primary,
                               fontWeight: FontWeight.w900,

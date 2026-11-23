@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../controllers/cart_controller.dart';
 import '../../controllers/profile_controller.dart';
 import '../../controllers/restaurant_controller.dart';
-import '../../constants/pages.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/food_item.dart';
 import '../../models/restaurant.dart';
 import '../../widgets/common/app_widgets.dart';
+import '../../widgets/common/floating_cart_bar.dart';
 import '../customization/item_customization_modal.dart';
 
 class RestaurantDetailScreen extends StatefulWidget {
@@ -55,7 +54,6 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final cartController = Get.find<CartController>();
     final restaurantController = Get.find<RestaurantController>();
     final profileController = Get.isRegistered<ProfileController>()
         ? Get.find<ProfileController>()
@@ -372,77 +370,7 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
           ),
 
           // Floating Bottom Sticky Cart Bar
-          Obx(() {
-            final cartCount = cartController.totalItemCount;
-            if (cartCount == 0) return const SizedBox.shrink();
-
-            return Positioned(
-              left: 20,
-              right: 20,
-              bottom: MediaQuery.of(context).padding.bottom + 16,
-              child: GestureDetector(
-                onTap: () => Get.toNamed(AppRoutes.cart),
-                child: Container(
-                  height: 56,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.35),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.25),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '$cartCount',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'view_cart'.tr,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${cartController.total.toStringAsFixed(2)} ${cartController.displayCurrency}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 20),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          }),
+          const FloatingCartBar(),
         ],
       ),
     );

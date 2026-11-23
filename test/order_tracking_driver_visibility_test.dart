@@ -83,6 +83,40 @@ void main() {
       expect(order.driver!.plateNumber, equals('A12345'));
     });
 
+    test('OrderModel.fromOrderDetailJson preserves active status and driver when detail has stale status 0', () {
+      final activeOrder = OrderModel.fromActiveOrderJson({
+        'id': '55',
+        'status': '1',
+        'driver_id': '15',
+        'location': 'Legacy Apartments',
+      });
+      expect(activeOrder.status, equals(OrderProgressStatus.accepted));
+
+      final staleDetailJson = {
+        'id': 90,
+        'order_header_id': '55',
+        'status': '0',
+        'driver_id': '15',
+        'driver_f_name': 'Abel',
+        'driver_l_name': 'Seyoum',
+        'driver_phone': '251944070484',
+        'driver_plate': 'AA55538',
+      };
+
+      final resolvedOrder = OrderModel.fromOrderDetailJson(
+        statusJson: staleDetailJson,
+        itemsList: [],
+        orderId: '55',
+        existingOrder: activeOrder,
+      );
+
+      expect(resolvedOrder.status, equals(OrderProgressStatus.accepted),
+          reason: 'Active status from /my_active_order must not be downgraded by stale status 0');
+      expect(resolvedOrder.hasDriverAccepted, isTrue);
+      expect(resolvedOrder.driver, isNotNull);
+      expect(resolvedOrder.driver!.name, equals('Abel Seyoum'));
+    });
+
     test('NotificationService emits order status notifications via onOrderStatusNotification', () async {
       final received = <Map<String, dynamic>>[];
       final sub = NotificationService.instance.onOrderStatusNotification.listen((data) {
@@ -228,8 +262,9 @@ void main() {
       // Driver card MUST be in the tree
       expect(find.text('Abebe Kebede', skipOffstage: false), findsOneWidget);
       expect(find.text('Toyota Vitz • A12345', skipOffstage: false), findsOneWidget);
+      expect(find.text('+251911223344', skipOffstage: false), findsOneWidget);
       expect(find.byIcon(Icons.call_rounded, skipOffstage: false), findsOneWidget);
-      expect(find.byIcon(Icons.chat_bubble_outline_rounded, skipOffstage: false), findsOneWidget);
+      expect(find.byIcon(Icons.chat_bubble_outline_rounded, skipOffstage: false), findsNothing);
     });
 
     testWidgets('Driver card displays vehicle name without trailing dot when plate is empty', (tester) async {
@@ -278,6 +313,7 @@ void main() {
 
       expect(find.text('Dawit Yohannes', skipOffstage: false), findsOneWidget);
       expect(find.text('Motorbike', skipOffstage: false), findsOneWidget);
+      expect(find.text('+251922334455', skipOffstage: false), findsOneWidget);
       expect(find.text('Motorbike • ', skipOffstage: false), findsNothing);
     });
   });

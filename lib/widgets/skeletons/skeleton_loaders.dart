@@ -43,41 +43,55 @@ class ShimmerRestaurantCardSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 22.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const ShimmerBox(width: 90, height: 90, borderRadius: 16),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const ShimmerBox(width: double.infinity, height: 18, borderRadius: 6),
-                const SizedBox(height: 8),
-                const FractionallySizedBox(
-                  widthFactor: 0.7,
-                  child: ShimmerBox(height: 14, borderRadius: 6),
+          // Hero Banner Skeleton
+          const ShimmerBox(
+            width: double.infinity,
+            height: 185,
+            borderRadius: 18,
+          ),
+          const SizedBox(height: 12),
+          // Store Info Skeleton (Logo + Rows)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const ShimmerBox(width: 44, height: 44, borderRadius: 22),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        ShimmerBox(width: 140, height: 16, borderRadius: 4),
+                        ShimmerBox(width: 40, height: 16, borderRadius: 4),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    const ShimmerBox(width: 90, height: 12, borderRadius: 4),
+                    const SizedBox(height: 8),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Row(
+                        children: const [
+                          ShimmerBox(width: 48, height: 11, borderRadius: 4),
+                          SizedBox(width: 14),
+                          ShimmerBox(width: 52, height: 11, borderRadius: 4),
+                          SizedBox(width: 14),
+                          ShimmerBox(width: 60, height: 11, borderRadius: 4),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Row(
-                    children: const [
-                      ShimmerBox(width: 48, height: 14, borderRadius: 4),
-                      SizedBox(width: 12),
-                      ShimmerBox(width: 70, height: 14, borderRadius: 4),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),

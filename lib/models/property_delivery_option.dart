@@ -1,9 +1,12 @@
+import '../utils/currency_utils.dart';
+
 class PropertyDeliveryOption {
   final dynamic id;
   final String image;
   final String name;
   final double kmPrice;
   final double startPrice;
+  final String? currency;
 
   const PropertyDeliveryOption({
     this.id,
@@ -11,7 +14,10 @@ class PropertyDeliveryOption {
     required this.name,
     required this.kmPrice,
     this.startPrice = 0.0,
+    this.currency,
   });
+
+  String get displayCurrency => CurrencyUtils.resolveCode(currency);
 
   factory PropertyDeliveryOption.fromJson(Map<String, dynamic> json) {
     return PropertyDeliveryOption(
@@ -32,6 +38,9 @@ class PropertyDeliveryOption {
               json['property_start_price']?.toString() ??
               '0') ??
           0.0,
+      currency: json['currency']?.toString() ??
+          json['currency_code']?.toString() ??
+          json['currency_id']?.toString(),
     );
   }
 
@@ -41,6 +50,7 @@ class PropertyDeliveryOption {
     String? name,
     double? kmPrice,
     double? startPrice,
+    String? currency,
   }) {
     return PropertyDeliveryOption(
       id: id ?? this.id,
@@ -48,6 +58,7 @@ class PropertyDeliveryOption {
       name: name ?? this.name,
       kmPrice: kmPrice ?? this.kmPrice,
       startPrice: startPrice ?? this.startPrice,
+      currency: currency ?? this.currency,
     );
   }
 
@@ -57,6 +68,7 @@ class PropertyDeliveryOption {
         'name': name,
         'km_price': kmPrice,
         'start_price': startPrice,
+        if (currency != null) 'currency': currency,
       };
 
   /// Calculates delivery price using Formula A: start_price + (distance_km * km_price)

@@ -4,6 +4,7 @@ import '../../../controllers/profile_controller.dart';
 import '../../../controllers/restaurant_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../models/store.dart';
+import '../../../utils/location_utils.dart';
 import '../../../widgets/common/app_widgets.dart';
 import '../../restaurant/restaurant_detail_screen.dart';
 
@@ -26,22 +27,127 @@ class RestaurantListItem extends StatelessWidget {
         ? Get.find<RestaurantController>()
         : null;
 
-    return InkWell(
-      onTap: () => Get.to(() => RestaurantDetailScreen(restaurant: store)),
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0),
+    final themeColor = isDark ? AppColors.primaryFixedDim : AppColors.primary;
+
+    final rawLocation = (store.friendlyLocation != null && store.friendlyLocation!.isNotEmpty)
+        ? store.friendlyLocation
+        : store.branch;
+    final normalizedLocation = LocationUtils.prettifyAddress(rawLocation);
+    final subtitleText = normalizedLocation.isNotEmpty ? normalizedLocation : store.categoryDescription;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 22.0),
+      child: InkWell(
+        onTap: () => Get.to(() => RestaurantDetailScreen(restaurant: store)),
+        borderRadius: BorderRadius.circular(18),
+        splashColor: AppColors.primary.withValues(alpha: 0.08),
+        highlightColor: Colors.transparent,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 1. Hero / Cover Image Banner with Floating Favorite Button
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: AppNetworkImage(
+                    imageUrl: store.heroImageUrl.isNotEmpty
+                        ? store.heroImageUrl
+                        : (store.logoUrl ?? ''),
+                    height: 185,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+
+                // Floating Favorite Heart Button (Top Right)
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Obx(() {
+                    final isFav = restaurantController?.isFavorite(store.id) ?? false;
+                    return Material(
+                      color: Colors.transparent,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        onTap: () => restaurantController?.toggleFavorite(store.id),
+                        customBorder: const CircleBorder(),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? AppColors.darkSurfaceContainerLow.withValues(alpha: 0.92)
+                                : Colors.white.withValues(alpha: 0.95),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.12),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                            size: 20,
+                            color: isFav
+                                ? AppColors.secondary
+                                : (isDark ? Colors.white70 : const Color(0xFF374151)),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+
+                // Closed Badge Indicator (Top Left if closed)
+                if (store.isPastClosingTime)
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.schedule_rounded,
+                            size: 12,
+                            color: Color(0xFFFBBF24),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'closed'.tr,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // 2. Store Info Section (Logo + Name/Rating + Friendly Location + Metadata)
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 80x80 Square Store Logo / Thumbnail
+                // Circular Store Logo
                 Container(
-                  width: 80,
-                  height: 80,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
+                    shape: BoxShape.circle,
                     border: Border.all(
                       color: isDark
                           ? AppColors.darkOutlineVariant
@@ -49,12 +155,13 @@ class RestaurantListItem extends StatelessWidget {
                       width: 1,
                     ),
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(11),
+                  child: ClipOval(
                     child: AppNetworkImage(
-                      imageUrl: store.heroImageUrl,
-                      width: 80,
-                      height: 80,
+                      imageUrl: (store.logoUrl != null && store.logoUrl!.isNotEmpty)
+                          ? store.logoUrl!
+                          : store.heroImageUrl,
+                      width: 44,
+                      height: 44,
                       fit: BoxFit.cover,
                     ),
                   ),
@@ -62,41 +169,43 @@ class RestaurantListItem extends StatelessWidget {
 
                 const SizedBox(width: 12),
 
-                // Store Information Details
+                // Name, Rating, Friendly Location & Metadata
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Store Name with Star Rating
+                      // Store Name & Star Rating
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Expanded(
                             child: Text(
-                              store.name,
+                              store.displayNameWithBranch,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w700,
-                                fontSize: 15,
+                                fontSize: 16,
+                                letterSpacing: -0.2,
                               ),
                             ),
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 8),
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(
                                 Icons.star_rounded,
-                                size: 16,
-                                color: Color(0xFFF59E0B),
+                                size: 18,
+                                color: AppColors.starGold,
                               ),
-                              const SizedBox(width: 2),
+                              const SizedBox(width: 3),
                               Text(
                                 store.rating.toStringAsFixed(1),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.w700,
-                                  fontSize: 13,
+                                  fontSize: 13.5,
+                                  color: isDark ? Colors.white : const Color(0xFF1F2937),
                                 ),
                               ),
                             ],
@@ -104,102 +213,76 @@ class RestaurantListItem extends StatelessWidget {
                         ],
                       ),
 
+                      // Normalized Friendly Location Subtitle
+                      if (subtitleText.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitleText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.85),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+
                       const SizedBox(height: 6),
 
-                      // Outlined Chips (Distance & Time)
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 4,
-                        children: [
-                          Obx(() {
-                            // Prioritize user's live current GPS location, then selected address
-                            final curLat = restaurantController?.userLat.value ??
-                                profileController?.selectedAddress.value?.latitude;
-                            final curLng = restaurantController?.userLng.value ??
-                                profileController?.selectedAddress.value?.longitude;
+                      // Single-Line Metadata Row: Distance, Time, and Operating Status (Guaranteed single line on all screen sizes)
+                      Obx(() {
+                        final curLat = restaurantController?.userLat.value ??
+                            profileController?.selectedAddress.value?.latitude;
+                        final curLng = restaurantController?.userLng.value ??
+                            profileController?.selectedAddress.value?.longitude;
 
-                            final distBadge = store.formattedDistanceBadgeTo(
-                              userLat: curLat,
-                              userLng: curLng,
-                            );
-                            if (distBadge.isEmpty) return const SizedBox.shrink();
-                            return _InfoBadgeChip(label: distBadge);
-                          }),
-                          _InfoBadgeChip(label: store.formattedTimeBadge),
-                        ],
-                      ),
+                        final dist = store.calculateDistanceTo(userLat: curLat, userLng: curLng) ??
+                            store.distanceKm;
+                        final distText = LocationUtils.formatDistanceKm(dist).toUpperCase();
 
-                      // Property friendly location
-                      if (store.branch != null && store.branch!.isNotEmpty) ...[
-                        const SizedBox(height: 5),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.location_on_outlined,
-                              size: 13,
-                              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.85),
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                store.branch!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                  fontSize: 12,
-                                ),
+                        final timeText = store.deliveryTime.contains('min')
+                            ? store.deliveryTime
+                            : '${store.deliveryTime} mins';
+
+                        final isOpen = store.isOpen;
+                        final statusLabel = isOpen ? 'open_now'.tr : 'closed'.tr;
+                        final statusColor = isOpen
+                            ? const Color(0xFF16A34A)
+                            : const Color(0xFFDC2626);
+
+                        return FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _MetadataItem(
+                                icon: Icons.route_outlined,
+                                iconColor: themeColor,
+                                label: distText,
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
-
-                      // Operating / Schedule status
-                      if (store.openStatusText.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.access_time_rounded,
-                              size: 13,
-                              color: store.isPastClosingTime
-                                  ? const Color(0xFFDC2626)
-                                  : const Color(0xFF16A34A),
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                store.openStatusText,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: store.isPastClosingTime
-                                      ? const Color(0xFFDC2626)
-                                      : theme.colorScheme.onSurfaceVariant,
-                                  fontWeight: store.isPastClosingTime ? FontWeight.w600 : FontWeight.normal,
-                                  fontSize: 12,
-                                ),
+                              const SizedBox(width: 14),
+                              _MetadataItem(
+                                icon: Icons.schedule_rounded,
+                                iconColor: themeColor,
+                                label: timeText,
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
+                              const SizedBox(width: 14),
+                              _MetadataItem(
+                                icon: Icons.circle,
+                                iconSize: 7,
+                                iconColor: statusColor,
+                                label: statusLabel,
+                                labelColor: statusColor,
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
                     ],
                   ),
                 ),
               ],
-            ),
-
-            const SizedBox(height: 12),
-
-            // Subtle divider between list items
-            Divider(
-              height: 1,
-              thickness: 0.8,
-              color: isDark
-                  ? AppColors.darkOutlineVariant.withValues(alpha: 0.5)
-                  : const Color(0xFFF1F5F9),
             ),
           ],
         ),
@@ -208,35 +291,47 @@ class RestaurantListItem extends StatelessWidget {
   }
 }
 
-class _InfoBadgeChip extends StatelessWidget {
+class _MetadataItem extends StatelessWidget {
+  final IconData icon;
+  final double? iconSize;
+  final Color iconColor;
   final String label;
+  final Color? labelColor;
 
-  const _InfoBadgeChip({required this.label});
+  const _MetadataItem({
+    required this.icon,
+    this.iconSize,
+    required this.iconColor,
+    required this.label,
+    this.labelColor,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
-      decoration: BoxDecoration(
-        color: isDark
-            ? AppColors.primary.withValues(alpha: 0.12)
-            : AppColors.primaryContainer.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isDark ? AppColors.primaryFixedDim : AppColors.primary,
-          width: 1,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          icon,
+          size: iconSize ?? 13,
+          color: iconColor,
         ),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: isDark ? AppColors.primaryFixed : AppColors.primary,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: labelColor ??
+                (isDark
+                    ? AppColors.darkOnSurfaceVariant
+                    : const Color(0xFF4B5563)),
+          ),
         ),
-      ),
+      ],
     );
   }
 }

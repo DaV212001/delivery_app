@@ -3,7 +3,8 @@ import 'package:get/get.dart';
 import '../../controllers/cart_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../utils/update_enforcer.dart';
-import 'checkout/cart_screen.dart';
+import '../../widgets/common/floating_cart_bar.dart';
+import 'discover/discover_screen.dart';
 import 'home/home_screen.dart';
 import 'orders/order_history_screen.dart';
 import 'profile/profile_screen.dart';
@@ -36,28 +37,33 @@ class MainNavigationScreen extends StatelessWidget {
     final nav = Get.isRegistered<MainNavigationController>()
         ? Get.find<MainNavigationController>()
         : Get.put(MainNavigationController());
-    final cartController = Get.isRegistered<CartController>()
-        ? Get.find<CartController>()
-        : Get.put(CartController());
+    if (!Get.isRegistered<CartController>()) {
+      Get.put(CartController());
+    }
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      body: Obx(() {
-        final current = nav.currentIndex.value;
-        return IndexedStack(
-          index: current,
-          children: [
-            const HomeScreen(),
-            nav.isTabVisited(1) ? const CartScreen() : const SizedBox.shrink(),
-            nav.isTabVisited(2) ? const OrderHistoryScreen() : const SizedBox.shrink(),
-            nav.isTabVisited(3) ? const ProfileScreen() : const SizedBox.shrink(),
-          ],
-        );
-      }),
+      body: Stack(
+        children: [
+          Obx(() {
+            final current = nav.currentIndex.value;
+            return IndexedStack(
+              index: current,
+              children: [
+                const HomeScreen(),
+                nav.isTabVisited(1) ? const DiscoverScreen() : const SizedBox.shrink(),
+                nav.isTabVisited(2) ? const OrderHistoryScreen() : const SizedBox.shrink(),
+                nav.isTabVisited(3) ? const ProfileScreen() : const SizedBox.shrink(),
+              ],
+            );
+          }),
+          // Floating Bottom Sticky Cart Bar right above bottom nav when cart has items
+          const FloatingCartBar(bottom: 12),
+        ],
+      ),
       bottomNavigationBar: Obx(() {
         final current = nav.currentIndex.value;
-        final cartCount = cartController.totalItemCount;
 
         return Container(
           decoration: BoxDecoration(
@@ -85,10 +91,9 @@ class MainNavigationScreen extends StatelessWidget {
                     onTap: () => nav.changePage(0),
                   ),
                   _NavItem(
-                    icon: Icons.shopping_bag_outlined,
-                    label: 'cart'.tr,
+                    icon: Icons.search_rounded,
+                    label: 'discover'.tr,
                     isSelected: current == 1,
-                    badgeCount: cartCount,
                     onTap: () => nav.changePage(1),
                   ),
                   _NavItem(
@@ -118,14 +123,12 @@ class _NavItem extends StatelessWidget {
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
-  final int badgeCount;
 
   const _NavItem({
     required this.icon,
     required this.label,
     required this.isSelected,
     required this.onTap,
-    this.badgeCount = 0,
   });
 
   @override
@@ -143,37 +146,7 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Icon(icon, color: color, size: 24),
-                if (badgeCount > 0)
-                  Positioned(
-                    top: -4,
-                    right: -8,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
-                      ),
-                      child: Text(
-                        '$badgeCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+            Icon(icon, color: color, size: 24),
             const SizedBox(height: 4),
             Text(
               label,

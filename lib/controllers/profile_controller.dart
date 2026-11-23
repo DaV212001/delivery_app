@@ -629,10 +629,19 @@ class ProfileController extends GetxController {
         success = true;
 
         if (newUrl.isNotEmpty) {
+          try {
+            PaintingBinding.instance.imageCache.clear();
+            PaintingBinding.instance.imageCache.clearLiveImages();
+          } catch (_) {}
           await ConfigPreference.setUserAvatar(newUrl);
           if (Get.isRegistered<AuthController>()) {
             final auth = Get.find<AuthController>();
             auth.user = auth.user.copyWith(avatarUrl: newUrl);
+            await auth.refreshUserProfile();
+          }
+        } else {
+          if (Get.isRegistered<AuthController>()) {
+            await Get.find<AuthController>().refreshUserProfile();
           }
         }
 

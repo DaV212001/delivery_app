@@ -505,6 +505,37 @@ void main() {
       } catch (_) {}
     });
 
+    test('AuthService.uploadProfileImage correctly extracts profile_picture when profile_image is empty string', () async {
+      final tempDir = Directory.systemTemp;
+      final tempFile = File('${tempDir.path}/test_avatar_pic.jpg')..writeAsStringSync('fake-image-bytes');
+
+      dioAdapter.onPost(
+        ApiEndpoints.customerChangeProfileImage,
+        (server) => server.reply(200, {
+          'message': 'Profile Image Updated Succesfully',
+          'data': {
+            'id': 2,
+            'profile_image': '',
+            'profile_picture': 'https://api.amnplc.com/public/storage/profileImage/1795435015.jpg',
+          },
+        }),
+        data: Matchers.any,
+      );
+
+      String uploadedUrl = '';
+      await AuthService.uploadProfileImage(
+        userId: 2,
+        filePath: tempFile.path,
+        onSuccess: (url) => uploadedUrl = url,
+        onFailure: (err) => fail('Should not fail: $err'),
+      );
+
+      expect(uploadedUrl, 'https://api.amnplc.com/public/storage/profileImage/1795435015.jpg');
+      try {
+        if (tempFile.existsSync()) tempFile.deleteSync();
+      } catch (_) {}
+    });
+
     test('AuthService.uploadProfileImage falls back to /change-profile-image on 404', () async {
       final tempDir = Directory.systemTemp;
       final tempFile = File('${tempDir.path}/test_avatar_fallback.jpg')..writeAsStringSync('fake-image-bytes');

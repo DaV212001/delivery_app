@@ -1659,6 +1659,7 @@ class _CartScreenState extends State<CartScreen> {
                                       kmPrice: kmPrice,
                                       totalKmPrice: totalKmPrice,
                                       destinationFriendlyLocation: _currentLocationAddress,
+                                      currency: cartController.displayCurrency,
                                     );
                                   }
 

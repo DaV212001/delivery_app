@@ -347,8 +347,8 @@ class _CourierScreenState extends State<CourierScreen> {
                       label: 'Vehicle',
                       value: _courierController.selectedDeliveryOption.value?.name ?? _courierController.carTypeName.value,
                       subValue: _courierController.startPrice.value > 0
-                          ? '${_courierController.startPrice.value.toStringAsFixed(0)} Base + ${(_courierController.selectedDeliveryOption.value?.kmPrice ?? _courierController.kmPrice.value).toStringAsFixed(0)} ETB/km'
-                          : '${(_courierController.selectedDeliveryOption.value?.kmPrice ?? _courierController.kmPrice.value).toStringAsFixed(0)} ETB/km',
+                          ? '${_courierController.startPrice.value.toStringAsFixed(0)} Base + ${(_courierController.selectedDeliveryOption.value?.kmPrice ?? _courierController.kmPrice.value).toStringAsFixed(0)} ${_courierController.displayCurrency}/km'
+                          : '${(_courierController.selectedDeliveryOption.value?.kmPrice ?? _courierController.kmPrice.value).toStringAsFixed(0)} ${_courierController.displayCurrency}/km',
                       icon: Icons.two_wheeler_rounded,
                       iconColor: AppColors.primary,
                     ),
@@ -402,7 +402,7 @@ class _CourierScreenState extends State<CourierScreen> {
                           ),
                         ),
                         Text(
-                          '${_courierController.calculatedTotalPrice.value.toStringAsFixed(2)} ETB',
+                          '${_courierController.calculatedTotalPrice.value.toStringAsFixed(2)} ${_courierController.displayCurrency}',
                           style: const TextStyle(
                             color: AppColors.primary,
                             fontWeight: FontWeight.bold,
@@ -869,7 +869,7 @@ class _CourierScreenState extends State<CourierScreen> {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    '(${_courierController.kmPrice.value.toStringAsFixed(0)} ETB/km)',
+                                    '(${_courierController.kmPrice.value.toStringAsFixed(0)} ${_courierController.displayCurrency}/km)',
                                     style: theme.textTheme.bodySmall?.copyWith(
                                       color: AppColors.onSurfaceVariant,
                                     ),
@@ -877,7 +877,7 @@ class _CourierScreenState extends State<CourierScreen> {
                                 ],
                               ),
                               Text(
-                                '${_courierController.calculatedTotalPrice.value.toStringAsFixed(2)} ETB',
+                                '${_courierController.calculatedTotalPrice.value.toStringAsFixed(2)} ${_courierController.displayCurrency}',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w800,
                                   fontSize: 16,
@@ -1001,8 +1001,8 @@ class _CourierScreenState extends State<CourierScreen> {
                                                       ),
                                                       Text(
                                                         opt.startPrice > 0
-                                                            ? '${opt.startPrice.toStringAsFixed(0)} Base + ${opt.kmPrice.toStringAsFixed(0)} ETB/km'
-                                                            : '${opt.kmPrice.toStringAsFixed(0)} ETB/km',
+                                                            ? '${opt.startPrice.toStringAsFixed(0)} Base + ${opt.kmPrice.toStringAsFixed(0)} ${opt.displayCurrency}/km'
+                                                            : '${opt.kmPrice.toStringAsFixed(0)} ${opt.displayCurrency}/km',
                                                         style: theme.textTheme.bodySmall?.copyWith(
                                                           color: AppColors.onSurfaceVariant,
                                                           fontSize: 11,
@@ -1013,7 +1013,7 @@ class _CourierScreenState extends State<CourierScreen> {
                                                 ),
                                                 if (dist > 0)
                                                   Text(
-                                                    '${optTotal.toStringAsFixed(2)} ETB',
+                                                    '${optTotal.toStringAsFixed(2)} ${opt.displayCurrency}',
                                                     style: theme.textTheme.bodyMedium?.copyWith(
                                                       fontWeight: FontWeight.w700,
                                                       color: AppColors.primary,
@@ -1353,7 +1353,7 @@ class _CourierScreenState extends State<CourierScreen> {
                                     const SizedBox(height: 2),
                                     Text(
                                       isInsufficient
-                                          ? '${'insufficient_wallet_balance'.tr} (-${diff.toStringAsFixed(2)} ETB)'
+                                          ? '${'insufficient_wallet_balance'.tr} (-${diff.toStringAsFixed(2)} ${_courierController.displayCurrency})'
                                           : 'ready_to_pay'.tr,
                                       style: theme.textTheme.bodySmall?.copyWith(
                                         color: isInsufficient
@@ -1374,7 +1374,7 @@ class _CourierScreenState extends State<CourierScreen> {
                                 )
                               else
                                 Text(
-                                  '${walletBalance.toStringAsFixed(2)} ETB',
+                                  '${walletBalance.toStringAsFixed(2)} ${_courierController.displayCurrency}',
                                   style: theme.textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w800,
                                     color: isInsufficient ? AppColors.error : AppColors.primary,

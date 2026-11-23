@@ -331,7 +331,7 @@ class _CreateCorporateDeliveryScreenState
                                       ),
                                     ),
                                     Text(
-                                      '${v.kmPrice.toStringAsFixed(2)} ETB / km',
+                                      '${v.kmPrice.toStringAsFixed(2)} ${v.displayCurrency} / km',
                                       style:
                                           theme.textTheme.bodySmall?.copyWith(
                                         color: AppColors.onSurfaceVariant,
@@ -438,7 +438,7 @@ class _CreateCorporateDeliveryScreenState
                         ),
                       ),
                       Text(
-                        '${selectedVehicle?.kmPrice.toStringAsFixed(2) ?? "0.00"} ETB',
+                        '${selectedVehicle?.kmPrice.toStringAsFixed(2) ?? "0.00"} ${selectedVehicle?.displayCurrency ?? "ETB"}',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -456,7 +456,7 @@ class _CreateCorporateDeliveryScreenState
                         ),
                       ),
                       Text(
-                        '${totalPrice.toStringAsFixed(2)} ETB',
+                        '${totalPrice.toStringAsFixed(2)} ${selectedVehicle?.displayCurrency ?? "ETB"}',
                         style: const TextStyle(
                           color: AppColors.primary,
                           fontWeight: FontWeight.w900,

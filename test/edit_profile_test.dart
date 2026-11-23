@@ -425,5 +425,36 @@ void main() {
         if (tempFile.existsSync()) tempFile.deleteSync();
       } catch (_) {}
     });
+
+    test('ProfileController.uploadProfileImage handles empty profile_image and populates from profile_picture', () async {
+      final tempDir = Directory.systemTemp;
+      final tempFile = File('${tempDir.path}/test_upload_avatar_pic.jpg')..writeAsStringSync('dummy');
+
+      dioAdapter.onPost(
+        ApiEndpoints.customerChangeProfileImage,
+        (server) => server.reply(200, {
+          'message': 'Profile Image Updated Succesfully',
+          'data': {
+            'id': 2,
+            'profile_image': '',
+            'profile_picture': 'https://api.amnplc.com/public/storage/profileImage/real_backend_pic.jpg',
+          },
+        }),
+        data: Matchers.any,
+      );
+
+      final profileCtrl = Get.find<ProfileController>();
+      final authCtrl = Get.find<AuthController>();
+
+      final result = await profileCtrl.uploadProfileImage(tempFile.path);
+
+      expect(result, true);
+      expect(authCtrl.user.avatarUrl, 'https://api.amnplc.com/public/storage/profileImage/real_backend_pic.jpg');
+      expect(ConfigPreference.getUserAvatar(), 'https://api.amnplc.com/public/storage/profileImage/real_backend_pic.jpg');
+
+      try {
+        if (tempFile.existsSync()) tempFile.deleteSync();
+      } catch (_) {}
+    });
   });
 }

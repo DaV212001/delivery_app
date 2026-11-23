@@ -5,16 +5,20 @@ import '../../core/theme/app_colors.dart';
 import '../../models/special_offer.dart';
 import '../../models/store.dart';
 import '../../services/property_service.dart';
+import '../../utils/string_utils.dart';
 import '../../widgets/common/app_widgets.dart';
+import '../../widgets/common/floating_cart_bar.dart';
 import '../home/widgets/home_filter_bottom_sheet.dart';
 import '../home/widgets/restaurant_list_item.dart';
 
 class CategoryStoresScreen extends StatefulWidget {
   final CircularCategory category;
+  final bool isDeliveryType;
 
   const CategoryStoresScreen({
     super.key,
     required this.category,
+    this.isDeliveryType = false,
   });
 
   @override
@@ -52,11 +56,14 @@ class _CategoryStoresScreenState extends State<CategoryStoresScreen>
     ));
     _entranceController.forward();
 
-    // Fetch stores specifically associated with this category from the API
+    // Fetch stores specifically associated with this category or delivery type from the API
     final catId = int.tryParse(widget.category.id);
     if (catId != null && catId > 0) {
       _isLoadingCategoryStores.value = true;
-      PropertyService.fetchStoresByCategory(catId).then((fetched) {
+      final future = widget.isDeliveryType
+          ? PropertyService.fetchStoresByDeliveryType(catId)
+          : PropertyService.fetchStoresByCategory(catId);
+      future.then((fetched) {
         if (mounted && fetched.isNotEmpty) {
           _categoryStores.assignAll(fetched);
         }
@@ -122,7 +129,7 @@ class _CategoryStoresScreenState extends State<CategoryStoresScreen>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final controller = Get.find<RestaurantController>();
-    final cleanCategoryTitle = widget.category.name.replaceAll('\n', ' ');
+    final cleanCategoryTitle = StringUtils.normalizeCategoryTitle(widget.category.name);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -247,8 +254,10 @@ class _CategoryStoresScreenState extends State<CategoryStoresScreen>
           const SizedBox(width: 8),
         ],
       ),
-      body: SafeArea(
-        child: FadeTransition(
+      body: Stack(
+        children: [
+          SafeArea(
+            child: FadeTransition(
           opacity: _fadeAnimation,
           child: SlideTransition(
             position: _slideAnimation,
@@ -429,12 +438,15 @@ class _CategoryStoresScreenState extends State<CategoryStoresScreen>
               );
             }),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 80),
           ],
         ),
       ),
     ),
   ),
+  const FloatingCartBar(),
+],
+),
 );
   }
 }

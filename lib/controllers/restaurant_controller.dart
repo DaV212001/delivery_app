@@ -23,6 +23,7 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
   final promotions = <Promotion>[].obs;
   final specialOffers = <SpecialOffer>[].obs;
   final circularCategories = <CircularCategory>[].obs;
+  final deliveryTypes = <CategoryModel>[].obs;
   final selectedCircularCategory = ''.obs;
   final favorites = <String>{}.obs;
 
@@ -69,6 +70,7 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
       promotions.assignAll(MockData.promotions);
       specialOffers.assignAll(MockData.specialOffers);
       circularCategories.assignAll(MockData.circularCategories);
+      deliveryTypes.assignAll(MockData.deliveryTypes);
     } else {
       loadRestaurants();
       requestLocationAndCalculateDistances();
@@ -234,6 +236,7 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
         PropertyService.fetchProperties(),
         PropertyService.fetchFeaturedStores(),
         PropertyService.fetchNearbyProperties(latitude: effectiveLat, longitude: effectiveLng, page: 1),
+        PropertyService.fetchDeliveryTypes(),
       ]);
 
       final apiCategories = results[0] as List<CategoryModel>;
@@ -242,6 +245,7 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
       final apiProperties = results[3] as List<Store>;
       final apiFeatured = results[4] as List<Store>;
       final apiNearby = results[5] as PaginatedProperties;
+      final apiDeliveryTypes = results[6] as List<CategoryModel>;
 
       nearbyCurrentPage.value = apiNearby.currentPage;
       nearbyLastPage.value = apiNearby.lastPage;
@@ -331,7 +335,16 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
         specialOffers.clear();
       }
 
-      // 4. Properties / Stores: prioritize nearby properties first, followed by others
+      // 4. Delivery Types
+      if (apiDeliveryTypes.isNotEmpty) {
+        deliveryTypes.assignAll(apiDeliveryTypes);
+      } else if (DioConfig.isTestMode) {
+        deliveryTypes.assignAll(MockData.deliveryTypes);
+      } else {
+        deliveryTypes.clear();
+      }
+
+      // 5. Properties / Stores: prioritize nearby properties first, followed by others
       final combinedStores = <Store>[];
       final seenIds = <String>{};
 
@@ -364,6 +377,7 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
         promotions.assignAll(MockData.promotions);
         specialOffers.assignAll(MockData.specialOffers);
         circularCategories.assignAll(MockData.circularCategories);
+        deliveryTypes.assignAll(MockData.deliveryTypes);
         status.value = ApiCallStatus.success;
       } else {
         status.value = ApiCallStatus.error;
@@ -384,13 +398,14 @@ class RestaurantController extends GetxController with WidgetsBindingObserver {
       if (selectedCategory.value != 'All') {
         final cat = selectedCategory.value.toLowerCase();
         final matchesCuisine = r.categoryDescription.toLowerCase().contains(cat);
-        final matchesCatList = r.categories.any((c) => c.toLowerCase() == cat);
-        final matchesType = (cat == 'groceries' && r.type == StoreType.grocery) ||
-            (cat == 'electronics' && r.type == StoreType.electronics) ||
-            (cat == 'pharmacy' && r.type == StoreType.pharmacy) ||
-            (cat == 'food' && r.type == StoreType.restaurant) ||
-            (cat == 'flowers' && r.type == StoreType.flowers) ||
-            (cat == 'courier' && r.type == StoreType.courier);
+        final matchesCatList = r.categories.any((c) =>
+            c.toLowerCase().contains(cat) || cat.contains(c.toLowerCase()));
+        final matchesType = (cat.contains('grocer') && r.type == StoreType.grocery) ||
+            (cat.contains('electr') && r.type == StoreType.electronics) ||
+            (cat.contains('pharm') && r.type == StoreType.pharmacy) ||
+            (cat.contains('food') && r.type == StoreType.restaurant) ||
+            (cat.contains('flower') && r.type == StoreType.flowers) ||
+            (cat.contains('courier') && r.type == StoreType.courier);
         if (!matchesCuisine && !matchesCatList && !matchesType) {
           return false;
         }

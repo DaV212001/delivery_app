@@ -384,7 +384,7 @@ class CourierOrderCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '${order.totalPrice.toStringAsFixed(2)} ETB',
+                    '${order.totalPrice.toStringAsFixed(2)} ${order.displayCurrency}',
                     style: const TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.bold,

@@ -215,22 +215,37 @@ class AuthService {
       if (response.data is Map) {
         final map = response.data as Map;
         final data = map['data'];
-        if (data is Map) {
-          newUrl = data['profile_image']?.toString() ??
-              data['image']?.toString() ??
-              data['url']?.toString() ??
-              data['avatar']?.toString() ??
-              '';
-        } else if (data is String && data.isNotEmpty) {
-          newUrl = data;
-        } else {
-          newUrl = map['profile_image']?.toString() ??
-              map['image']?.toString() ??
-              map['url']?.toString() ??
-              '';
+
+        String? extractUrl(dynamic source) {
+          if (source is! Map) return null;
+          final candidates = [
+            source['profile_picture'],
+            source['profile_image'],
+            source['image'],
+            source['url'],
+            source['avatar'],
+            source['avatar_url'],
+          ];
+          for (final c in candidates) {
+            final s = c?.toString().trim();
+            if (s != null && s.isNotEmpty && s.toLowerCase() != 'null') {
+              return s;
+            }
+          }
+          return null;
         }
-      } else if (response.data is String) {
-        newUrl = response.data.toString();
+
+        if (data is Map) {
+          newUrl = extractUrl(data) ?? '';
+        } else if (data is String && data.trim().isNotEmpty && data.trim().toLowerCase() != 'null') {
+          newUrl = data.trim();
+        }
+
+        if (newUrl.isEmpty) {
+          newUrl = extractUrl(map) ?? '';
+        }
+      } else if (response.data is String && response.data.toString().trim().isNotEmpty) {
+        newUrl = response.data.toString().trim();
       }
       onSuccess(newUrl);
     }
