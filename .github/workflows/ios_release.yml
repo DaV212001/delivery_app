@@ -11,19 +11,23 @@ on:
         description: 'Version Name (e.g. 1.0.20)'
         required: false
         default: ''
+      runner:
+        description: 'macOS Runner (e.g. xcode-27, macos-latest)'
+        required: false
+        default: 'xcode-27'
       xcode_version:
-        description: 'Xcode / iOS SDK Version (e.g. 27, 26.6, default)'
+        description: 'Xcode / iOS SDK Version (e.g. default, 27, 26.6)'
         required: false
         default: 'default'
       upload_to_testflight:
         description: 'Upload IPA to TestFlight (true/false)'
         required: false
-        default: 'true'
+        default: 'false'
 
 jobs:
   build-and-release:
     name: Build & Upload IPA to TestFlight
-    runs-on: macos-latest
+    runs-on: ${{ github.event.inputs.runner || 'xcode-27' }}
     timeout-minutes: 45
 
     steps:
