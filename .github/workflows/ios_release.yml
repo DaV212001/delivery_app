@@ -14,11 +14,11 @@ on:
       xcode_version:
         description: 'Xcode / iOS SDK Version (e.g. 27, 26.6, default)'
         required: false
-        default: '27'
+        default: 'default'
       upload_to_testflight:
         description: 'Upload IPA to TestFlight (true/false)'
         required: false
-        default: 'false'
+        default: 'true'
 
 jobs:
   build-and-release:

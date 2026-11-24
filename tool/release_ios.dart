@@ -210,7 +210,7 @@ class IOSReleaseConfig {
     required this.dryRun,
     required this.watch,
     this.upload = true,
-    this.xcodeVersion = '27',
+    this.xcodeVersion = 'default',
     required this.showHelp,
   });
 
@@ -220,7 +220,7 @@ class IOSReleaseConfig {
     bool dryRun = false;
     bool watch = true;
     bool upload = true;
-    String xcodeVersion = '27';
+    String xcodeVersion = 'default';
     bool showHelp = false;
 
     for (final arg in args) {
@@ -276,7 +276,7 @@ class IOSReleaseConfig {
     print('Options:');
     print('  --bump=<type>       Bumping strategy: build, patch, minor, major, none (default: none)');
     print('  --version=<x.y.z+n> Override version directly');
-    print('  --xcode=<version>   Target Xcode / iOS SDK version (default: 27)');
+    print('  --xcode=<version>   Target Xcode / iOS SDK version (default: runner default)');
     print('  --no-upload         Compile and package IPA without uploading to TestFlight');
     print('  --dry-run           Preview actions without pushing or triggering CI');
     print('  --no-watch          Trigger workflow and return immediately without streaming logs');
