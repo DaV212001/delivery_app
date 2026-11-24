@@ -30,6 +30,8 @@ void main(List<String> args) async {
   printHeader('AMN Delivery — iOS TestFlight Cloud Release');
   print('Configuration:');
   print('  Bump Type:     ${config.bumpType}');
+  print('  Target Xcode:  ${config.xcodeVersion}');
+  print('  Upload to TF:  ${config.upload ? "YES" : "NO"}');
   print('  Dry Run:       ${config.dryRun ? "YES (No changes will be triggered)" : "NO"}');
   print('  Watch Logs:    ${config.watch ? "YES" : "NO"}');
   print('');
@@ -81,6 +83,10 @@ void main(List<String> args) async {
     'build_number=${newVersion.buildNumber}',
     '-f',
     'version_name=${newVersion.versionName}',
+    '-f',
+    'upload_to_testflight=${config.upload ? "true" : "false"}',
+    '-f',
+    'xcode_version=${config.xcodeVersion}',
   ];
 
   final triggerProc = await Process.run('gh', ghArgs, workingDirectory: projectDir.path);
@@ -194,6 +200,8 @@ class IOSReleaseConfig {
   final String? customVersion;
   final bool dryRun;
   final bool watch;
+  final bool upload;
+  final String xcodeVersion;
   final bool showHelp;
 
   IOSReleaseConfig({
@@ -201,6 +209,8 @@ class IOSReleaseConfig {
     required this.customVersion,
     required this.dryRun,
     required this.watch,
+    this.upload = true,
+    this.xcodeVersion = '27',
     required this.showHelp,
   });
 
@@ -209,6 +219,8 @@ class IOSReleaseConfig {
     String? customVersion;
     bool dryRun = false;
     bool watch = true;
+    bool upload = true;
+    String xcodeVersion = '27';
     bool showHelp = false;
 
     for (final arg in args) {
@@ -218,6 +230,10 @@ class IOSReleaseConfig {
         dryRun = true;
       } else if (arg == '--no-watch') {
         watch = false;
+      } else if (arg == '--no-upload' || arg == '--upload=false') {
+        upload = false;
+      } else if (arg.startsWith('--xcode=')) {
+        xcodeVersion = arg.substring('--xcode='.length);
       } else if (arg.startsWith('--bump=')) {
         final val = arg.substring('--bump='.length).toLowerCase();
         switch (val) {
@@ -247,6 +263,8 @@ class IOSReleaseConfig {
       customVersion: customVersion,
       dryRun: dryRun,
       watch: watch,
+      upload: upload,
+      xcodeVersion: xcodeVersion,
       showHelp: showHelp,
     );
   }
@@ -258,6 +276,8 @@ class IOSReleaseConfig {
     print('Options:');
     print('  --bump=<type>       Bumping strategy: build, patch, minor, major, none (default: none)');
     print('  --version=<x.y.z+n> Override version directly');
+    print('  --xcode=<version>   Target Xcode / iOS SDK version (default: 27)');
+    print('  --no-upload         Compile and package IPA without uploading to TestFlight');
     print('  --dry-run           Preview actions without pushing or triggering CI');
     print('  --no-watch          Trigger workflow and return immediately without streaming logs');
     print('  --help, -h          Show this help message');
